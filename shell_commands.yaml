@@ -5,3 +5,4 @@ kblue_login: 'flock /tmp/kblue_write.lock /config/scripts/kblue_login.sh'
 backup_config: "/config/scripts/backup_config.sh"
 rainviewer_check: >
   python3 /config/scripts/rainviewer_alert.py
+ha_git_pull: "/config/scripts/ha_git_pull.sh"
