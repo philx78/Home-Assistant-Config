@@ -7,3 +7,7 @@
       name: "KBlue User Cookie"
       command: "grep 'user' /config/kblue_site_session_raw.txt | awk '{print $NF}'"
       scan_interval: 180
+  - sensor:
+      name: "Config Git Commit"
+      command: "git -c safe.directory=/config -C /config rev-parse --short HEAD"
+      scan_interval: 86400
