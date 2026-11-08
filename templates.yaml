@@ -1824,6 +1824,9 @@
 # Sono sensori con trigger (aggiornati a ogni cambio dei sensori grezzi e comunque
 # una volta al minuto): this.state e' l'ultimo valore buono, e viene ripristinato
 # anche dopo un riavvio. I climate (climate.yaml) leggono da qui.
+# Se non c'e' ancora nessun valore buono (primo avvio, nessun dato valido) lo stato e'
+# 'unknown' invece di 0 / off: niente zeri finti nei grafici e nelle statistiche, e i
+# climate usano il sensore grezzo (has_value) finche' il sensore stabile non si valorizza.
 # ==============================================================================
 
   - trigger:
@@ -1846,7 +1849,7 @@
         state: >
           {% set raw = states('sensor.temperatura_salone_kblue') | float(0) %}
           {% set prec = this.state | float(0) %}
-          {{ raw if raw > 0 else prec }}
+          {{ raw if raw > 0 else (prec if prec > 0 else 'unknown') }}
       - name: "Target Stabile Salone"
         unique_id: target_stabile_salone
         unit_of_measurement: "°C"
@@ -1854,7 +1857,7 @@
         state: >
           {% set raw = states('sensor.target_temperatura_salone_kblue') | float(0) %}
           {% set prec = this.state | float(0) %}
-          {{ raw if raw > 0 else prec }}
+          {{ raw if raw > 0 else (prec if prec > 0 else 'unknown') }}
       - name: "Stato Stabile Salone"
         unique_id: stato_stabile_salone
         state: >
@@ -1863,7 +1866,7 @@
           {% set g = states('sensor.target_temperatura_salone_kblue') | float(0) %}
           {% if raw in ['on','off'] and t > 0 and g > 0 %}{{ raw }}
           {% elif this.state in ['on','off'] %}{{ this.state }}
-          {% else %}{{ raw if raw in ['on','off'] else 'off' }}{% endif %}
+          {% else %}unknown{% endif %}
       - name: "Riscaldamento Stabile Salone"
         unique_id: riscaldamento_stabile_salone
         state: >
@@ -1872,7 +1875,7 @@
           {% set g = states('sensor.target_temperatura_salone_kblue') | float(0) %}
           {% if raw in ['on','off'] and t > 0 and g > 0 %}{{ raw }}
           {% elif this.state in ['on','off'] %}{{ this.state }}
-          {% else %}{{ raw if raw in ['on','off'] else 'off' }}{% endif %}
+          {% else %}unknown{% endif %}
 
   - trigger:
       - platform: state
@@ -1894,7 +1897,7 @@
         state: >
           {% set raw = states('sensor.temperatura_cucina_kblue') | float(0) %}
           {% set prec = this.state | float(0) %}
-          {{ raw if raw > 0 else prec }}
+          {{ raw if raw > 0 else (prec if prec > 0 else 'unknown') }}
       - name: "Target Stabile Cucina"
         unique_id: target_stabile_cucina
         unit_of_measurement: "°C"
@@ -1902,7 +1905,7 @@
         state: >
           {% set raw = states('sensor.target_temperatura_cucina_kblue') | float(0) %}
           {% set prec = this.state | float(0) %}
-          {{ raw if raw > 0 else prec }}
+          {{ raw if raw > 0 else (prec if prec > 0 else 'unknown') }}
       - name: "Stato Stabile Cucina"
         unique_id: stato_stabile_cucina
         state: >
@@ -1911,7 +1914,7 @@
           {% set g = states('sensor.target_temperatura_cucina_kblue') | float(0) %}
           {% if raw in ['on','off'] and t > 0 and g > 0 %}{{ raw }}
           {% elif this.state in ['on','off'] %}{{ this.state }}
-          {% else %}{{ raw if raw in ['on','off'] else 'off' }}{% endif %}
+          {% else %}unknown{% endif %}
       - name: "Riscaldamento Stabile Cucina"
         unique_id: riscaldamento_stabile_cucina
         state: >
@@ -1920,7 +1923,7 @@
           {% set g = states('sensor.target_temperatura_cucina_kblue') | float(0) %}
           {% if raw in ['on','off'] and t > 0 and g > 0 %}{{ raw }}
           {% elif this.state in ['on','off'] %}{{ this.state }}
-          {% else %}{{ raw if raw in ['on','off'] else 'off' }}{% endif %}
+          {% else %}unknown{% endif %}
 
   - trigger:
       - platform: state
@@ -1942,7 +1945,7 @@
         state: >
           {% set raw = states('sensor.temperatura_letto_kblue') | float(0) %}
           {% set prec = this.state | float(0) %}
-          {{ raw if raw > 0 else prec }}
+          {{ raw if raw > 0 else (prec if prec > 0 else 'unknown') }}
       - name: "Target Stabile Camera Matrimoniale"
         unique_id: target_stabile_camera_matrimoniale
         unit_of_measurement: "°C"
@@ -1950,7 +1953,7 @@
         state: >
           {% set raw = states('sensor.target_temperatura_letto_kblue') | float(0) %}
           {% set prec = this.state | float(0) %}
-          {{ raw if raw > 0 else prec }}
+          {{ raw if raw > 0 else (prec if prec > 0 else 'unknown') }}
       - name: "Stato Stabile Camera Matrimoniale"
         unique_id: stato_stabile_camera_matrimoniale
         state: >
@@ -1959,7 +1962,7 @@
           {% set g = states('sensor.target_temperatura_letto_kblue') | float(0) %}
           {% if raw in ['on','off'] and t > 0 and g > 0 %}{{ raw }}
           {% elif this.state in ['on','off'] %}{{ this.state }}
-          {% else %}{{ raw if raw in ['on','off'] else 'off' }}{% endif %}
+          {% else %}unknown{% endif %}
       - name: "Riscaldamento Stabile Camera Matrimoniale"
         unique_id: riscaldamento_stabile_camera_matrimoniale
         state: >
@@ -1968,7 +1971,7 @@
           {% set g = states('sensor.target_temperatura_letto_kblue') | float(0) %}
           {% if raw in ['on','off'] and t > 0 and g > 0 %}{{ raw }}
           {% elif this.state in ['on','off'] %}{{ this.state }}
-          {% else %}{{ raw if raw in ['on','off'] else 'off' }}{% endif %}
+          {% else %}unknown{% endif %}
 
   - trigger:
       - platform: state
@@ -1990,7 +1993,7 @@
         state: >
           {% set raw = states('sensor.temperatura_camera_francesco') | float(0) %}
           {% set prec = this.state | float(0) %}
-          {{ raw if raw > 0 else prec }}
+          {{ raw if raw > 0 else (prec if prec > 0 else 'unknown') }}
       - name: "Target Stabile Cam Francesco"
         unique_id: target_stabile_cam_francesco
         unit_of_measurement: "°C"
@@ -1998,7 +2001,7 @@
         state: >
           {% set raw = states('sensor.target_temperatura_camera_francesco') | float(0) %}
           {% set prec = this.state | float(0) %}
-          {{ raw if raw > 0 else prec }}
+          {{ raw if raw > 0 else (prec if prec > 0 else 'unknown') }}
       - name: "Stato Stabile Cam Francesco"
         unique_id: stato_stabile_cam_francesco
         state: >
@@ -2007,7 +2010,7 @@
           {% set g = states('sensor.target_temperatura_camera_francesco') | float(0) %}
           {% if raw in ['on','off'] and t > 0 and g > 0 %}{{ raw }}
           {% elif this.state in ['on','off'] %}{{ this.state }}
-          {% else %}{{ raw if raw in ['on','off'] else 'off' }}{% endif %}
+          {% else %}unknown{% endif %}
       - name: "Riscaldamento Stabile Cam Francesco"
         unique_id: riscaldamento_stabile_cam_francesco
         state: >
@@ -2016,7 +2019,7 @@
           {% set g = states('sensor.target_temperatura_camera_francesco') | float(0) %}
           {% if raw in ['on','off'] and t > 0 and g > 0 %}{{ raw }}
           {% elif this.state in ['on','off'] %}{{ this.state }}
-          {% else %}{{ raw if raw in ['on','off'] else 'off' }}{% endif %}
+          {% else %}unknown{% endif %}
 
   - trigger:
       - platform: state
@@ -2038,7 +2041,7 @@
         state: >
           {% set raw = states('sensor.temperatura_cam_greta_kblue') | float(0) %}
           {% set prec = this.state | float(0) %}
-          {{ raw if raw > 0 else prec }}
+          {{ raw if raw > 0 else (prec if prec > 0 else 'unknown') }}
       - name: "Target Stabile Cam Greta"
         unique_id: target_stabile_cam_greta
         unit_of_measurement: "°C"
@@ -2046,7 +2049,7 @@
         state: >
           {% set raw = states('sensor.target_temperatura_cam_greta_kblue') | float(0) %}
           {% set prec = this.state | float(0) %}
-          {{ raw if raw > 0 else prec }}
+          {{ raw if raw > 0 else (prec if prec > 0 else 'unknown') }}
       - name: "Stato Stabile Cam Greta"
         unique_id: stato_stabile_cam_greta
         state: >
@@ -2055,7 +2058,7 @@
           {% set g = states('sensor.target_temperatura_cam_greta_kblue') | float(0) %}
           {% if raw in ['on','off'] and t > 0 and g > 0 %}{{ raw }}
           {% elif this.state in ['on','off'] %}{{ this.state }}
-          {% else %}{{ raw if raw in ['on','off'] else 'off' }}{% endif %}
+          {% else %}unknown{% endif %}
       - name: "Riscaldamento Stabile Cam Greta"
         unique_id: riscaldamento_stabile_cam_greta
         state: >
@@ -2064,7 +2067,7 @@
           {% set g = states('sensor.target_temperatura_cam_greta_kblue') | float(0) %}
           {% if raw in ['on','off'] and t > 0 and g > 0 %}{{ raw }}
           {% elif this.state in ['on','off'] %}{{ this.state }}
-          {% else %}{{ raw if raw in ['on','off'] else 'off' }}{% endif %}
+          {% else %}unknown{% endif %}
 
   - trigger:
       - platform: state
@@ -2086,7 +2089,7 @@
         state: >
           {% set raw = states('sensor.temperatura_letto_suite_kblue') | float(0) %}
           {% set prec = this.state | float(0) %}
-          {{ raw if raw > 0 else prec }}
+          {{ raw if raw > 0 else (prec if prec > 0 else 'unknown') }}
       - name: "Target Stabile Suite Letto"
         unique_id: target_stabile_suite_letto
         unit_of_measurement: "°C"
@@ -2094,7 +2097,7 @@
         state: >
           {% set raw = states('sensor.target_temperatura_letto_suite_kblue') | float(0) %}
           {% set prec = this.state | float(0) %}
-          {{ raw if raw > 0 else prec }}
+          {{ raw if raw > 0 else (prec if prec > 0 else 'unknown') }}
       - name: "Stato Stabile Suite Letto"
         unique_id: stato_stabile_suite_letto
         state: >
@@ -2103,7 +2106,7 @@
           {% set g = states('sensor.target_temperatura_letto_suite_kblue') | float(0) %}
           {% if raw in ['on','off'] and t > 0 and g > 0 %}{{ raw }}
           {% elif this.state in ['on','off'] %}{{ this.state }}
-          {% else %}{{ raw if raw in ['on','off'] else 'off' }}{% endif %}
+          {% else %}unknown{% endif %}
       - name: "Riscaldamento Stabile Suite Letto"
         unique_id: riscaldamento_stabile_suite_letto
         state: >
@@ -2112,7 +2115,7 @@
           {% set g = states('sensor.target_temperatura_letto_suite_kblue') | float(0) %}
           {% if raw in ['on','off'] and t > 0 and g > 0 %}{{ raw }}
           {% elif this.state in ['on','off'] %}{{ this.state }}
-          {% else %}{{ raw if raw in ['on','off'] else 'off' }}{% endif %}
+          {% else %}unknown{% endif %}
 
   - trigger:
       - platform: state
@@ -2134,7 +2137,7 @@
         state: >
           {% set raw = states('sensor.temperatura_salone_suite_kblue') | float(0) %}
           {% set prec = this.state | float(0) %}
-          {{ raw if raw > 0 else prec }}
+          {{ raw if raw > 0 else (prec if prec > 0 else 'unknown') }}
       - name: "Target Stabile Suite Salone"
         unique_id: target_stabile_suite_salone
         unit_of_measurement: "°C"
@@ -2142,7 +2145,7 @@
         state: >
           {% set raw = states('sensor.target_temperatura_salone_suite_kblue') | float(0) %}
           {% set prec = this.state | float(0) %}
-          {{ raw if raw > 0 else prec }}
+          {{ raw if raw > 0 else (prec if prec > 0 else 'unknown') }}
       - name: "Stato Stabile Suite Salone"
         unique_id: stato_stabile_suite_salone
         state: >
@@ -2151,7 +2154,7 @@
           {% set g = states('sensor.target_temperatura_salone_suite_kblue') | float(0) %}
           {% if raw in ['on','off'] and t > 0 and g > 0 %}{{ raw }}
           {% elif this.state in ['on','off'] %}{{ this.state }}
-          {% else %}{{ raw if raw in ['on','off'] else 'off' }}{% endif %}
+          {% else %}unknown{% endif %}
       - name: "Riscaldamento Stabile Suite Salone"
         unique_id: riscaldamento_stabile_suite_salone
         state: >
@@ -2160,7 +2163,7 @@
           {% set g = states('sensor.target_temperatura_salone_suite_kblue') | float(0) %}
           {% if raw in ['on','off'] and t > 0 and g > 0 %}{{ raw }}
           {% elif this.state in ['on','off'] %}{{ this.state }}
-          {% else %}{{ raw if raw in ['on','off'] else 'off' }}{% endif %}
+          {% else %}unknown{% endif %}
 
   - trigger:
       - platform: state
@@ -2182,7 +2185,7 @@
         state: >
           {% set raw = states('sensor.temperatura_wc_kblue') | float(0) %}
           {% set prec = this.state | float(0) %}
-          {{ raw if raw > 0 else prec }}
+          {{ raw if raw > 0 else (prec if prec > 0 else 'unknown') }}
       - name: "Target Stabile Wc"
         unique_id: target_stabile_wc
         unit_of_measurement: "°C"
@@ -2190,7 +2193,7 @@
         state: >
           {% set raw = states('sensor.target_temperatura_wc_kblue') | float(0) %}
           {% set prec = this.state | float(0) %}
-          {{ raw if raw > 0 else prec }}
+          {{ raw if raw > 0 else (prec if prec > 0 else 'unknown') }}
       - name: "Stato Stabile Wc"
         unique_id: stato_stabile_wc
         state: >
@@ -2199,7 +2202,7 @@
           {% set g = states('sensor.target_temperatura_wc_kblue') | float(0) %}
           {% if raw in ['on','off'] and t > 0 and g > 0 %}{{ raw }}
           {% elif this.state in ['on','off'] %}{{ this.state }}
-          {% else %}{{ raw if raw in ['on','off'] else 'off' }}{% endif %}
+          {% else %}unknown{% endif %}
       - name: "Riscaldamento Stabile Wc"
         unique_id: riscaldamento_stabile_wc
         state: >
@@ -2208,7 +2211,7 @@
           {% set g = states('sensor.target_temperatura_wc_kblue') | float(0) %}
           {% if raw in ['on','off'] and t > 0 and g > 0 %}{{ raw }}
           {% elif this.state in ['on','off'] %}{{ this.state }}
-          {% else %}{{ raw if raw in ['on','off'] else 'off' }}{% endif %}
+          {% else %}unknown{% endif %}
 
   - trigger:
       - platform: state
@@ -2230,7 +2233,7 @@
         state: >
           {% set raw = states('sensor.temperatura_wc_letto_kblue') | float(0) %}
           {% set prec = this.state | float(0) %}
-          {{ raw if raw > 0 else prec }}
+          {{ raw if raw > 0 else (prec if prec > 0 else 'unknown') }}
       - name: "Target Stabile Wc Letto"
         unique_id: target_stabile_wc_letto
         unit_of_measurement: "°C"
@@ -2238,7 +2241,7 @@
         state: >
           {% set raw = states('sensor.target_temperatura_wc_letto_kblue') | float(0) %}
           {% set prec = this.state | float(0) %}
-          {{ raw if raw > 0 else prec }}
+          {{ raw if raw > 0 else (prec if prec > 0 else 'unknown') }}
       - name: "Stato Stabile Wc Letto"
         unique_id: stato_stabile_wc_letto
         state: >
@@ -2247,7 +2250,7 @@
           {% set g = states('sensor.target_temperatura_wc_letto_kblue') | float(0) %}
           {% if raw in ['on','off'] and t > 0 and g > 0 %}{{ raw }}
           {% elif this.state in ['on','off'] %}{{ this.state }}
-          {% else %}{{ raw if raw in ['on','off'] else 'off' }}{% endif %}
+          {% else %}unknown{% endif %}
       - name: "Riscaldamento Stabile Wc Letto"
         unique_id: riscaldamento_stabile_wc_letto
         state: >
@@ -2256,7 +2259,7 @@
           {% set g = states('sensor.target_temperatura_wc_letto_kblue') | float(0) %}
           {% if raw in ['on','off'] and t > 0 and g > 0 %}{{ raw }}
           {% elif this.state in ['on','off'] %}{{ this.state }}
-          {% else %}{{ raw if raw in ['on','off'] else 'off' }}{% endif %}
+          {% else %}unknown{% endif %}
 
   - trigger:
       - platform: state
@@ -2278,7 +2281,7 @@
         state: >
           {% set raw = states('sensor.temperatura_wc_suite_kblue') | float(0) %}
           {% set prec = this.state | float(0) %}
-          {{ raw if raw > 0 else prec }}
+          {{ raw if raw > 0 else (prec if prec > 0 else 'unknown') }}
       - name: "Target Stabile Wc Suite"
         unique_id: target_stabile_wc_suite
         unit_of_measurement: "°C"
@@ -2286,7 +2289,7 @@
         state: >
           {% set raw = states('sensor.target_temperatura_wc_suite_kblue') | float(0) %}
           {% set prec = this.state | float(0) %}
-          {{ raw if raw > 0 else prec }}
+          {{ raw if raw > 0 else (prec if prec > 0 else 'unknown') }}
       - name: "Stato Stabile Wc Suite"
         unique_id: stato_stabile_wc_suite
         state: >
@@ -2295,7 +2298,7 @@
           {% set g = states('sensor.target_temperatura_wc_suite_kblue') | float(0) %}
           {% if raw in ['on','off'] and t > 0 and g > 0 %}{{ raw }}
           {% elif this.state in ['on','off'] %}{{ this.state }}
-          {% else %}{{ raw if raw in ['on','off'] else 'off' }}{% endif %}
+          {% else %}unknown{% endif %}
       - name: "Riscaldamento Stabile Wc Suite"
         unique_id: riscaldamento_stabile_wc_suite
         state: >
@@ -2304,4 +2307,4 @@
           {% set g = states('sensor.target_temperatura_wc_suite_kblue') | float(0) %}
           {% if raw in ['on','off'] and t > 0 and g > 0 %}{{ raw }}
           {% elif this.state in ['on','off'] %}{{ this.state }}
-          {% else %}{{ raw if raw in ['on','off'] else 'off' }}{% endif %}
+          {% else %}unknown{% endif %}
