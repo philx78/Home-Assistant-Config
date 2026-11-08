@@ -1,0 +1,23 @@
+# Whitelist: si ignora tutto e si ammette solo la configurazione
+/*
+!/.gitignore
+!/automations.yaml
+!/climate.yaml
+!/command_line.yaml
+!/configuration.yaml
+!/covers.yaml
+!/groups.yaml
+!/lights.yaml
+!/lovelace-resources.yaml
+!/rest_commands.yaml
+!/rest_sensors.yaml
+!/scenes.yaml
+!/scripts.yaml
+!/sensors.yaml
+!/shell_commands.yaml
+!/switches.yaml
+!/templates.yaml
+!/blueprints/
+!/packages/
+!/scripts/
+!/kblue_set_setpoint.sh

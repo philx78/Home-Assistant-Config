@@ -1,0 +1,156 @@
+# Irraggiamento solare da Open-Meteo (API gratuita, senza account né chiave)
+# File: /config/packages/irraggiamento_open_meteo.yaml
+#
+# Fornisce:
+#  - irradianza orizzontale (globale, diretta, diffusa) e nuvolosità, valori correnti
+#  - irradianza su una parete verticale esposta a SUD-EST (la facciata del salone)
+#  - previsione a breve (prossime 3 ore) e previsione della mattina di oggi (8-12)
+#
+# Convenzione azimut di Open-Meteo: 0 = sud, -90 = est, +90 = ovest, 180 = nord.
+# Facciata del salone a circa 130° in bussola (nord = 0, est = 90, sud = 180)
+# => azimut Open-Meteo = 130 - 180 = -50. Per un'altra facciata: azimut = bussola - 180,
+# e cambia solo "azimuth=" nell'URL.
+#
+# Latitudine/longitudine: scritte fisse nell'URL (arrotondate a 2 decimali, bastano per
+# il meteo). Prima le leggevo dalla zona Home, ma all'avvio di HA la zona non era ancora
+# pronta: la prima chiamata partiva con coordinate vuote, falliva, e i sensori restavano
+# "unknown" fino all'aggiornamento successivo (15 minuti).
+
+rest:
+  - resource: >-
+      https://api.open-meteo.com/v1/forecast?latitude=41.85&longitude=12.49&current=shortwave_radiation,direct_radiation,diffuse_radiation,cloud_cover,global_tilted_irradiance&hourly=global_tilted_irradiance,shortwave_radiation,cloud_cover&tilt=90&azimuth=-50&forecast_days=2&timezone=Europe%2FRome
+    scan_interval: 900
+    timeout: 30
+    sensor:
+      # ---- valori correnti (aggiornati da Open-Meteo ogni 15 minuti) ----
+      - name: "Irradianza orizzontale"
+        unique_id: irradianza_orizzontale_open_meteo
+        value_template: "{{ value_json.current.shortwave_radiation | float(none) }}"
+        unit_of_measurement: "W/m²"
+        device_class: irradiance
+        state_class: measurement
+
+      - name: "Irradianza diretta"
+        unique_id: irradianza_diretta_open_meteo
+        value_template: "{{ value_json.current.direct_radiation | float(none) }}"
+        unit_of_measurement: "W/m²"
+        device_class: irradiance
+        state_class: measurement
+
+      - name: "Irradianza diffusa"
+        unique_id: irradianza_diffusa_open_meteo
+        value_template: "{{ value_json.current.diffuse_radiation | float(none) }}"
+        unit_of_measurement: "W/m²"
+        device_class: irradiance
+        state_class: measurement
+
+      - name: "Irradianza facciata sud-est"
+        unique_id: irradianza_facciata_sud_est_open_meteo
+        value_template: "{{ value_json.current.global_tilted_irradiance | float(none) }}"
+        unit_of_measurement: "W/m²"
+        device_class: irradiance
+        state_class: measurement
+
+      # ---- curva oraria prevista (solo per i grafici della dashboard) ----
+      # Il nome NON inizia con "irradianza_", così il filtro InfluxDB non lo registra.
+      # Attributi: time (ISO locale), global_tilted_irradiance, cloud_cover, 48 valori
+      # (oggi e domani). Ricorda: ogni valore è la media dell'ora PRECEDENTE l'etichetta.
+      - name: "Previsione oraria facciata sud-est"
+        unique_id: previsione_oraria_facciata_sud_est
+        value_template: "{{ value_json.current.global_tilted_irradiance | float(none) }}"
+        unit_of_measurement: "W/m²"
+        device_class: irradiance
+        state_class: measurement
+        json_attributes_path: "$.hourly"
+        json_attributes:
+          - time
+          - global_tilted_irradiance
+          - cloud_cover
+
+      - name: "Nuvolosità Open-Meteo"
+        unique_id: nuvolosita_open_meteo
+        value_template: "{{ value_json.current.cloud_cover | float(none) }}"
+        unit_of_measurement: "%"
+        state_class: measurement
+
+      # NOTA: in Open-Meteo i valori orari sono la MEDIA DELL'ORA PRECEDENTE: l'etichetta
+      # 11:00 vale per 10:00-11:00. Per questo le previsioni qui sotto usano le etichette
+      # spostate di un'ora in avanti.
+      # ---- previsione: media dell'irradianza sulla facciata nelle prossime 3 ore ----
+      - name: "Irradianza facciata sud-est previsione 3h"
+        unique_id: irradianza_facciata_sud_est_previsione_3h
+        value_template: >-
+          {% set ore = value_json.hourly.time %}
+          {% set t = now().strftime('%Y-%m-%dT%H:00') %}
+          {% if t in ore %}
+            {% set i = ore.index(t) %}
+            {% set v = value_json.hourly.global_tilted_irradiance[i+1:i+4] | select('number') | list %}
+            {{ (v | sum / v | length) | round(0) if v | length > 0 else none }}
+          {% else %}
+            {{ none }}
+          {% endif %}
+        unit_of_measurement: "W/m²"
+        device_class: irradiance
+        state_class: measurement
+
+      # ---- previsione: energia solare sulla facciata di oggi tra le 8 e le 12 ----
+      # (Wh/m²: somma delle quattro medie orarie 8-9, 9-10, 10-11, 11-12, che in Open-Meteo
+#  portano le etichette 09:00, 10:00, 11:00, 12:00)
+      - name: "Sole facciata sud-est previsto mattina"
+        unique_id: sole_facciata_sud_est_previsto_mattina
+        value_template: >-
+          {% set ore = value_json.hourly.time %}
+          {% set oggi = now().strftime('%Y-%m-%d') %}
+          {% set chiavi = [oggi ~ 'T09:00', oggi ~ 'T10:00', oggi ~ 'T11:00', oggi ~ 'T12:00'] %}
+          {% set ns = namespace(tot=0, n=0) %}
+          {% for k in chiavi %}
+            {% if k in ore %}
+              {% set x = value_json.hourly.global_tilted_irradiance[ore.index(k)] %}
+              {% if x is number %}
+                {% set ns.tot = ns.tot + x %}
+                {% set ns.n = ns.n + 1 %}
+              {% endif %}
+            {% endif %}
+          {% endfor %}
+          {{ ns.tot | round(0) if ns.n == 4 else none }}
+        unit_of_measurement: "Wh/m²"
+        state_class: measurement
+
+# ------------------------------------------------------------------
+# Da aggiungere al filtro InfluxDB in configuration.yaml
+# (sotto include: -> entity_globs: e entities:), sostituisci il blocco con questo:
+#
+# influxdb:
+#   max_retries: 3
+#   default_measurement: state
+#   include:
+#     entity_globs:
+#       - climate.termostato_*
+#       - sensor.riscaldamento_attivo_*
+#       - sensor.trend_temperatura_*
+#       - sensor.storico_*
+#       - sensor.modo_manuale_*_kblue
+#       - input_datetime.trattenuta_*
+#       - sensor.irradianza_*
+#     entities:
+#       - binary_sensor.remocon_net_heat_pump_running
+#       - climate.remocon_net_heat_pump
+#       - sensor.zone_in_riscaldamento
+#       - sensor.zona_da_trattenere
+#       - binary_sensor.zona_altra_in_partenza
+#       - input_text.zona_trattenuta
+#       - input_datetime.zona_ultimo_rilascio
+#       - sensor.timeline_stato
+#       - sensor.stazione_meteo_modulo_meteo_esterno_temperature
+#       - sensor.stazione_meteo_modulo_meteo_esterno_humidity
+#       - weather.home_assistant_vdl123
+#       - weather.forecast_home
+#       - sensor.consumo_totale
+#       - sensor.consumo_l1
+#       - sensor.consumo_l2
+#       - sensor.consumo_l3
+#       - binary_sensor.sensore_dw_wc_contact
+#       - sensor.nuvolosita_open_meteo
+#       - sensor.sole_facciata_sud_est_previsto_mattina
+#       - sun.sun
+# ------------------------------------------------------------------

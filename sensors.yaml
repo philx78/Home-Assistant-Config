@@ -1,0 +1,280 @@
+# ==============================================================================
+# STATISTICHE TEMPERATURA - Tutte le stanze
+# Calcola la variazione di temperatura al secondo (change_second)
+# su una finestra mobile di 30 minuti, utilizzata dai sensor trend
+# in templates.yaml per derivare la velocità in °C/h
+# ==============================================================================
+
+- platform: statistics
+  name: "Stats Temperatura Salone"
+  entity_id: sensor.temperatura_attuale_salone
+  state_characteristic: change
+  max_age:
+    minutes: 30
+  sampling_size: 60
+
+- platform: statistics
+  name: "Stats Temperatura Cucina"
+  entity_id: sensor.temperatura_attuale_cucina
+  state_characteristic: change
+  max_age:
+    minutes: 30
+  sampling_size: 60
+
+- platform: statistics
+  name: "Stats Temperatura Camera Matrimoniale"
+  entity_id: sensor.temperatura_attuale_camera_matrimoniale
+  state_characteristic: change
+  max_age:
+    minutes: 30
+  sampling_size: 60
+
+- platform: statistics
+  name: "Stats Temperatura Camera Francesco"
+  entity_id: sensor.temperatura_attuale_camera_francesco
+  state_characteristic: change
+  max_age:
+    minutes: 30
+  sampling_size: 60
+
+- platform: statistics
+  name: "Stats Temperatura Camera Greta"
+  entity_id: sensor.temperatura_attuale_camera_greta
+  state_characteristic: change
+  max_age:
+    minutes: 30
+  sampling_size: 60
+
+- platform: statistics
+  name: "Stats Temperatura Suite Letto"
+  entity_id: sensor.temperatura_attuale_suite_letto
+  state_characteristic: change
+  max_age:
+    minutes: 30
+  sampling_size: 60
+
+- platform: statistics
+  name: "Stats Temperatura Suite Salone"
+  entity_id: sensor.temperatura_attuale_suite_salone
+  state_characteristic: change
+  max_age:
+    minutes: 30
+  sampling_size: 60
+
+- platform: statistics
+  name: "Stats Temperatura WC"
+  entity_id: sensor.temperatura_attuale_wc
+  state_characteristic: change
+  max_age:
+    minutes: 30
+  sampling_size: 60
+
+- platform: statistics
+  name: "Stats Temperatura WC Letto"
+  entity_id: sensor.temperatura_attuale_wc_letto
+  state_characteristic: change
+  max_age:
+    minutes: 30
+  sampling_size: 60
+
+- platform: statistics
+  name: "Stats Temperatura WC Suite"
+  entity_id: sensor.temperatura_attuale_wc_suite
+  state_characteristic: change
+  max_age:
+    minutes: 30
+  sampling_size: 60
+
+# ============================================
+# INTEGRATION SENSORS - Convertono Potenza in Energia
+# ============================================
+# Questi sensori integrano la potenza istantanea per calcolare l'energia consumata
+# I sensori source sono in kW, quindi il risultato sarà in kWh
+
+# Integrazione energia L1
+- platform: integration
+  source: sensor.consumo_l1
+  name: energia_l1
+  unique_id: energia_l1_integrata
+  unit_time: h
+  round: 3
+  method: left
+
+# Integrazione energia L2
+- platform: integration
+  source: sensor.consumo_l2
+  name: energia_l2
+  unique_id: energia_l2_integrata
+  unit_time: h
+  round: 3
+  method: left
+
+# Integrazione energia L3
+- platform: integration
+  source: sensor.consumo_l3
+  name: energia_l3
+  unique_id: energia_l3_integrata
+  unit_time: h
+  round: 3
+  method: left
+
+# Integrazione energia totale
+- platform: integration
+  source: sensor.consumo_totale
+  name: energia_totale
+  unique_id: energia_totale_integrata
+  unit_time: h
+  round: 3
+  method: left
+
+# ============================================
+# STATISTICHE CONSUMO - Min/Max/Media Giornalieri
+# ============================================
+
+# Statistiche Min/Max/Media esistenti
+- platform: statistics
+  name: "Temperatura media frigo"
+  unique_id: temperatura_media_frigo_statistics
+  entity_id: sensor.temperatura_istantanea_frigo
+  precision: 1
+  sampling_size: 20
+  max_age:
+    hours: 2
+  state_characteristic: average_linear
+
+# === STATISTICHE CONSUMO L1 ===
+- platform: statistics
+  name: "Consumo L1 Min Oggi"
+  unique_id: consumo_l1_min_oggi_stats
+  entity_id: sensor.consumo_l1
+  state_characteristic: value_min
+  max_age:
+    hours: 24
+  sampling_size: 500
+  precision: 2
+
+- platform: statistics
+  name: "Consumo L1 Max Oggi"
+  unique_id: consumo_l1_max_oggi_stats
+  entity_id: sensor.consumo_l1
+  state_characteristic: value_max
+  max_age:
+    hours: 24
+  sampling_size: 500
+  precision: 2
+
+- platform: statistics
+  name: "Consumo L1 Media Oggi"
+  unique_id: consumo_l1_media_oggi_stats
+  entity_id: sensor.consumo_l1
+  state_characteristic: mean
+  max_age:
+    hours: 24
+  sampling_size: 500
+  precision: 2
+
+# === STATISTICHE CONSUMO L2 ===
+- platform: statistics
+  name: "Consumo L2 Min Oggi"
+  unique_id: consumo_l2_min_oggi_stats
+  entity_id: sensor.consumo_l2
+  state_characteristic: value_min
+  max_age:
+    hours: 24
+  sampling_size: 500
+  precision: 2
+
+- platform: statistics
+  name: "Consumo L2 Max Oggi"
+  unique_id: consumo_l2_max_oggi_stats
+  entity_id: sensor.consumo_l2
+  state_characteristic: value_max
+  max_age:
+    hours: 24
+  sampling_size: 500
+  precision: 2
+
+- platform: statistics
+  name: "Consumo L2 Media Oggi"
+  unique_id: consumo_l2_media_oggi_stats
+  entity_id: sensor.consumo_l2
+  state_characteristic: mean
+  max_age:
+    hours: 24
+  sampling_size: 500
+  precision: 2
+
+# === STATISTICHE CONSUMO L3 ===
+- platform: statistics
+  name: "Consumo L3 Min Oggi"
+  unique_id: consumo_l3_min_oggi_stats
+  entity_id: sensor.consumo_l3
+  state_characteristic: value_min
+  max_age:
+    hours: 24
+  sampling_size: 500
+  precision: 2
+
+- platform: statistics
+  name: "Consumo L3 Max Oggi"
+  unique_id: consumo_l3_max_oggi_stats
+  entity_id: sensor.consumo_l3
+  state_characteristic: value_max
+  max_age:
+    hours: 24
+  sampling_size: 500
+  precision: 2
+
+- platform: statistics
+  name: "Consumo L3 Media Oggi"
+  unique_id: consumo_l3_media_oggi_stats
+  entity_id: sensor.consumo_l3
+  state_characteristic: mean
+  max_age:
+    hours: 24
+  sampling_size: 500
+  precision: 2
+
+# === STATISTICHE CONSUMO TOTALE ===
+- platform: statistics
+  name: "Consumo Totale Min Oggi"
+  unique_id: consumo_totale_min_oggi_stats
+  entity_id: sensor.consumo_totale
+  state_characteristic: value_min
+  max_age:
+    hours: 24
+  sampling_size: 500
+  precision: 2
+
+- platform: statistics
+  name: "Consumo Totale Max Oggi"
+  unique_id: consumo_totale_max_oggi_stats
+  entity_id: sensor.consumo_totale
+  state_characteristic: value_max
+  max_age:
+    hours: 24
+  sampling_size: 500
+  precision: 2
+
+- platform: statistics
+  name: "Consumo Totale Media Oggi"
+  unique_id: consumo_totale_media_oggi_stats
+  entity_id: sensor.consumo_totale
+  state_characteristic: mean
+  max_age:
+    hours: 24
+  sampling_size: 500
+  precision: 2
+
+# --- Posizione attuale Filippo (geocoding inverso via Nominatim/OSM) ----------
+# Aggiorna ogni 5 minuti le coordinate di person.filippo_durzu in un nome
+# leggibile (es. "Isola del Giglio, Grosseto"). Usato nel briefing meteo
+# mattutino per identificare il luogo corretto quando fuori Roma.
+- platform: rest
+  name: "Posizione Filippo"
+  unique_id: posizione_filippo
+  resource_template: "https://nominatim.openstreetmap.org/reverse?lat={{ state_attr('person.filippo_durzu', 'latitude') }}&lon={{ state_attr('person.filippo_durzu', 'longitude') }}&format=json&zoom=10&accept-language=it"
+  headers:
+    User-Agent: "HomeAssistant"
+  value_template: "{{ value_json.display_name }}"
+  scan_interval: 300

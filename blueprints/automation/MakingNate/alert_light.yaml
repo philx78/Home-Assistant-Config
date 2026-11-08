@@ -1,0 +1,278 @@
+blueprint:
+  domain: automation
+  name: Alert Light
+  description: "# Change a light color and brightness based on alert severity level\n\n####
+    Version 1.1\n\n## Requirements\n- Home Assistant Minimum Version: 2024.6.0\n-
+    Three [counters](https://www.home-assistant.io/integrations/counter/) with the
+    [restore](https://www.home-assistant.io/integrations/counter/#restore-state) option
+    set to false (See Setup below)\n- I recommend using this with my Alert blueprint
+    (referenced below)\n\n## What's New\n- **After Hours Brightness**: Set a different
+    alert brightness for a specified time of day\n\n## Features\n- **Multi-Light Support**:
+    Control one or more color lights simultaneously\n- **Customizable Colors**: Set
+    custom colors for each alert severity level\n- **After Hours Brightness**: Set
+    a different alert brightness for a specified time of day\n- **Default State Control**:
+    Configure the default color, brightness, and power state when no alerts are active\n\n##
+    Related Blueprints\n- Alert - Create a dismissible repeating alert based on an
+    entity's state\n[![Open your Home Assistant instance and show the blueprint import
+    dialog with a specific blueprint pre-filled.](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fgist.github.com%2FMakingNate%2F9c5515a64bf5a173ecbaa7a4538653b6)\n\n##
+    Setup\n### Create three alert counters:\n\n1. Navigate to **Settings > Devices
+    and Services > Helpers**:\n[![Open your Home Assistant instance and show your
+    helper entities.](https://my.home-assistant.io/badges/helpers.svg)](https://my.home-assistant.io/redirect/helpers/)\n2.
+    Select the **Create helper** button\n3. Select **Counter**\n4. Fill in the fields:\n
+    \   - **Name**: Alert Count High\n    - **Minimum Value**: 0\n    - **Maximum
+    Value**: 100\n    - **Initial Value**: 0\n5. Select **Advanced Settings** and
+    disable **Restore the last known value when Home Assistant starts**\n6. Repeat
+    for *Alert Count Medium* and *Alert Count Low* counters\n"
+  author: Making Nate
+  input:
+    alert_lights_section:
+      name: Alert Lights
+      description: Select which lights will display alert status colors
+      input:
+        alert_lights:
+          name: Alert Status Lights
+          description: Choose one or more lights to act as visual alert indicators
+          selector:
+            target:
+              entity:
+              - domain:
+                - light
+    alert_counters_section:
+      name: Alert Counters
+      description: Counter helper entities that track the count of active alerts at
+        each severity level
+      input:
+        alert_count_high:
+          name: High Alert Counter
+          description: Select the [counter](https://www.home-assistant.io/integrations/counter/)
+            tracking high severity alerts (triggers red light by default)
+          selector:
+            entity:
+              filter:
+              - domain:
+                - counter
+              reorder: false
+              multiple: false
+        alert_count_med:
+          name: Medium Alert Counter
+          description: Select the [counter](https://www.home-assistant.io/integrations/counter/)
+            tracking medium severity alerts (triggers orange light by default)
+          selector:
+            entity:
+              filter:
+              - domain:
+                - counter
+              reorder: false
+              multiple: false
+        alert_count_low:
+          name: Low Alert Counter
+          description: Select the [counter](https://www.home-assistant.io/integrations/counter/)
+            tracking low severity alerts (triggers green light by default)
+          selector:
+            entity:
+              filter:
+              - domain:
+                - counter
+              reorder: false
+              multiple: false
+    alert_colors_section:
+      name: Alert Brightness and Colors
+      description: Customize the brightness and colors for each alert severity level
+      collapsed: true
+      input:
+        alert_brightness:
+          name: Alert Brightness
+          description: Brightness level when alerts are active
+          default: 75
+          selector:
+            number:
+              max: 100.0
+              min: 1.0
+              step: 1.0
+              unit_of_measurement: '%'
+              mode: slider
+        alert_color_high:
+          name: High Alert Color
+          description: RGB color for high severity alerts (default is red)
+          default:
+          - 255
+          - 0
+          - 0
+          selector:
+            color_rgb: {}
+        alert_color_med:
+          name: Medium Alert Color
+          description: RGB color for medium severity alerts (default is orange)
+          default:
+          - 255
+          - 165
+          - 0
+          selector:
+            color_rgb: {}
+        alert_color_low:
+          name: Low Alert Color
+          description: RGB color for low severity alerts (default is green)
+          default:
+          - 0
+          - 255
+          - 0
+          selector:
+            color_rgb: {}
+    idle_colors_section:
+      name: Idle Brightness and Color
+      description: Customize the appearance when no alerts are active
+      collapsed: true
+      input:
+        idle_brightness:
+          name: Idle Brightness
+          description: Brightness level when no alerts are active
+          default: 50
+          selector:
+            number:
+              max: 100.0
+              min: 1.0
+              step: 1.0
+              unit_of_measurement: '%'
+              mode: slider
+        idle_color:
+          name: Idle Color
+          description: RGB color when no alerts are active (default is blue)
+          default:
+          - 0
+          - 0
+          - 255
+          selector:
+            color_rgb: {}
+        idle_off:
+          name: Turn Light Off When Idle
+          description: Turn the light completely off when no alerts are active (idle
+            color/brightness is applied before turning off the light)
+          default: true
+          selector:
+            boolean: {}
+    after_hours_section:
+      name: After Hours Brightness
+      description: Customize the brightness for alerts during a specified time of
+        day
+      collapsed: true
+      input:
+        enable_after_hours:
+          name: Enable After Hours Brightness
+          description: Enable reduced brightness during specified hours (e.g., nighttime)
+          default: false
+          selector:
+            boolean: {}
+        after_hours_brightness:
+          name: After Hours Brightness
+          description: Brightness level during after hours period
+          default: 25
+          selector:
+            number:
+              max: 100.0
+              min: 1.0
+              step: 1.0
+              unit_of_measurement: '%'
+              mode: slider
+        after_hours_start:
+          name: After Hours Start Time
+          description: Time when after hours brightness begins
+          default: '22:00:00'
+          selector:
+            time: {}
+        after_hours_end:
+          name: After Hours End Time
+          description: Time when after hours brightness ends
+          default: 08:00:00
+          selector:
+            time: {}
+  source_url: https://gist.github.com/MakingNate/d7101e6add95656cd6004039e3f5ad54
+variables:
+  idle_off: !input idle_off
+triggers:
+- trigger: state
+  entity_id:
+  - !input alert_count_high
+  - !input alert_count_med
+  - !input alert_count_low
+  from: '0'
+  to: '1'
+- trigger: state
+  entity_id:
+  - !input alert_count_high
+  - !input alert_count_med
+  - !input alert_count_low
+  to: '0'
+- trigger: homeassistant
+  event: start
+  id: restart
+- trigger: time
+  at: !input after_hours_start
+- trigger: time
+  at: !input after_hours_end
+conditions: []
+actions:
+- if:
+  - condition: and
+    conditions:
+    - condition: template
+      value_template: !input enable_after_hours
+    - condition: time
+      after: !input after_hours_start
+      before: !input after_hours_end
+  then:
+  - variables:
+      brightness: !input after_hours_brightness
+  else:
+  - variables:
+      brightness: !input alert_brightness
+- choose:
+  - conditions:
+    - condition: numeric_state
+      entity_id: !input alert_count_high
+      above: 0
+    sequence:
+    - action: light.turn_on
+      metadata: {}
+      data:
+        rgb_color: !input alert_color_high
+        brightness_pct: '{{ brightness }}'
+      target: !input alert_lights
+  - conditions:
+    - condition: numeric_state
+      entity_id: !input alert_count_med
+      above: 0
+    sequence:
+    - action: light.turn_on
+      metadata: {}
+      data:
+        rgb_color: !input alert_color_med
+        brightness_pct: '{{ brightness }}'
+      target: !input alert_lights
+  - conditions:
+    - condition: numeric_state
+      entity_id: !input alert_count_low
+      above: 0
+    sequence:
+    - action: light.turn_on
+      metadata: {}
+      data:
+        rgb_color: !input alert_color_low
+        brightness_pct: '{{ brightness }}'
+      target: !input alert_lights
+  default:
+  - action: light.turn_on
+    metadata: {}
+    target: !input alert_lights
+    data:
+      brightness_pct: !input idle_brightness
+      rgb_color: !input idle_color
+  - if:
+    - condition: template
+      value_template: '{{ idle_off }}'
+    then:
+    - action: light.turn_off
+      metadata: {}
+      data: {}
+      target: !input alert_lights
+mode: queued
+max: 10

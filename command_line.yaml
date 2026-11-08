@@ -1,0 +1,9 @@
+
+  - sensor:
+      name: "KBlue Session Cookie"
+      command: "grep 'session' /config/kblue_site_session_raw.txt | awk '{print $NF}'"
+      scan_interval: 180
+  - sensor:
+      name: "KBlue User Cookie"
+      command: "grep 'user' /config/kblue_site_session_raw.txt | awk '{print $NF}'"
+      scan_interval: 180

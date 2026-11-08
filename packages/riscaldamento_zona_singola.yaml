@@ -1,0 +1,516 @@
+# =============================================================================
+# RISCALDAMENTO - TRATTENIMENTO ZONA SINGOLA  (package Home Assistant)
+# Salvare come:  /config/packages/riscaldamento_zona_singola.yaml
+# Richiede in configuration.yaml:
+#   homeassistant:
+#     packages: !include_dir_named packages
+# e in secrets.yaml:
+#   timeline_bearer: "Bearer <TOKEN_LUNGA_DURATA>"
+#
+# Logica:
+#  - "zona" = un termostato. Le zone attive sono quelle con sensor.riscaldamento_attivo_* = on.
+#  - Il Salone non viene mai trattenuto, ma conta come zona attiva/pronta.
+#  - TRATTENIMENTO PREVENTIVO: se nessuna zona e' attiva e UN solo termostato (Salone escluso)
+#    ha raggiunto il setpoint (temperatura <= setpoint, non in salita, non ancora partito),
+#    e nessun altro e' pronto o vicino a partire, lo si trattiene PRIMA che parta: l'isteresi
+#    del KBlue (0,2 C) fa da cuscinetto.
+#  - TRATTENIMENTO DI RIPIEGO: se una sola zona (non Salone) e' gia' partita da sola
+#    da almeno 30 s, la si trattiene lo stesso.
+#  - Trattenere = room_pause temporizzata (2 h, fail-safe) in Thermostat Pro Timeline
+#    + setpoint abbassato di 0,5 C rispetto a quello di programma.
+#  - Se la zona trattenuta riparte da sola e dopo 5 min e' ancora sola: ulteriore -0,5 C
+#    (max -1 C totale).
+#  - RILASCIO (Timeline ripristina da solo il setpoint di programma) quando:
+#       - un'altra zona (Salone compreso) parte oppure ha raggiunto il suo setpoint
+#       - la pausa globale di Timeline e' attiva
+#       - la temperatura della stanza scende sotto setpoint base - 1 C
+#       - a -1 C e' ancora l'unica a scaldare da 5 min
+#       - sono passate 2 h
+#       - il termostato diventa off/non disponibile
+#  - Protezioni: pausa di 5 min dopo ogni rilascio (nessun trattenimento), e al massimo
+#    un trattenimento ogni 30 min per la stessa stanza (meno scritture sul KBlue).
+#  - Letture di temperatura pari a 0 (sonda KBlue senza lettura valida) vengono ignorate
+#    in tutti i confronti (t != 0).
+# =============================================================================
+
+input_text:
+  zona_trattenuta:
+    name: Zona trattenuta (stato interno)
+    # formato: climate|setpoint_base|livello|ts_ultimo_passo|ts_inizio
+    max: 255
+    initial: ""
+
+input_number:
+  zona_soglia_vicinanza:
+    name: Soglia vicinanza al setpoint (°C)
+    min: 0.2
+    max: 1.0
+    step: 0.1
+    initial: 0.4
+    mode: box
+    # isteresi KBlue 0,2 + margine 0,2
+
+input_datetime:
+  zona_ultimo_rilascio:
+    name: Ultimo rilascio zona trattenuta
+    has_date: true
+    has_time: true
+    initial: "2000-01-01 00:00:00"
+  trattenuta_cucina:
+    name: Ultimo trattenimento cucina
+    has_date: true
+    has_time: true
+    initial: "2000-01-01 00:00:00"
+  trattenuta_camera_francesco:
+    name: Ultimo trattenimento camera francesco
+    has_date: true
+    has_time: true
+    initial: "2000-01-01 00:00:00"
+  trattenuta_camera_greta:
+    name: Ultimo trattenimento camera greta
+    has_date: true
+    has_time: true
+    initial: "2000-01-01 00:00:00"
+  trattenuta_camera_matrimoniale:
+    name: Ultimo trattenimento camera matrimoniale
+    has_date: true
+    has_time: true
+    initial: "2000-01-01 00:00:00"
+  trattenuta_wc:
+    name: Ultimo trattenimento wc
+    has_date: true
+    has_time: true
+    initial: "2000-01-01 00:00:00"
+  trattenuta_wc_letto:
+    name: Ultimo trattenimento wc letto
+    has_date: true
+    has_time: true
+    initial: "2000-01-01 00:00:00"
+  trattenuta_suite_letto:
+    name: Ultimo trattenimento suite letto
+    has_date: true
+    has_time: true
+    initial: "2000-01-01 00:00:00"
+  trattenuta_suite_salone:
+    name: Ultimo trattenimento suite salone
+    has_date: true
+    has_time: true
+    initial: "2000-01-01 00:00:00"
+  trattenuta_wc_suite:
+    name: Ultimo trattenimento wc suite
+    has_date: true
+    has_time: true
+    initial: "2000-01-01 00:00:00"
+
+# --- Stato globale di Timeline (pausa globale + room_pause esistenti) --------
+rest:
+  - resource: "http://localhost:8123/api/thermostat_timeline/state?instance_id=default"
+    method: GET
+    scan_interval: 60
+    timeout: 20
+    headers:
+      Authorization: !secret timeline_bearer
+    sensor:
+      - name: "Timeline stato"
+        unique_id: timeline_stato_pausa
+        value_template: >-
+          {% set s = value_json.settings | default({}) %}
+          {% set pu = s.pause_until_ms | default(0) | float(0) %}
+          {{ 'in_pausa' if (s.pause_indef | default(false)) or pu > (as_timestamp(now()) * 1000) else 'attivo' }}
+        json_attributes_path: "$.settings"
+        json_attributes:
+          - room_pause
+
+template:
+  - sensor:
+      # Zone attive + eventuale candidata unica
+      - name: "Zone in riscaldamento"
+        unique_id: zone_in_riscaldamento
+        state: >-
+          {{ [
+            'sensor.riscaldamento_attivo_salone_kblue',
+            'sensor.riscaldamento_attivo_cucina_kblue',
+            'sensor.riscaldamento_attivo_camera_francesco',
+            'sensor.riscaldamento_attivo_cam_greta_kblue',
+            'sensor.riscaldamento_attivo_letto_kblue',
+            'sensor.riscaldamento_attivo_wc_kblue',
+            'sensor.riscaldamento_attivo_wc_letto_kblue',
+            'sensor.riscaldamento_attivo_letto_suite_kblue',
+            'sensor.riscaldamento_attivo_salone_suite_kblue',
+            'sensor.riscaldamento_attivo_wc_suite_kblue'
+          ] | select('is_state', 'on') | list | count }}
+        attributes:
+          attive: >-
+            {% set m = {
+              'sensor.riscaldamento_attivo_salone_kblue': 'climate.termostato_salone',
+              'sensor.riscaldamento_attivo_cucina_kblue': 'climate.termostato_cucina',
+              'sensor.riscaldamento_attivo_camera_francesco': 'climate.termostato_camera_francesco',
+              'sensor.riscaldamento_attivo_cam_greta_kblue': 'climate.termostato_camera_greta',
+              'sensor.riscaldamento_attivo_letto_kblue': 'climate.termostato_camera_matrimoniale',
+              'sensor.riscaldamento_attivo_wc_kblue': 'climate.termostato_wc',
+              'sensor.riscaldamento_attivo_wc_letto_kblue': 'climate.termostato_wc_letto',
+              'sensor.riscaldamento_attivo_letto_suite_kblue': 'climate.termostato_suite_letto',
+              'sensor.riscaldamento_attivo_salone_suite_kblue': 'climate.termostato_suite_salone',
+              'sensor.riscaldamento_attivo_wc_suite_kblue': 'climate.termostato_wc_suite'
+            } %}
+            {% set ns = namespace(l=[]) %}
+            {% for s, c in m.items() %}{% if is_state(s, 'on') %}{% set ns.l = ns.l + [c] %}{% endif %}{% endfor %}
+            {{ ns.l }}
+          unica: >-
+            {% set m = {
+              'sensor.riscaldamento_attivo_salone_kblue': 'climate.termostato_salone',
+              'sensor.riscaldamento_attivo_cucina_kblue': 'climate.termostato_cucina',
+              'sensor.riscaldamento_attivo_camera_francesco': 'climate.termostato_camera_francesco',
+              'sensor.riscaldamento_attivo_cam_greta_kblue': 'climate.termostato_camera_greta',
+              'sensor.riscaldamento_attivo_letto_kblue': 'climate.termostato_camera_matrimoniale',
+              'sensor.riscaldamento_attivo_wc_kblue': 'climate.termostato_wc',
+              'sensor.riscaldamento_attivo_wc_letto_kblue': 'climate.termostato_wc_letto',
+              'sensor.riscaldamento_attivo_letto_suite_kblue': 'climate.termostato_suite_letto',
+              'sensor.riscaldamento_attivo_salone_suite_kblue': 'climate.termostato_suite_salone',
+              'sensor.riscaldamento_attivo_wc_suite_kblue': 'climate.termostato_wc_suite'
+            } %}
+            {% set ns = namespace(l=[]) %}
+            {% for s, c in m.items() %}{% if is_state(s, 'on') %}{% set ns.l = ns.l + [c] %}{% endif %}{% endfor %}
+            {{ ns.l[0] if ns.l | count == 1 else 'nessuna' }}
+
+  # Sensori di storico (basati su trigger): copiano lo stato on/off del termostato e
+  # aggiungono come attributi temperatura, setpoint, inizio del ciclo e durata del ciclo.
+  # Usati dalla Chronicle card. "durata" e' valorizzata solo quando il termostato smette di scaldare.
+  - triggers:
+      - trigger: state
+        entity_id: sensor.riscaldamento_attivo_salone_kblue
+        to:
+          - "on"
+          - "off"
+    sensor:
+      - name: "Storico Salone"
+        unique_id: storico_riscaldamento_salone
+        state: "{{ trigger.to_state.state }}"
+        attributes:
+          temperatura: "{{ state_attr('climate.termostato_salone', 'current_temperature') }}"
+          setpoint: "{{ state_attr('climate.termostato_salone', 'temperature') }}"
+          inizio: >-
+            {% if trigger.to_state.state == 'on' %}{{ now().isoformat() }}
+            {% else %}{{ this.attributes.get('inizio', none) }}{% endif %}
+          durata: >-
+            {% set i = this.attributes.get('inizio', none) %}
+            {% if trigger.to_state.state == 'off' and i %}
+              {% set m = ((now() - as_datetime(i)).total_seconds() / 60) | round(0) | int %}
+              {% if m >= 60 %}{{ m // 60 }} h {{ m % 60 }} min{% else %}{{ m }} min{% endif %}
+            {% else %}{% endif %}
+  - triggers:
+      - trigger: state
+        entity_id: sensor.riscaldamento_attivo_cucina_kblue
+        to:
+          - "on"
+          - "off"
+    sensor:
+      - name: "Storico Cucina"
+        unique_id: storico_riscaldamento_cucina
+        state: "{{ trigger.to_state.state }}"
+        attributes:
+          temperatura: "{{ state_attr('climate.termostato_cucina', 'current_temperature') }}"
+          setpoint: "{{ state_attr('climate.termostato_cucina', 'temperature') }}"
+          inizio: >-
+            {% if trigger.to_state.state == 'on' %}{{ now().isoformat() }}
+            {% else %}{{ this.attributes.get('inizio', none) }}{% endif %}
+          durata: >-
+            {% set i = this.attributes.get('inizio', none) %}
+            {% if trigger.to_state.state == 'off' and i %}
+              {% set m = ((now() - as_datetime(i)).total_seconds() / 60) | round(0) | int %}
+              {% if m >= 60 %}{{ m // 60 }} h {{ m % 60 }} min{% else %}{{ m }} min{% endif %}
+            {% else %}{% endif %}
+  - triggers:
+      - trigger: state
+        entity_id: sensor.riscaldamento_attivo_camera_francesco
+        to:
+          - "on"
+          - "off"
+    sensor:
+      - name: "Storico Camera Francesco"
+        unique_id: storico_riscaldamento_camera_francesco
+        state: "{{ trigger.to_state.state }}"
+        attributes:
+          temperatura: "{{ state_attr('climate.termostato_camera_francesco', 'current_temperature') }}"
+          setpoint: "{{ state_attr('climate.termostato_camera_francesco', 'temperature') }}"
+          inizio: >-
+            {% if trigger.to_state.state == 'on' %}{{ now().isoformat() }}
+            {% else %}{{ this.attributes.get('inizio', none) }}{% endif %}
+          durata: >-
+            {% set i = this.attributes.get('inizio', none) %}
+            {% if trigger.to_state.state == 'off' and i %}
+              {% set m = ((now() - as_datetime(i)).total_seconds() / 60) | round(0) | int %}
+              {% if m >= 60 %}{{ m // 60 }} h {{ m % 60 }} min{% else %}{{ m }} min{% endif %}
+            {% else %}{% endif %}
+  - triggers:
+      - trigger: state
+        entity_id: sensor.riscaldamento_attivo_cam_greta_kblue
+        to:
+          - "on"
+          - "off"
+    sensor:
+      - name: "Storico Camera Greta"
+        unique_id: storico_riscaldamento_camera_greta
+        state: "{{ trigger.to_state.state }}"
+        attributes:
+          temperatura: "{{ state_attr('climate.termostato_camera_greta', 'current_temperature') }}"
+          setpoint: "{{ state_attr('climate.termostato_camera_greta', 'temperature') }}"
+          inizio: >-
+            {% if trigger.to_state.state == 'on' %}{{ now().isoformat() }}
+            {% else %}{{ this.attributes.get('inizio', none) }}{% endif %}
+          durata: >-
+            {% set i = this.attributes.get('inizio', none) %}
+            {% if trigger.to_state.state == 'off' and i %}
+              {% set m = ((now() - as_datetime(i)).total_seconds() / 60) | round(0) | int %}
+              {% if m >= 60 %}{{ m // 60 }} h {{ m % 60 }} min{% else %}{{ m }} min{% endif %}
+            {% else %}{% endif %}
+  - triggers:
+      - trigger: state
+        entity_id: sensor.riscaldamento_attivo_letto_kblue
+        to:
+          - "on"
+          - "off"
+    sensor:
+      - name: "Storico Camera matrimoniale"
+        unique_id: storico_riscaldamento_camera_matrimoniale
+        state: "{{ trigger.to_state.state }}"
+        attributes:
+          temperatura: "{{ state_attr('climate.termostato_camera_matrimoniale', 'current_temperature') }}"
+          setpoint: "{{ state_attr('climate.termostato_camera_matrimoniale', 'temperature') }}"
+          inizio: >-
+            {% if trigger.to_state.state == 'on' %}{{ now().isoformat() }}
+            {% else %}{{ this.attributes.get('inizio', none) }}{% endif %}
+          durata: >-
+            {% set i = this.attributes.get('inizio', none) %}
+            {% if trigger.to_state.state == 'off' and i %}
+              {% set m = ((now() - as_datetime(i)).total_seconds() / 60) | round(0) | int %}
+              {% if m >= 60 %}{{ m // 60 }} h {{ m % 60 }} min{% else %}{{ m }} min{% endif %}
+            {% else %}{% endif %}
+  - triggers:
+      - trigger: state
+        entity_id: sensor.riscaldamento_attivo_wc_kblue
+        to:
+          - "on"
+          - "off"
+    sensor:
+      - name: "Storico WC"
+        unique_id: storico_riscaldamento_wc
+        state: "{{ trigger.to_state.state }}"
+        attributes:
+          temperatura: "{{ state_attr('climate.termostato_wc', 'current_temperature') }}"
+          setpoint: "{{ state_attr('climate.termostato_wc', 'temperature') }}"
+          inizio: >-
+            {% if trigger.to_state.state == 'on' %}{{ now().isoformat() }}
+            {% else %}{{ this.attributes.get('inizio', none) }}{% endif %}
+          durata: >-
+            {% set i = this.attributes.get('inizio', none) %}
+            {% if trigger.to_state.state == 'off' and i %}
+              {% set m = ((now() - as_datetime(i)).total_seconds() / 60) | round(0) | int %}
+              {% if m >= 60 %}{{ m // 60 }} h {{ m % 60 }} min{% else %}{{ m }} min{% endif %}
+            {% else %}{% endif %}
+  - triggers:
+      - trigger: state
+        entity_id: sensor.riscaldamento_attivo_wc_letto_kblue
+        to:
+          - "on"
+          - "off"
+    sensor:
+      - name: "Storico WC letto"
+        unique_id: storico_riscaldamento_wc_letto
+        state: "{{ trigger.to_state.state }}"
+        attributes:
+          temperatura: "{{ state_attr('climate.termostato_wc_letto', 'current_temperature') }}"
+          setpoint: "{{ state_attr('climate.termostato_wc_letto', 'temperature') }}"
+          inizio: >-
+            {% if trigger.to_state.state == 'on' %}{{ now().isoformat() }}
+            {% else %}{{ this.attributes.get('inizio', none) }}{% endif %}
+          durata: >-
+            {% set i = this.attributes.get('inizio', none) %}
+            {% if trigger.to_state.state == 'off' and i %}
+              {% set m = ((now() - as_datetime(i)).total_seconds() / 60) | round(0) | int %}
+              {% if m >= 60 %}{{ m // 60 }} h {{ m % 60 }} min{% else %}{{ m }} min{% endif %}
+            {% else %}{% endif %}
+  - triggers:
+      - trigger: state
+        entity_id: sensor.riscaldamento_attivo_letto_suite_kblue
+        to:
+          - "on"
+          - "off"
+    sensor:
+      - name: "Storico Suite letto"
+        unique_id: storico_riscaldamento_suite_letto
+        state: "{{ trigger.to_state.state }}"
+        attributes:
+          temperatura: "{{ state_attr('climate.termostato_suite_letto', 'current_temperature') }}"
+          setpoint: "{{ state_attr('climate.termostato_suite_letto', 'temperature') }}"
+          inizio: >-
+            {% if trigger.to_state.state == 'on' %}{{ now().isoformat() }}
+            {% else %}{{ this.attributes.get('inizio', none) }}{% endif %}
+          durata: >-
+            {% set i = this.attributes.get('inizio', none) %}
+            {% if trigger.to_state.state == 'off' and i %}
+              {% set m = ((now() - as_datetime(i)).total_seconds() / 60) | round(0) | int %}
+              {% if m >= 60 %}{{ m // 60 }} h {{ m % 60 }} min{% else %}{{ m }} min{% endif %}
+            {% else %}{% endif %}
+  - triggers:
+      - trigger: state
+        entity_id: sensor.riscaldamento_attivo_salone_suite_kblue
+        to:
+          - "on"
+          - "off"
+    sensor:
+      - name: "Storico Suite salone"
+        unique_id: storico_riscaldamento_suite_salone
+        state: "{{ trigger.to_state.state }}"
+        attributes:
+          temperatura: "{{ state_attr('climate.termostato_suite_salone', 'current_temperature') }}"
+          setpoint: "{{ state_attr('climate.termostato_suite_salone', 'temperature') }}"
+          inizio: >-
+            {% if trigger.to_state.state == 'on' %}{{ now().isoformat() }}
+            {% else %}{{ this.attributes.get('inizio', none) }}{% endif %}
+          durata: >-
+            {% set i = this.attributes.get('inizio', none) %}
+            {% if trigger.to_state.state == 'off' and i %}
+              {% set m = ((now() - as_datetime(i)).total_seconds() / 60) | round(0) | int %}
+              {% if m >= 60 %}{{ m // 60 }} h {{ m % 60 }} min{% else %}{{ m }} min{% endif %}
+            {% else %}{% endif %}
+  - triggers:
+      - trigger: state
+        entity_id: sensor.riscaldamento_attivo_wc_suite_kblue
+        to:
+          - "on"
+          - "off"
+    sensor:
+      - name: "Storico WC suite"
+        unique_id: storico_riscaldamento_wc_suite
+        state: "{{ trigger.to_state.state }}"
+        attributes:
+          temperatura: "{{ state_attr('climate.termostato_wc_suite', 'current_temperature') }}"
+          setpoint: "{{ state_attr('climate.termostato_wc_suite', 'temperature') }}"
+          inizio: >-
+            {% if trigger.to_state.state == 'on' %}{{ now().isoformat() }}
+            {% else %}{{ this.attributes.get('inizio', none) }}{% endif %}
+          durata: >-
+            {% set i = this.attributes.get('inizio', none) %}
+            {% if trigger.to_state.state == 'off' and i %}
+              {% set m = ((now() - as_datetime(i)).total_seconds() / 60) | round(0) | int %}
+              {% if m >= 60 %}{{ m // 60 }} h {{ m % 60 }} min{% else %}{{ m }} min{% endif %}
+            {% else %}{% endif %}
+
+  # Zona da trattenere (preventivo o ripiego): entity del termostato oppure "nessuna"
+  - sensor:
+      - name: "Zona da trattenere"
+        unique_id: zona_da_trattenere
+        state: >-
+          {% set m = {
+            'climate.termostato_salone': ['sensor.riscaldamento_attivo_salone_kblue', 'sensor.trend_temperatura_salone'],
+            'climate.termostato_cucina': ['sensor.riscaldamento_attivo_cucina_kblue', 'sensor.trend_temperatura_cucina'],
+            'climate.termostato_camera_francesco': ['sensor.riscaldamento_attivo_camera_francesco', 'sensor.trend_temperatura_camera_francesco'],
+            'climate.termostato_camera_greta': ['sensor.riscaldamento_attivo_cam_greta_kblue', 'sensor.trend_temperatura_camera_greta'],
+            'climate.termostato_camera_matrimoniale': ['sensor.riscaldamento_attivo_letto_kblue', 'sensor.trend_temperatura_camera_matrimoniale'],
+            'climate.termostato_wc': ['sensor.riscaldamento_attivo_wc_kblue', 'sensor.trend_temperatura_wc'],
+            'climate.termostato_wc_letto': ['sensor.riscaldamento_attivo_wc_letto_kblue', 'sensor.trend_temperatura_wc_letto'],
+            'climate.termostato_suite_letto': ['sensor.riscaldamento_attivo_letto_suite_kblue', 'sensor.trend_temperatura_suite_letto'],
+            'climate.termostato_suite_salone': ['sensor.riscaldamento_attivo_salone_suite_kblue', 'sensor.trend_temperatura_suite_salone'],
+            'climate.termostato_wc_suite': ['sensor.riscaldamento_attivo_wc_suite_kblue', 'sensor.trend_temperatura_wc_suite']
+          } %}
+          {% set soglia = states('input_number.zona_soglia_vicinanza') | float(0.4) %}
+          {% set n = states('sensor.zone_in_riscaldamento') | int(0) %}
+          {% set unica = state_attr('sensor.zone_in_riscaldamento', 'unica') %}
+          {% set ns = namespace(res='nessuna', cand=[]) %}
+          {% if n == 1 %}
+            {% if unica not in ['nessuna', 'climate.termostato_salone'] and states(unica) in ['auto', 'heat'] %}
+              {% set ns.res = unica %}
+            {% endif %}
+          {% elif n == 0 %}
+            {% for c, v in m.items() if c != 'climate.termostato_salone' %}
+              {% set t = state_attr(c, 'current_temperature') | float(none) %}
+              {% set sp = state_attr(c, 'temperature') | float(none) %}
+              {% set cl = state_attr(v[1], 'classificazione') %}
+              {% if states(c) in ['auto', 'heat'] and is_state(v[0], 'off')
+                    and t is not none and t != 0 and sp is not none and t <= sp
+                    and cl not in ['salita', 'salita_rapida'] %}
+                {% set ns.cand = ns.cand + [c] %}
+              {% endif %}
+            {% endfor %}
+            {% if ns.cand | count == 1 %}
+              {% set c0 = ns.cand[0] %}
+              {% set nr = namespace(vicina=false) %}
+              {% for c, v in m.items() if c != c0 %}
+                {% set t = state_attr(c, 'current_temperature') | float(none) %}
+                {% set sp = state_attr(c, 'temperature') | float(none) %}
+                {% set cl = state_attr(v[1], 'classificazione') %}
+                {% if states(c) not in ['off', 'unavailable', 'unknown'] and is_state(v[0], 'off')
+                      and t is not none and t != 0 and sp is not none %}
+                  {% set d = t - sp %}
+                  {% set pronta = d <= 0 and cl not in ['salita', 'salita_rapida'] %}
+                  {% if pronta or (d <= soglia and (cl in ['discesa', 'discesa_rapida'] or (cl == 'stabile' and d <= 0.2))) %}
+                    {% set nr.vicina = true %}
+                  {% endif %}
+                {% endif %}
+              {% endfor %}
+              {% if not nr.vicina %}{% set ns.res = c0 %}{% endif %}
+            {% endif %}
+          {% endif %}
+          {{ ns.res }}
+        attributes:
+          motivo: >-
+            {{ 'ripiego' if states('sensor.zone_in_riscaldamento') | int(0) == 1 else 'preventivo' }}
+
+  # Un'altra zona (Salone compreso) e' partita o ha raggiunto il setpoint
+  # rispetto alla zona attualmente trattenuta: serve a rilasciarla.
+  - binary_sensor:
+      - name: "Zona altra in partenza"
+        unique_id: zona_altra_in_partenza
+        state: >-
+          {% set m = {
+            'climate.termostato_salone': ['sensor.riscaldamento_attivo_salone_kblue', 'sensor.trend_temperatura_salone'],
+            'climate.termostato_cucina': ['sensor.riscaldamento_attivo_cucina_kblue', 'sensor.trend_temperatura_cucina'],
+            'climate.termostato_camera_francesco': ['sensor.riscaldamento_attivo_camera_francesco', 'sensor.trend_temperatura_camera_francesco'],
+            'climate.termostato_camera_greta': ['sensor.riscaldamento_attivo_cam_greta_kblue', 'sensor.trend_temperatura_camera_greta'],
+            'climate.termostato_camera_matrimoniale': ['sensor.riscaldamento_attivo_letto_kblue', 'sensor.trend_temperatura_camera_matrimoniale'],
+            'climate.termostato_wc': ['sensor.riscaldamento_attivo_wc_kblue', 'sensor.trend_temperatura_wc'],
+            'climate.termostato_wc_letto': ['sensor.riscaldamento_attivo_wc_letto_kblue', 'sensor.trend_temperatura_wc_letto'],
+            'climate.termostato_suite_letto': ['sensor.riscaldamento_attivo_letto_suite_kblue', 'sensor.trend_temperatura_suite_letto'],
+            'climate.termostato_suite_salone': ['sensor.riscaldamento_attivo_salone_suite_kblue', 'sensor.trend_temperatura_suite_salone'],
+            'climate.termostato_wc_suite': ['sensor.riscaldamento_attivo_wc_suite_kblue', 'sensor.trend_temperatura_wc_suite']
+          } %}
+          {% set held = states('input_text.zona_trattenuta').split('|')[0] %}
+          {% set ns = namespace(v=false) %}
+          {% if held != '' %}
+            {% for c, v in m.items() if c != held %}
+              {% set t = state_attr(c, 'current_temperature') | float(none) %}
+              {% set sp = state_attr(c, 'temperature') | float(none) %}
+              {% set cl = state_attr(v[1], 'classificazione') %}
+              {% if states(c) not in ['off', 'unavailable', 'unknown'] %}
+                {% if is_state(v[0], 'on') %}
+                  {% set ns.v = true %}
+                {% elif t is not none and t != 0 and sp is not none and t <= sp
+                        and cl not in ['salita', 'salita_rapida'] %}
+                  {% set ns.v = true %}
+                {% endif %}
+              {% endif %}
+            {% endfor %}
+          {% endif %}
+          {{ ns.v }}
+
+script:
+  riscaldamento_notifica:
+    alias: "Riscaldamento - notifica (iPhone + Telegram)"
+    mode: queued
+    fields:
+      titolo:
+        description: Titolo
+      messaggio:
+        description: Testo
+    sequence:
+      - action: notify.mobile_app_iphone_di_filippo
+        data:
+          title: "{{ titolo }}"
+          message: "{{ messaggio }}"
+      - action: telegram_bot.send_message
+        data:
+          config_entry_id: 01KFE3V7X0K1WR8591R20DGBK7
+          title: "{{ titolo }}"
+          message: "{{ messaggio }}"
+          parse_mode: plain_text

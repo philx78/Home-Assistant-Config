@@ -1,0 +1,223 @@
+blueprint:
+  name: UPS Monitor via NUT - Status, Battery, Optional Self-Test (Debounced)
+  description: 'Monitors a UPS exposed via the NUT integration and sends debounced
+    notifications when: - Status code changes (status_data) - Battery drops by a configured
+    step (e.g., every 10%) - Self-test result is not "Done and passed" (optional input)
+
+    Debounce is useful when the NUT server briefly flaps unavailable/available.
+
+    '
+  domain: automation
+  input:
+    battery_charge:
+      name: Battery Charge Sensor
+      description: Sensor showing UPS battery charge percentage (e.g. sensor.ups_battery_charge).
+      selector:
+        entity:
+          domain:
+          - sensor
+          integration: nut
+          multiple: false
+          reorder: false
+    battery_voltage:
+      name: Battery Voltage Sensor
+      description: Sensor showing UPS battery voltage (e.g. sensor.ups_battery_voltage).
+      selector:
+        entity:
+          domain:
+          - sensor
+          integration: nut
+          multiple: false
+          reorder: false
+    ups_status_data:
+      name: UPS Status Code Sensor (e.g., OL, OB)
+      description: 'Sensor with compact status codes like OL (online), OB (on battery),
+        LB (low battery). Typically sensor.nutdev1_status_data. Used for automation
+        logic.
+
+        '
+      selector:
+        entity:
+          domain:
+          - sensor
+          integration: nut
+          multiple: false
+          reorder: false
+    ups_status:
+      name: UPS Human-Readable Status Sensor
+      description: 'Sensor with full text status like "Online", "On Battery". Typically
+        sensor.nutdev1_status. Used for notifications.
+
+        '
+      selector:
+        entity:
+          domain:
+          - sensor
+          integration: nut
+          multiple: false
+          reorder: false
+    enable_self_test_check:
+      name: Enable self-test monitoring?
+      description: Enable self-test monitoring (requires self-test entity to be selected).
+      default: false
+      selector:
+        boolean: {}
+    self_test_result_entity:
+      name: Self-test Result Sensor (Optional)
+      description: 'Optional. If your UPS/NUT setup exposes a self-test result sensor,
+        select it here. If you don''t have one, leave it empty.
+
+        '
+      default: []
+      selector:
+        entity:
+          domain:
+          - sensor
+          integration: nut
+          multiple: false
+          reorder: false
+    report_interval:
+      name: Battery Drop Notification Interval
+      description: Notify when battery drops by this percentage step (e.g., every
+        10%).
+      default: 10
+      selector:
+        number:
+          min: 1.0
+          max: 50.0
+          step: 1.0
+          mode: slider
+    delay_seconds:
+      name: Debounce for status/self-test notifications (seconds)
+      description: 'Require the new status/self-test value to stay stable for this
+        many seconds before notifying. Useful for flaky NUT servers that flap unavailable
+        briefly.
+
+        '
+      default: 15
+      selector:
+        number:
+          min: 0.0
+          max: 600.0
+          step: 1.0
+          unit_of_measurement: s
+          mode: slider
+    battery_delay_seconds:
+      name: Debounce for battery charge notifications (seconds)
+      description: 'Optional additional delay before sending a battery step notification.
+        Default 0 (no delay). Increase if your battery sensor jumps around.
+
+        '
+      default: 0
+      selector:
+        number:
+          min: 0.0
+          max: 600.0
+          step: 1.0
+          unit_of_measurement: s
+          mode: slider
+    notify_device:
+      name: Notification Device
+      description: Select your mobile device for push notifications (mobile_app integration).
+      selector:
+        device:
+          filter:
+          - integration: mobile_app
+          multiple: false
+    high_priority:
+      name: High priority notifications?
+      description: 'If enabled, sends mobile_app notifications with priority=high
+        and ttl=0. Useful for immediate delivery on supported devices (Android).
+
+        '
+      default: false
+      selector:
+        boolean: {}
+    message_prefix:
+      name: Notification Message Prefix
+      description: Prepended to all messages (optional).
+      default: 'UPS Monitor:'
+      selector:
+        text:
+          multiple: false
+          multiline: false
+  source_url: https://gist.github.com/007hacky007/9adc18b15cd1e7fb5fa5e5530625d65c/raw
+trigger:
+- id: status_change
+  platform: state
+  entity_id: !input ups_status_data
+  for:
+    seconds: !input delay_seconds
+- id: battery_change
+  platform: state
+  entity_id: !input battery_charge
+- id: self_test_change
+  platform: state
+  entity_id: !input self_test_result_entity
+  for:
+    seconds: !input delay_seconds
+variables:
+  battery_charge_entity: !input battery_charge
+  battery_voltage_entity: !input battery_voltage
+  ups_status_data_entity: !input ups_status_data
+  ups_status_readable_entity: !input ups_status
+  self_test_list: !input self_test_result_entity
+  self_test_entity: '{{ (self_test_list | first) if (self_test_list | length > 0)
+    else '''' }}'
+  enable_self_test_check: !input enable_self_test_check
+  report_interval: !input report_interval
+  battery_delay_seconds: !input battery_delay_seconds
+  message_prefix: !input message_prefix
+  high_priority: !input high_priority
+  current_charge: '{{ states(battery_charge_entity) | int(default=100) }}'
+  charge_mod: '{{ current_charge % report_interval }}'
+  battery_voltage_val: '{{ states(battery_voltage_entity) | float(default=0) }}'
+  status_readable: '{{ states(ups_status_readable_entity) }}'
+  test_result: '{{ states(self_test_entity) if self_test_entity != '''' else ''''
+    }}'
+condition:
+- condition: or
+  conditions:
+  - condition: template
+    value_template: '{{ trigger.id == ''status_change'' }}'
+  - condition: template
+    value_template: "{{ trigger.id == 'battery_change'\n   and current_charge < 100\n
+      \  and charge_mod == 0 }}\n"
+  - condition: template
+    value_template: "{{ trigger.id == 'self_test_change'\n   and enable_self_test_check\n
+      \  and self_test_entity != ''\n   and test_result != 'Done and passed' }}\n"
+action:
+- choose:
+  - conditions:
+    - condition: template
+      value_template: '{{ trigger.id == ''battery_change'' and (battery_delay_seconds
+        | int) > 0 }}'
+    sequence:
+    - delay:
+        seconds: !input battery_delay_seconds
+- variables:
+    notify_message: "{% if trigger.id == 'status_change' %}\n  {{ message_prefix }}
+      UPS status changed: {{ status_readable }}\n{% elif trigger.id == 'battery_change'
+      %}\n  {{ message_prefix }} Battery at {{ current_charge }}%. Voltage: {{ battery_voltage_val
+      }} V\n{% elif trigger.id == 'self_test_change' %}\n  {{ message_prefix }} Self-test
+      result: {{ test_result }}\n{% else %}\n  {{ message_prefix }} UPS alert triggered.\n{%
+      endif %}\n"
+- choose:
+  - conditions:
+    - condition: template
+      value_template: '{{ high_priority }}'
+    sequence:
+    - domain: mobile_app
+      type: notify
+      device_id: !input notify_device
+      message: '{{ notify_message }}'
+      data:
+        priority: high
+        ttl: 0
+  default:
+  - domain: mobile_app
+    type: notify
+    device_id: !input notify_device
+    message: '{{ notify_message }}'
+mode: queued
+max: 10

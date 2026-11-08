@@ -1,0 +1,3826 @@
+- id: '1758918432493'
+  alias: Notifica temperatura frigo anomala
+  description: Notifica sull'iPhone se la temperatura del frigo resta sopra 10 °C
+    per 5 minuti
+  triggers:
+  - trigger: numeric_state
+    entity_id: 1dd9a866541dd5dc0aa7f22df453c043
+    above: 10
+    for:
+      hours: 0
+      minutes: 5
+      seconds: 0
+  conditions: []
+  actions:
+  - action: notify.send_message
+    target:
+      entity_id: notify.iphone_di_filippo
+    data:
+      title: Temperatura frigo
+      message: Rilevata temperatura frigo anomala!
+  mode: single
+- id: '1758979683607'
+  alias: Auto turn on armadio light
+  description: ''
+  use_blueprint:
+    path: homeassistant/motion_light.yaml
+    input:
+      motion_entity: binary_sensor.sensore_presenza_armadio_occupancy
+      light_target:
+        device_id: 96b83c3d1a1922590247982f1d4f29e2
+      no_motion_wait: 10
+- id: '1758988021073'
+  alias: Allarme perdita d'acqua
+  description: ''
+  triggers:
+  - entity_id:
+    - binary_sensor.0x00158d0008546356_water_leak
+    - binary_sensor.0x00158d000a81a288_water_leak
+    - binary_sensor.0x00158d0009f45802_water_leak
+    from: 'off'
+    to: 'on'
+    trigger: state
+    for:
+      hours: 0
+      minutes: 0
+      seconds: 15
+  actions:
+  - data:
+      title: "\U0001F6A8 Rilevata perdita d’acqua!"
+      message: 'Perdita d''acqua rilevata da {{ trigger.to_state.name }} ({{ trigger.entity_id
+        }})
+
+        '
+      data:
+        push:
+          sound:
+            name: default
+            critical: 1
+    action: notify.mobile_app_iphone_di_filippo
+- id: '1758993036350'
+  alias: Auto turn on balconcino light when back home
+  description: ''
+  triggers:
+  - entity_id:
+    - alarm_control_panel.risco_casetta_partition_1
+    to: disarmed
+    trigger: state
+    from: armed_away
+  conditions:
+  - condition: sun
+    after: sunset
+  actions:
+  - wait_for_trigger:
+    - trigger: state
+      entity_id: binary_sensor.porta_ingresso
+      to: 'on'
+    timeout:
+      seconds: 30
+    continue_on_timeout: false
+  - wait_for_trigger:
+    - trigger: state
+      entity_id: binary_sensor.porta_filippo
+      to: 'on'
+    timeout:
+      seconds: 30
+    continue_on_timeout: false
+  - action: light.turn_on
+    target:
+      entity_id: light.shellyplusrgbwpm_ecc9ff4dcdb0_light_3
+  - target:
+      device_id: 1b04930ba2c41eaeb44d4a61c03360b4
+    data:
+      message: Bentornati a casa!
+    action: notify.send_message
+  - delay:
+      minutes: 2
+  - action: light.turn_off
+    target:
+      entity_id: light.shellyplusrgbwpm_ecc9ff4dcdb0_light_3
+  mode: single
+- id: '1759006742743'
+  alias: Sicurezza - Quando l'allarme viene disinserito invia notifica e disinserisci
+    il sistema Blink
+  description: ''
+  triggers:
+  - trigger: state
+    entity_id:
+    - alarm_control_panel.risco_casetta_partition_1
+    from: armed_away
+    to: disarmed
+    for:
+      hours: 0
+      minutes: 0
+      seconds: 10
+  - trigger: state
+    entity_id:
+    - alarm_control_panel.risco_casetta_partition_1
+    from: armed_home
+    to: disarmed
+    for:
+      hours: 0
+      minutes: 0
+      seconds: 10
+  conditions: []
+  actions:
+  - action: alarm_control_panel.alarm_disarm
+    metadata: {}
+    data: {}
+    target:
+      device_id: b1542cf3668a1ee223b9c770fae05421
+  - if:
+    - condition: time
+      after: 07:03:00
+      before: 06:57:00
+    then:
+    - action: notify.mobile_app_iphone_di_filippo
+      metadata: {}
+      data:
+        message: Zona comune disinserita manualmente
+    alias: Non inviare notifica se il disarmo è automatico
+  mode: single
+- id: '1759009250664'
+  alias: Sicurezza - Inserisci il sistema Blink quando quello Risco viene inserito
+  description: ''
+  triggers:
+  - trigger: state
+    entity_id:
+    - alarm_control_panel.risco_casetta_partition_1
+    for:
+      hours: 0
+      minutes: 0
+      seconds: 10
+    from: disarmed
+    to: armed_away
+  - trigger: state
+    entity_id:
+    - alarm_control_panel.risco_casetta_partition_1
+    from: disarmed
+    to: armed_home
+    for:
+      hours: 0
+      minutes: 0
+      seconds: 10
+  conditions: []
+  actions:
+  - action: alarm_control_panel.alarm_arm_away
+    metadata: {}
+    data: {}
+    target:
+      device_id: b1542cf3668a1ee223b9c770fae05421
+  mode: single
+- id: '1759154396947'
+  alias: Notifica temperatura media frigo anomala
+  description: ''
+  triggers:
+  - entity_id:
+    - sensor.temperatura_media_frigo
+    above: 11
+    for:
+      minutes: 30
+    trigger: numeric_state
+  - entity_id:
+    - sensor.temperatura_media_frigo
+    below: 5
+    for:
+      minutes: 30
+    trigger: numeric_state
+  conditions: []
+  actions:
+  - data:
+      data:
+        push:
+          badge: 1
+      title: Domotica
+      message: "{% set t = states('sensor.temperatura_media_frigo') | float(0) %}
+        {% if t > 11.0 %}\n  Rilevata temperatura media frigorifero troppo alta ({{
+        t | round(1) }}°C).\n{% elif t < 5.0 %}\n  Rilevata temperatura media frigorifero
+        troppo bassa ({{ t | round(1) }}°C).\n{% endif %}\n"
+    action: notify.mobile_app_iphone_di_filippo
+  mode: single
+- id: '1759174306440'
+  alias: UPS - Notifica mancanza corrente
+  description: Notifica quando l'UPS va in batteria, ogni 5 min se persiste, e quando
+    torna la corrente
+  triggers:
+  - id: perso
+    entity_id:
+    - sensor.back_ups_status
+    to:
+    - On Battery
+    - Battery Discharging
+    trigger: state
+  - id: ripeti
+    trigger: time_pattern
+    minutes: /5
+  - id: tornata
+    entity_id:
+    - sensor.back_ups_status
+    from:
+    - On Battery
+    - Battery Discharging
+    to: Online
+    trigger: state
+  conditions: []
+  actions:
+  - choose:
+    - conditions:
+      - condition: trigger
+        id: perso
+      sequence:
+      - data:
+          title: ⚡ Mancanza di corrente
+          message: L'UPS è passato a batteria!
+        action: notify.mobile_app_iphone_di_filippo
+      - action: telegram_bot.send_message
+        data:
+          config_entry_id: 01KFE3V7X0K1WR8591R20DGBK7
+          message: '⚡ *Mancanza di corrente*
+
+            L''UPS è passato a batteria!
+
+            '
+    - conditions:
+      - condition: trigger
+        id: ripeti
+      - condition: state
+        entity_id: sensor.back_ups_status
+        state:
+        - On Battery
+        - Battery Discharging
+      sequence:
+      - data:
+          title: ⚡ Corrente ancora assente
+          message: L'UPS è ancora a batteria da un po'.
+        action: notify.mobile_app_iphone_di_filippo
+      - action: telegram_bot.send_message
+        data:
+          config_entry_id: 01KFE3V7X0K1WR8591R20DGBK7
+          message: '⚡ *Corrente ancora assente*
+
+            L''UPS è ancora a batteria da un po''.
+
+            '
+    - conditions:
+      - condition: trigger
+        id: tornata
+      sequence:
+      - data:
+          title: ✅ Corrente ripristinata
+          message: La corrente è tornata, UPS torna online.
+        action: notify.mobile_app_iphone_di_filippo
+      - action: telegram_bot.send_message
+        data:
+          config_entry_id: 01KFE3V7X0K1WR8591R20DGBK7
+          message: ✅  *Corrente ripristinata* La corrente è tornata, UPS ONLINE.
+  mode: single
+- id: '1759175812801'
+  alias: Notifica batteria UPS bassa
+  description: ''
+  triggers:
+  - entity_id: sensor.back_ups_battery_charge
+    below: 75
+    trigger: numeric_state
+  conditions:
+  - condition: state
+    entity_id: sensor.back_ups_status
+    state: On Battery, Battery Discharging
+  actions:
+  - action: notify.mobile_app_iphone_di_filippo
+    data: {}
+  mode: single
+- id: '1759438826198'
+  alias: Da testare - Allarme incendio
+  description: ''
+  triggers:
+  - trigger: state
+    entity_id:
+    - binary_sensor.sensore_fumo_smoke
+    - binary_sensor.sensore_fumo_suite_smoke
+    from:
+    - 'off'
+    to:
+    - 'on'
+  conditions: []
+  actions:
+  - action: notify.persistent_notification
+    metadata: {}
+    data:
+      message: Rilevato fumo!
+  - action: notify.mobile_app_iphone_di_filippo
+    metadata: {}
+    data:
+      message: Rilevato fumo!
+  mode: single
+- id: '1760473635407'
+  alias: Avviso pioggia notturna (Met.no)
+  description: Notifica alle 22 se è prevista pioggia tra mezzanotte e le 06:00
+  triggers:
+  - trigger: time
+    at: '22:00:00'
+  actions:
+  - action: weather.get_forecasts
+    target:
+      entity_id: weather.forecast_home
+    data:
+      type: hourly
+    response_variable: previsioni
+  - variables:
+      lista: '{{ previsioni[''weather.forecast_home''].forecast }}'
+      domani: '{{ (now() + timedelta(days=1)).date() }}'
+      fascia: "{{ lista | selectattr('datetime', 'as_datetime') \n         | selectattr('datetime',
+        '>', tomorrow_at('00:00')) \n         | selectattr('datetime', '<=', tomorrow_at('06:00'))
+        \n         | list }}\n"
+      pioggia: '{{ fascia | selectattr(''condition'', ''search'', ''rain'') | list
+        }}
+
+        '
+      mm_totali: '{{ (pioggia | map(attribute=''precipitation'') | sum | float(0))
+        | round(1, default=0) }}
+
+        '
+      prima_ora: "{% if pioggia | count > 0 %}\n  {{ (pioggia | first).datetime |
+        as_datetime | as_local | strftime('%H:%M') }}\n{% else %}\n  nessuna\n{% endif
+        %}\n"
+  - condition: template
+    value_template: '{{ pioggia | count > 0 and mm_totali > 0.2 }}'
+  - action: notify.mobile_app_iphone_di_filippo
+    data:
+      title: Allerta Pioggia ☔
+      message: 'È prevista pioggia stanotte tra le 00:00 e le 06:00. Totale stimato:
+        {{ mm_totali }} mm. Prima pioggia prevista alle {{ prima_ora }}.
+
+        '
+      data:
+        actions:
+        - action: CHIUDI_FINESTRE
+          title: Chiudi finestre
+        - action: SNOOZE_1H
+          title: Snooze 1h
+  mode: single
+- id: '1764087762368'
+  alias: Segnalazione porta Filippo e Chiara aperta
+  description: Avvisa se la porta resta aperta
+  triggers:
+  - entity_id:
+    - binary_sensor.porta_filippo
+    to:
+    - 'on'
+    for:
+      hours: 0
+      minutes: 10
+      seconds: 0
+    trigger: state
+  actions:
+  - repeat:
+      while:
+      - condition: state
+        entity_id: binary_sensor.porta_filippo
+        state: 'on'
+      sequence:
+      - data:
+          message: '{{ messaggio_porta }}'
+        action: notify.mobile_app_iphone_di_filippo
+      - data:
+          device_id: 1b04930ba2c41eaeb44d4a61c03360b4
+          text_command: Imposta volume a 5
+        action: alexa_devices.send_text_command
+      - target:
+          device_id: 1b04930ba2c41eaeb44d4a61c03360b4
+        data:
+          message: '{{ messaggio_porta }}'
+        action: notify.send_message
+      - delay: 00:05:00
+  variables:
+    messaggio_porta: La porta di ingresso dell’appartamento grande è aperta
+  mode: restart
+- id: '1764425874824'
+  alias: 'Sicurezza - Modalità viaggio: Re-inserisci allarme'
+  description: 'Gestisce in automatico il reinserimento dell''allarme se non viene
+    rilevata presenza in casa. L''helper viene gestito da altra automaziome, che imposta
+    la variabile a on quando nessuno è presente (quindi il contrario di quanto si
+    potrebbe pensare) '
+  triggers:
+  - trigger: time
+    at: 07:05:00
+    weekday:
+    - mon
+    - tue
+    - wed
+    - thu
+    - sat
+    - fri
+    - sun
+    enabled: true
+  conditions:
+  - condition: state
+    entity_id: input_boolean.presence
+    state:
+    - 'on'
+    enabled: false
+  - condition: and
+    conditions:
+    - condition: state
+      entity_id: person.filippo_durzu
+      state:
+      - not_home
+    - condition: state
+      entity_id: person.chiara
+      state:
+      - not_home
+    - condition: state
+      entity_id: person.greta
+      state:
+      - not_home
+    - condition: state
+      entity_id: person.mirella
+      state:
+      - not_home
+  actions:
+  - action: script.inserisci_allarme
+    metadata: {}
+    data: {}
+  - action: notify.mobile_app_iphone_di_filippo
+    metadata: {}
+    data:
+      message: L’allarme è stato inserito automaticamente (modalità viaggio)
+  mode: single
+- id: '1765144747904'
+  alias: Sicurezza - Segnalazione porta di ingresso principale aperta
+  description: Avvisa se la porta resta aperta
+  triggers:
+  - entity_id: binary_sensor.porta_filippo
+    to: 'on'
+    for: 00:05:00
+    trigger: state
+  actions:
+  - repeat:
+      while:
+      - condition: state
+        state:
+        - 'on'
+        entity_id: binary_sensor.porta_ingresso
+      sequence:
+      - data:
+          message: '{{ messaggio_porta }}'
+        action: notify.mobile_app_iphone_di_filippo
+      - data:
+          device_id: 1b04930ba2c41eaeb44d4a61c03360b4
+          text_command: Imposta volume a 5
+        action: alexa_devices.send_text_command
+      - target:
+          device_id: 1b04930ba2c41eaeb44d4a61c03360b4
+        data:
+          message: '{{ messaggio_porta }}'
+        action: notify.send_message
+      - delay: 00:05:00
+  variables:
+    messaggio_porta: Attenzione, la porta di ingresso principale è aperta!
+  mode: restart
+- id: '1678901234567'
+  alias: Rinnova sessione KBlue
+  description: Fa login sul KBlue solo quando serve e non sovrascrive il cookie buono
+    se il login fallisce (script kblue_login.sh). Il KBlue ha un limite di sessioni
+    aperte (risposta lgn -3 con sessions 8), quindi un login ogni minuto le accumula.
+    Parte all'avvio, una volta all'ora, quando il sensore "Stato Sessione (KBlue)"
+    resta "ko" per 20 secondi e, finche' resta "ko", ritenta ogni 5 minuti. Nel frattempo
+    i sensori mantengono l'ultimo valore letto.
+  triggers:
+  - trigger: homeassistant
+    event: start
+    id: avvio
+  - trigger: state
+    entity_id: sensor.stato_sessione_kblue
+    to: ko
+    for: 00:00:20
+    id: ko
+  - trigger: time_pattern
+    minutes: /5
+    id: ciclo
+  conditions:
+  - condition: or
+    conditions:
+    - condition: trigger
+      id:
+      - avvio
+      - ko
+    - condition: template
+      value_template: '{{ is_state(''sensor.stato_sessione_kblue'', ''ko'') or now().minute
+        < 5 }}'
+  actions:
+  - action: shell_command.kblue_login
+    response_variable: esito
+    continue_on_error: true
+  - if:
+    - condition: template
+      value_template: '{{ esito is defined and esito.returncode == 0 }}'
+    then:
+    - action: homeassistant.update_entity
+      target:
+        entity_id:
+        - sensor.kblue_user_cookie
+        - sensor.kblue_session_cookie
+    - action: homeassistant.update_entity
+      target:
+        entity_id: sensor.temperatura_salone_kblue
+  - delay: 00:01:00
+  mode: single
+- id: '1766434393277'
+  alias: Wireless switch button 1 - Strip letto
+  description: ''
+  triggers:
+  - domain: mqtt
+    device_id: 5f4efb6b64e0ed519c7c4dc5f5ac0298
+    type: action
+    subtype: 1_single
+    metadata: {}
+    trigger: device
+  conditions: []
+  actions:
+  - action: light.toggle
+    metadata: {}
+    target:
+      entity_id: light.strip_letto_kblue
+    data: {}
+  mode: single
+- id: '1766435302381'
+  alias: Wireless switch button 2 - Faretti letto
+  description: ''
+  triggers:
+  - domain: mqtt
+    device_id: 5f4efb6b64e0ed519c7c4dc5f5ac0298
+    type: action
+    subtype: 2_single
+    trigger: device
+  conditions: []
+  actions:
+  - action: light.toggle
+    metadata: {}
+    target:
+      entity_id: light.faretti_letto_kblue
+    data: {}
+  mode: single
+- id: '1767358286166'
+  alias: 'Sicurezza - Dismissible alert porta aperta '
+  description: ''
+  use_blueprint:
+    path: MakingNate/alert.yaml
+    input:
+      alert_entity: binary_sensor.porta_filippo
+      alert_state: Detected
+      idle_state: Cleared
+      initial_delay:
+        hours: 0
+        minutes: 10
+        seconds: 0
+      notification_device: 223ad8e9241b095ae718decff163037d
+      notification_title: Porta aperta
+      notification_message: La porta interna è aperta
+      repeat_delay:
+        hours: 0
+        minutes: 10
+        seconds: 0
+      snooze_duration:
+        hours: 0
+        minutes: 30
+        seconds: 0
+      alert_actions:
+      - action: notify.notify
+        metadata: {}
+        data: {}
+      - action: notify.send_message
+        metadata: {}
+        target:
+          device_id: 1b04930ba2c41eaeb44d4a61c03360b4
+        data:
+          message: Chiudere la porta di ingresso
+      notification_unique_id: dismissible_alert_porta_filippo-e-chiara_aperta
+- id: '1767383551614'
+  alias: Wireless switch button 3 - Specchio bagno letto
+  description: ''
+  triggers:
+  - domain: mqtt
+    device_id: 5f4efb6b64e0ed519c7c4dc5f5ac0298
+    type: action
+    subtype: 3_single
+    trigger: device
+  conditions: []
+  actions:
+  - action: light.toggle
+    metadata: {}
+    target:
+      entity_id: light.specchio_bagno_letto_kblue
+    data: {}
+  mode: single
+- alias: KBlue - Notifica Consumo Elevato
+  id: kblue_notifica_consumo_elevato
+  description: Avvisa quando il consumo supera una soglia per più di 5 minuti
+  trigger:
+  - platform: numeric_state
+    entity_id: sensor.consumo_totale
+    above: 5
+    for:
+      minutes: 5
+  condition:
+  - condition: time
+    after: 06:00:00
+    before: '23:00:00'
+  action:
+  - service: notify.notify
+    data:
+      title: ⚠️ Consumo Elevato
+      message: 'Consumo attuale: {{ states(''sensor.consumo_totale'') }} kW L1: {{
+        states(''sensor.consumo_l1'') }} kW L2: {{ states(''sensor.consumo_l2'') }}
+        kW L3: {{ states(''sensor.consumo_l3'') }} kW
+
+        '
+      data:
+        priority: high
+- alias: KBlue - Notifica Sbilanciamento Fasi
+  id: kblue_notifica_sbilanciamento
+  description: Avvisa quando le fasi sono molto sbilanciate
+  trigger:
+  - platform: numeric_state
+    entity_id: sensor.bilanciamento_fasi
+    above: 60
+    for:
+      minutes: 15
+  condition:
+  - condition: numeric_state
+    entity_id: sensor.consumo_totale
+    above: 1
+  action:
+  - service: notify.notify
+    data:
+      title: ⚖️ Fasi Sbilanciate
+      message: 'Sbilanciamento: {{ states(''sensor.bilanciamento_fasi'') }}% Fase
+        più carica: {{ states(''sensor.fase_piu_carica'') }} ({{ state_attr(''sensor.fase_piu_carica'',
+        ''valore'') }} kW)
+
+        Distribuzione: L1: {{ states(''sensor.consumo_l1'') }} kW L2: {{ states(''sensor.consumo_l2'')
+        }} kW L3: {{ states(''sensor.consumo_l3'') }} kW
+
+        '
+- id: kblue_riepilogo_giornaliero
+  alias: KBlue - Riepilogo giornaliero dei consumi
+  description: Invia riepilogo consumi a fine giornata
+  triggers:
+  - at: '23:00:00'
+    trigger: time
+  actions:
+  - data:
+      title: "\U0001F4CA Riepilogo Consumi Oggi"
+      message: 'Energia consumata oggi: {{ states(''sensor.energia_giornaliera_totale'')
+        }} kWh Costo stimato: {{ states(''sensor.costo_energia_oggi'') }} €
+
+        Per fase: L1: {{ states(''sensor.energia_giornaliera_l1'') }} kWh L2: {{ states(''sensor.energia_giornaliera_l2'')
+        }} kWh L3: {{ states(''sensor.energia_giornaliera_l3'') }} kWh
+
+        Consumo mensile: {{ states(''sensor.energia_mensile_totale'') }} kWh Proiezione
+        fine mese: {{ states(''sensor.proiezione_consumo_mensile'') }} kWh
+
+        '
+    action: notify.notify
+  - action: telegram_bot.send_message
+    metadata: {}
+    data:
+      message: 'Energia consumata oggi: {{ states(''sensor.energia_giornaliera_totale'')
+        }} kWh Costo stimato: {{ states(''sensor.costo_energia_oggi'') }} € Per fase:
+        L1: {{ states(''sensor.energia_giornaliera_l1'') }} kWh L2: {{ states(''sensor.energia_giornaliera_l2'')
+        }} kWh L3: {{ states(''sensor.energia_giornaliera_l3'') }} kWh Consumo mensile:
+        {{ states(''sensor.energia_mensile_totale'') }} kWh Proiezione fine mese:
+        {{ states(''sensor.proiezione_consumo_mensile'') }} kWh'
+      config_entry_id: 01KFE3V7X0K1WR8591R20DGBK7
+      title: "\U0001F4CA Riepilogo Consumi Oggi"
+- alias: KBlue - Alert Sensori Offline
+  id: kblue_alert_sensori_offline
+  description: Avvisa se i sensori restano offline per più di 10 minuti
+  trigger:
+  - platform: state
+    entity_id:
+    - sensor.consumo_l1
+    - sensor.consumo_totale
+    to: unavailable
+    for:
+      minutes: 10
+  action:
+  - service: notify.notify
+    data:
+      title: "\U0001F534 Sensori KBlue Offline"
+      message: I sensori di consumo non rispondono. Verifica la connessione al dispositivo.
+      data:
+        priority: high
+- alias: KBlue - Reset Utility Meters
+  id: kblue_reset_utility_meters
+  description: Reset manuale dei contatori giornalieri
+  trigger:
+  - platform: time
+    at: 00:00:01
+  action:
+  - service: utility_meter.calibrate
+    target:
+      entity_id:
+      - sensor.energia_giornaliera_l1
+      - sensor.energia_giornaliera_l2
+      - sensor.energia_giornaliera_l3
+      - sensor.energia_giornaliera_totale
+    data:
+      value: '0'
+- alias: KBlue - Record Settimanale Consumo
+  id: kblue_record_settimanale
+  description: Avvisa quando si supera il record di consumo istantaneo
+  trigger:
+  - platform: numeric_state
+    entity_id: sensor.consumo_totale
+    above: 7
+  action:
+  - service: notify.notify
+    data:
+      title: "\U0001F525 Nuovo Picco di Consumo"
+      message: 'Raggiunto un nuovo picco: {{ states(''sensor.consumo_totale'') }}
+        kW'
+- id: '1767734958665'
+  alias: Wireless switch button 4 - Spegni luci camera da letto
+  description: ''
+  triggers:
+  - domain: mqtt
+    device_id: 5f4efb6b64e0ed519c7c4dc5f5ac0298
+    type: action
+    subtype: 4_single
+    trigger: device
+  conditions: []
+  actions:
+  - action: light.turn_off
+    metadata: {}
+    target:
+      entity_id: light.luci_camera_da_letto
+    data: {}
+  mode: single
+- id: '1768025133547'
+  alias: Avviso Pioggia Diurna (Met.no)
+  description: Notifica se inizia a piovere o è prevista pioggia nella giornata (orario
+    diurno)
+  triggers:
+  - trigger: state
+    entity_id: weather.forecast_home
+    to:
+    - rainy
+    - pouring
+    - lightning-rainy
+    - snowy-rainy
+    for:
+      minutes: 5
+  - trigger: time
+    at:
+    - 07:07:00
+    - '11:00:00'
+    - '15:00:00'
+    - '18:00:00'
+  conditions:
+  - condition: time
+    after: 07:00:00
+    before: '22:00:00'
+  - condition: numeric_state
+    entity_id: sensor.precip_today_mm
+    below: 8
+  actions:
+  - variables:
+      now_time: '{{ now() }}'
+      today_date: '{{ now().date() }}'
+      forecasts: "{{ \n  (weather.get_forecasts({\n    'entity_id': 'weather.forecast_home',\n
+        \   'type': 'hourly'\n  }))['weather.forecast_home'].forecast \n}}\n"
+      pioggia_oggi: "{{ forecasts \n  | selectattr('datetime', 'as_timestamp') \n
+        \ | select('>=', today_date.timestamp()) \n  | select('<=', (today_date +
+        timedelta(days=1)).timestamp()) \n  | selectattr('condition', 'search', 'rain')
+        \n  | list \n}}\n"
+      mm_previsti_oggi: '{{ (pioggia_oggi | map(attribute=''precipitation'') | sum
+        | float(0)) | round(1) }}
+
+        '
+      prossima_precip: "{% set candidates = forecasts \n  | selectattr('precipitation',
+        '>', 0.2) \n  | selectattr('datetime', '>', now_time) \n  | sort(attribute='datetime')
+        \n  | list %}\n{% if candidates | count > 0 %}\n  {{ candidates[0].datetime
+        | as_datetime | as_local | strftime('%H:%M') }}\n{% else %}\n  nessuna\n{%
+        endif %}\n"
+  - condition: or
+    conditions:
+    - condition: trigger
+      id: state
+    - condition: template
+      value_template: '{{ mm_previsti_oggi > 1.5 and mm_totali_oggi < 3 }}'
+  - action: notify.mobile_app_iphone_di_filippo
+    data:
+      title: '{{ ''Pioggia in corso!'' if trigger.to_state.state in [''rainy'',''pouring'']
+        else ''Pioggia prevista oggi ☔'' }}'
+      message: '{% if trigger.to_state.state in [''rainy'',''pouring'',''lightning-rainy'']
+        %} Ha iniziato a piovere!  {% else %} È prevista pioggia oggi: ~{{ mm_previsti_oggi
+        }} mm totali. Prima precipitazione attesa intorno alle {{ prossima_precip
+        }}. {% endif %}
+
+        '
+      data:
+        actions:
+        - action: CHIUDI_FINESTRE
+          title: Chiudi finestre
+        - action: SNOOZE_RAIN_2H
+          title: Snooze 2h
+  mode: single
+- id: alarm_consumo_fase_l1_elevato
+  alias: Allarme Consumo L1 Elevato
+  description: Avvisa se L1 supera 3kW per più di 30 secondi
+  triggers:
+  - entity_id: sensor.consumo_l1
+    above: 3.0
+    for:
+      seconds: 30
+    trigger: numeric_state
+  conditions:
+  - condition: time
+    after: 06:00:00
+    before: '23:00:00'
+  actions:
+  - action: notify.mobile_app_iphone_di_filippo
+    data:
+      title: ⚡ Allarme Consumo L1
+      message: 'Fase L1 in sovraccarico: {{ states("sensor.consumo_l1") }} kW (soglia:
+        3kW da 30s)'
+      data:
+        priority: high
+        push:
+          badge: 1
+        actions:
+        - action: VIEW_CONSUMO
+          title: Vedi Dettagli
+  mode: single
+- id: alarm_consumo_fase_l2_elevato
+  alias: Allarme Consumo L2 Elevato
+  description: Avvisa se L2 supera 3kW per più di 30 secondi
+  triggers:
+  - entity_id: sensor.consumo_l2
+    above: 3.0
+    for:
+      seconds: 30
+    trigger: numeric_state
+  conditions:
+  - condition: time
+    after: 06:00:00
+    before: '23:00:00'
+  actions:
+  - action: notify.mobile_app_iphone_di_filippo
+    data:
+      title: ⚡ Allarme Consumo L2
+      message: 'Fase L2 in sovraccarico: {{ states("sensor.consumo_l2") }} kW (soglia:
+        3kW da 30s)'
+      data:
+        priority: high
+        push:
+          badge: 1
+        actions:
+        - action: VIEW_CONSUMO
+          title: Vedi Dettagli
+  mode: single
+- id: alarm_consumo_fase_l3_elevato
+  alias: Allarme Consumo L3 Elevato
+  description: Avvisa se L3 supera 3kW per più di 30 secondi
+  triggers:
+  - entity_id: sensor.consumo_l3
+    above: 3.0
+    for:
+      seconds: 30
+    trigger: numeric_state
+  conditions:
+  - condition: time
+    after: 06:00:00
+    before: '23:00:00'
+  actions:
+  - action: notify.mobile_app_iphone_di_filippo
+    data:
+      title: ⚡ Allarme Consumo L3
+      message: 'Fase L3 in sovraccarico: {{ states("sensor.consumo_l3") }} kW (soglia:
+        3kW da 30s)'
+      data:
+        priority: high
+        push:
+          badge: 1
+        actions:
+        - action: VIEW_CONSUMO
+          title: Vedi Dettagli
+  mode: single
+- id: alarm_consumo_totale_critico
+  alias: Allarme Consumo Totale Critico
+  description: Avvisa se il consumo totale supera 10kW
+  triggers:
+  - entity_id: sensor.consumo_totale
+    above: 10.0
+    trigger: numeric_state
+  conditions: []
+  actions:
+  - action: notify.mobile_app_iphone_di_filippo
+    data:
+      title: "\U0001F6A8 CONSUMO CRITICO!"
+      message: 'Consumo totale: {{ states("sensor.consumo_totale") }} kW
+
+        RISCHIO DISTACCO CONTATORE!
+
+
+        Distribuzione fasi:
+
+        L1: {{ states("sensor.consumo_l1") }} kW
+
+        L2: {{ states("sensor.consumo_l2") }} kW
+
+        L3: {{ states("sensor.consumo_l3") }} kW
+
+        '
+      data:
+        priority: critical
+        push:
+          sound:
+            name: default
+            critical: 1
+            volume: 1.0
+          badge: 1
+        actions:
+        - action: VIEW_CONSUMO
+          title: Vedi Dettagli
+        - action: TURN_OFF_LOADS
+          title: Spegni Carichi
+  - action: notify.send_message
+    target:
+      device_id: 1b04930ba2c41eaeb44d4a61c03360b4
+    data:
+      message: 'Attenzione! Consumo elettrico critico: {{ states("sensor.consumo_totale")
+        }} kilowatt. Ridurre immediatamente i carichi elettrici.'
+  mode: single
+- id: alarm_consumo_totale_elevato_avviso
+  alias: Allarme Consumo Totale Elevato - Avviso
+  description: Avviso preventivo se il consumo si avvicina al limite
+  triggers:
+  - entity_id: sensor.consumo_totale
+    above: 8.5
+    for:
+      seconds: 30
+    trigger: numeric_state
+  conditions:
+  - condition: time
+    after: 06:00:00
+    before: '23:00:00'
+  actions:
+  - action: notify.mobile_app_iphone_di_filippo
+    data:
+      title: ⚠️ Consumo Elevato
+      message: 'Consumo totale: {{ states("sensor.consumo_totale") }} kW
+
+        Attenzione: vicino al limite (10kW)
+
+
+        Per fase:
+
+        L1: {{ states("sensor.consumo_l1") }} kW
+
+        L2: {{ states("sensor.consumo_l2") }} kW
+
+        L3: {{ states("sensor.consumo_l3") }} kW
+
+
+        Utilizzo contratto: {{ states("sensor.utilizzo_contratto") }}%
+
+        '
+      data:
+        priority: high
+        actions:
+        - action: VIEW_CONSUMO
+          title: Vedi Dettagli
+  mode: single
+- id: notifica_consumo_rientrato
+  alias: Notifica Consumo Rientrato nella Norma
+  description: Informa quando il consumo torna sotto controllo
+  triggers:
+  - entity_id: sensor.consumo_totale
+    below: 7
+    for:
+      minutes: 2
+    trigger: numeric_state
+  conditions:
+  - condition: state
+    entity_id: sensor.consumo_totale
+    attribute: last_alerted
+    state: 'on'
+  actions:
+  - action: notify.mobile_app_iphone_di_filippo
+    data:
+      title: ✅ Consumo Normalizzato
+      message: 'Il consumo è rientrato nella norma: {{ states("sensor.consumo_totale")
+        }} kW'
+  mode: single
+- id: '1768255848526'
+  alias: CDZ - Accendi riscaldamento salone a 19 gradi
+  description: ''
+  triggers:
+  - trigger: numeric_state
+    entity_id:
+    - sensor.temperatura_salone_kblue
+    for:
+      hours: 0
+      minutes: 5
+      seconds: 0
+    below: 19.1
+  conditions: []
+  actions:
+  - action: climate.turn_on
+    metadata: {}
+    target:
+      entity_id: climate.cdz_salone
+    data: {}
+  - action: telegram_bot.send_message
+    metadata: {}
+    data:
+      config_entry_id: 01KFE3V7X0K1WR8591R20DGBK7
+      message: CDZ salone spento
+  mode: single
+- id: '1768287543268'
+  alias: CDZ - Spegni riscaldamento salone raggiunti i 20 gradi
+  description: ''
+  triggers:
+  - trigger: numeric_state
+    entity_id:
+    - sensor.temperatura_salone_kblue
+    for:
+      hours: 0
+      minutes: 0
+      seconds: 30
+    above: 19.9
+  conditions:
+  - condition: state
+    entity_id: climate.cdz_salone
+    state:
+    - heat
+  actions:
+  - action: climate.turn_off
+    metadata: {}
+    target:
+      entity_id: climate.cdz_salone
+    data: {}
+  - action: notify.mobile_app_iphone_di_filippo
+    metadata: {}
+    data:
+      message: CDZ salone spento
+  - action: telegram_bot.send_message
+    metadata: {}
+    data:
+      config_entry_id: 01KFE3V7X0K1WR8591R20DGBK7
+      message: CDZ salone spento
+  mode: single
+- id: '1768737356758'
+  alias: Led corridoio on
+  description: Accende la luce quando rileva presenza dopo il tramonto e prima delle
+    22
+  triggers:
+  - trigger: state
+    entity_id:
+    - binary_sensor.ir_corr_filippo
+    to: 'on'
+    for:
+      hours: 0
+      minutes: 0
+      seconds: 1
+    enabled: true
+  conditions:
+  - condition: sun
+    after: sunset
+    before: sunrise
+  - condition: time
+    before: '22:00:00'
+  actions:
+  - action: light.turn_on
+    metadata: {}
+    target:
+      entity_id: light.led_corridoio_kblue
+    data: {}
+  mode: single
+- id: '1768738576036'
+  alias: Led corridoio off
+  description: Spegne la luce quando non rileva più presenza
+  triggers:
+  - trigger: state
+    entity_id:
+    - binary_sensor.ir_corr_filippo
+    to:
+    - 'off'
+    for:
+      hours: 0
+      minutes: 0
+      seconds: 5
+  conditions: []
+  actions:
+  - action: light.turn_off
+    metadata: {}
+    target:
+      entity_id: light.led_corridoio_kblue
+    data: {}
+  mode: single
+- id: '1768891589694'
+  alias: Weather — Forecast TTS
+  description: ''
+  use_blueprint:
+    path: zodyking/weather-forecast.yaml
+    input:
+      weather_entity: weather.openweathermap
+      tts_engine: tts.home_assistant_cloud
+      speakers:
+      - media_player.soggiorno
+      volume_level: 0.5
+      end_time: '22:30:00'
+      hour_pattern: /6
+      voice: it-IT-IsabellaNeural
+      preroll_ms: 300
+      hours_ahead: 12
+      personal_name: Filippo
+      minute_offset: '49'
+      use_ai_rewrite: true
+      ai_rewrite_prompt: "Riscrivi il messaggio seguente in italiano, con uno stile
+        naturale da meteorologo TV.\n  Regole:\n  - Traduci tutto in italiano\n  -
+        Mantieni tutti i numeri e le unità esattamente come sono\n  - Solo testo semplice,
+        niente virgolette o formattazione\n  - 2-4 frasi brevi, massimo 55 parole\n
+        \ - Se il testo è \"Forecast not available.\" rispondì \"Previsioni non disponibili.\"\n"
+      ai_task_entity: ai_task.claude_ai_task
+      start_time: 07:45:00
+      enable_sensor_triggered: false
+- id: '1769195888142'
+  alias: Avviso pochi termostati attivi
+  description: Notifica quando ci sono solo 1 o 2 termostati attivi per più di 5 minuti
+  triggers:
+  - trigger: template
+    value_template: "{% set attivi = [\n  states('sensor.riscaldamento_attivo_salone_kblue'),\n
+      \ states('sensor.riscaldamento_attivo_cucina_kblue'),\n  states('sensor.riscaldamento_attivo_camera_francesco'),\n
+      \ states('sensor.riscaldamento_attivo_cam_greta_kblue'),\n  states('sensor.riscaldamento_attivo_letto_kblue'),\n
+      \ states('sensor.riscaldamento_attivo_wc_kblue'),\n  states('sensor.riscaldamento_attivo_wc_letto_kblue'),\n
+      \ states('sensor.riscaldamento_attivo_salone_suite_kblue'),\n  states('sensor.riscaldamento_attivo_letto_suite_kblue'),\n
+      \ states('sensor.riscaldamento_attivo_wc_suite_kblue')\n] | select('equalto',
+      'on') | list | count %}\n{{ attivi >= 1 and attivi <= 2 }}\n"
+    for:
+      minutes: 5
+  conditions:
+  - condition: template
+    value_template: "{{ this.last_triggered is none or\n   (now() - this.last_triggered).total_seconds()
+      > 900 }}\n"
+  actions:
+  - data:
+      title: ⚠️ Pochi termostati attivi
+      message: "{% set ns = namespace(attivi=0, lista='') %} {% set termostati = {\n
+        \ 'sensor.riscaldamento_attivo_salone_kblue': 'Soggiorno',\n  'sensor.riscaldamento_attivo_cucina_kblue':
+        'Cucina',\n  'sensor.riscaldamento_attivo_camera_francesco': 'Camera Francesco',\n
+        \ 'sensor.riscaldamento_attivo_cam_greta_kblue': 'Camera Greta',\n  'sensor.riscaldamento_attivo_letto_kblue':
+        'Camera Matrimoniale',\n  'sensor.riscaldamento_attivo_wc_kblue': 'Bagno grande',\n
+        \ 'sensor.riscaldamento_attivo_wc_letto_kblue': 'Bagno privato',\n  'sensor.riscaldamento_attivo_salone_suite_kblue':
+        'Soggiorno Suite',\n  'sensor.riscaldamento_attivo_letto_suite_kblue': 'Camera
+        Suite',\n  'sensor.riscaldamento_attivo_wc_suite_kblue': 'Bagno Suite'\n}
+        %} {% for termostato, nome in termostati.items() %}\n  {% if is_state(termostato,
+        'on') %}\n    {% set ns.attivi = ns.attivi + 1 %}\n    {% set ns.lista = ns.lista
+        ~ '\U0001F525 ' ~ nome ~ '\\n' %}\n  {% endif %}\n{% endfor %} Solo {{ ns.attivi
+        }} termostato{% if ns.attivi > 1 %}i{% endif %} attivo{% if ns.attivi > 1
+        %}i{% endif %} su 10: {{ ns.lista }}\n"
+    action: notify.notify
+  mode: single
+- id: '1770145062637'
+  alias: 'Notifica: luce soppalco accesa'
+  description: ''
+  use_blueprint:
+    path: stepsolar/notifiche_e_annunci_ita.yaml
+    input:
+      include_notify_repeat: enable_repeat_notify
+      trigger_state: 'on'
+      trigger_state_entity:
+      - light.luce_soppalco_kblue
+      time_delay_state:
+        hours: 0
+        minutes: 10
+        seconds: 0
+      time_repeat_state:
+        hours: 0
+        minutes: 10
+        seconds: 0
+      include_notify_telegram: enable_telegram_notify
+      notify_device_telegram:
+      - notify.homeassistant_filippo_8511463273
+      notify_telegram_title: "\U0001F4E2 Notifica da automazione"
+      notify_telegram_message: La luce del soppalco è accesa
+      notify_telegram_repeat: disable
+- id: '1770559337275'
+  alias: Tablet sotto 20% → Accendi presa
+  triggers:
+  - entity_id:
+    - sensor.tab_a9_di_filippo_battery
+    below: 20
+    trigger: numeric_state
+  conditions: []
+  actions:
+  - action: alexa_devices.send_text_command
+    metadata: {}
+    data:
+      device_id: 1b04930ba2c41eaeb44d4a61c03360b4
+      text_command: 'Accendi luci albero di Natale '
+    enabled: false
+  - type: turn_on
+    device_id: 95f9547ca4a1c62c50eca6653dedaf39
+    entity_id: d5cfe3346d61e067c19b4e5190457cb0
+    domain: switch
+  mode: single
+- id: '1770559799108'
+  alias: Tablet oltre 80% → Spegni presa
+  description: ''
+  triggers:
+  - entity_id:
+    - sensor.tab_a9_di_filippo_battery
+    trigger: numeric_state
+    above: 80
+  conditions: []
+  actions:
+  - action: alexa_devices.send_text_command
+    data:
+      device_id: 1b04930ba2c41eaeb44d4a61c03360b4
+      text_command: Spegni luci albero di natale
+    enabled: false
+  - type: turn_off
+    device_id: 95f9547ca4a1c62c50eca6653dedaf39
+    entity_id: d5cfe3346d61e067c19b4e5190457cb0
+    domain: switch
+  mode: single
+- id: kblue_notifica_termostato_manuale
+  alias: KBlue - Notifica termostati in manuale
+  description: Avvisa quando un termostato passa in manuale (da pannello, app o HA)
+    e ripete ogni ora finche' ce n'e' almeno uno
+  mode: single
+  triggers:
+  - trigger: state
+    entity_id:
+    - sensor.modo_manuale_salone_kblue
+    - sensor.modo_manuale_cucina_kblue
+    - sensor.modo_manuale_letto_kblue
+    - sensor.modo_manuale_camera_francesco_kblue
+    - sensor.modo_manuale_cam_greta_kblue
+    - sensor.modo_manuale_letto_suite_kblue
+    - sensor.modo_manuale_salone_suite_kblue
+    - sensor.modo_manuale_wc_kblue
+    - sensor.modo_manuale_wc_letto_kblue
+    - sensor.modo_manuale_wc_suite_kblue
+    from: '0'
+    id: cambio_stato
+  - trigger: time_pattern
+    hours: /1
+    id: promemoria
+  variables:
+    zone:
+      sensor.modo_manuale_salone_kblue: Salone
+      sensor.modo_manuale_cucina_kblue: Cucina
+      sensor.modo_manuale_letto_kblue: Camera Nostra
+      sensor.modo_manuale_camera_francesco_kblue: Camera Francesco
+      sensor.modo_manuale_cam_greta_kblue: Camera Greta
+      sensor.modo_manuale_letto_suite_kblue: Camera Suite
+      sensor.modo_manuale_salone_suite_kblue: Salone Suite
+      sensor.modo_manuale_wc_kblue: Bagno Grande
+      sensor.modo_manuale_wc_letto_kblue: Bagno Camera
+      sensor.modo_manuale_wc_suite_kblue: Bagno Suite
+    manuali: "{% set ns = namespace(l=[]) %} {% for e, n in zone.items() %}\n  {%
+      if states(e) not in ['0', 'unknown', 'unavailable'] %}\n    {% set ns.l = ns.l
+      + [n] %}\n  {% endif %}\n{% endfor %} {{ ns.l | join(', ') }}"
+  conditions:
+  - condition: template
+    value_template: '{{ manuali | length > 0 }}'
+  actions:
+  - action: persistent_notification.create
+    data:
+      title: "\U0001F525 Termostati in manuale"
+      message: 'In manuale: {{ manuali }}'
+      notification_id: kblue_termostati_manuali
+  - action: telegram_bot.send_message
+    metadata: {}
+    data:
+      title: "\U0001F525 Termostati in manuale"
+      message: 'In manuale: {{ manuali }}'
+      config_entry_id: 01KFE3V7X0K1WR8591R20DGBK7
+- id: '1771756048921'
+  alias: iPhone oltre 85% → Spegni presa
+  triggers:
+  - trigger: webhook
+    webhook_id: iphone_battery_85_t3vn8w5r
+    allowed_methods:
+    - POST
+    - GET
+    local_only: false
+  conditions:
+  - condition: state
+    entity_id: person.filippo_durzu
+    state: home
+  actions:
+  - type: turn_off
+    device_id: 4e383f75875be9d9052e07ccf0dafb2b
+    entity_id: 6ad7273fd2a17b573230b987466ea4af
+    domain: switch
+  - action: notify.mobile_app_iphone_di_filippo
+    data:
+      message: 'Batteria oltre 85%: presa spenta.'
+    enabled: false
+  mode: single
+- id: '1771756236286'
+  alias: iPhone sotto 80% → Accendi presa
+  description: ''
+  triggers:
+  - trigger: webhook
+    webhook_id: iphone_battery_80_k7xq2m9p
+    allowed_methods:
+    - POST
+    - GET
+    local_only: false
+  conditions:
+  - condition: state
+    entity_id: person.filippo_durzu
+    state: home
+  actions:
+  - type: turn_on
+    device_id: 4e383f75875be9d9052e07ccf0dafb2b
+    entity_id: 6ad7273fd2a17b573230b987466ea4af
+    domain: switch
+  - action: notify.mobile_app_iphone_di_filippo
+    data:
+      message: 'Batteria sotto 80%: presa accesa per la ricarica.'
+    enabled: false
+  mode: single
+- id: '1772372317373'
+  alias: Low Battery Notifications & Actions
+  description: ''
+  use_blueprint:
+    path: Blackshome/low-battery-notifications-and-actions.yaml
+    input:
+      include_time: time_enabled
+      time: '18:00:00'
+      battery_sensor_report_fields:
+      - friendly_name
+      - area
+      - device
+      include_easy_notify: enable_easy_notify
+      notify_device:
+      - 223ad8e9241b095ae718decff163037d
+      - 5a669997273c82acb785671f0477dbd6
+      include_persistent_notification: enable_persistent_notification
+      exclude_sensors:
+        entity_id:
+        - sensor.esp32_s3_box_3_battery_level
+        - binary_sensor.sala_battery
+        - sensor.s3_box_bedroom_battery_level
+        - sensor.tab_a9_di_filippo_battery
+- id: '1772387712530'
+  alias: ⛔ Offline Devices Report with Notification Actions
+  description: ''
+  use_blueprint:
+    path: Ltek/offline-devices-report-ltek.yaml
+    input:
+      include_time: time_enabled
+      time: '19:00:00'
+      include_easy_notify: enable_easy_notify
+      notify_device: []
+      include_persistent_notification: enable_persistent_notification
+      exclude_strings: 'internet*
+
+        echo*
+
+        ovunque*
+
+        soggiorno*'
+      exclude_entities:
+      - switch.koogeek_p1_c98e63_outlet
+      - switch.firetvstick_do_not_disturb
+      - switch.2o_firetvstick_di_filippo_do_not_disturb
+      - switch.2o_firetvstick_di_filippo_announcements
+      - switch.2o_firetvstick_di_filippo_communications
+      - switch.amicofritz_wi_fi_fritz_box_guest_access
+      - switch.living_room_firetvstick_announcements
+      - switch.living_room_firetvstick_communications
+      - sensor.tab_a9_di_filippo_battery
+      - switch.tab_a9_di_filippo_kiosk_lock
+      - switch.tab_a9_di_filippo_maintenance_mode
+      - switch.tab_a9_di_filippo_motion_detection
+      - switch.tab_a9_di_filippo_screen
+      - switch.tab_a9_di_filippo_screensaver
+      - switch.caricabatterie_pdl_l1
+      - switch.caricabatterie_pdl_l2
+      - switch.caricabatterie_pdl_child_lock
+- id: '1772387753041'
+  alias: Leak detection & notifier (Custom text + repeat + clear + multi-device)
+  description: ''
+  use_blueprint:
+    path: Skydras/leak-detector-notifier.yaml
+    input:
+      notify_device:
+      - aab25fb27ed26b505a2dcf8e080d3586
+      - 5a669997273c82acb785671f0477dbd6
+      repeat_enabled: true
+- id: '1772660788801'
+  alias: Zone Presence of People & Devices
+  description: ''
+  use_blueprint:
+    path: Blackshome/zone-presence-people-device.yaml
+    input:
+      zone: zone.home
+      tracking_mode: people
+      people:
+      - person.filippo_durzu
+      - person.chiara
+      - person.greta
+      - person.mirella
+      - person.francesco
+      include_presence_helper: disable_presence_helper
+      presence_helper: input_boolean.presence
+      zone_condition: outside_zone
+      presence_helper_off_delay: 15
+      include_custom_actions:
+      - enable_off_custom_actions
+      on_custom_actions:
+      - delay:
+          hours: 0
+          minutes: 10
+          seconds: 0
+          milliseconds: 0
+      - action: alarm_control_panel.alarm_arm_away
+        metadata: {}
+        target:
+          entity_id:
+          - alarm_control_panel.blink_vdl123
+          device_id:
+          - b1801aea27f8c2682b8779dec10a12a9
+          - df67f423d0dca29c15c6f8212f0bdb44
+          - c903568bd46a79a3a35fa7b1b525f410
+        data: {}
+      - action: telegram_bot.send_message
+        metadata: {}
+        data:
+          entity_id:
+          - notify.homeassistant_filippo_8511463273
+          message: Allarme attivato dal blueprint “ Zone Presence of People & Devices”
+      min_count: 4
+- id: '1772721238081'
+  alias: Apple Watch - Spegni presa sopra 80%
+  description: Spegne automaticamente la presa del caricatore Apple Watch quando supera
+    l'80%.
+  triggers:
+  - entity_id:
+    - sensor.apple_watch_battery_level
+    above: 80
+    trigger: numeric_state
+  conditions:
+  - condition: state
+    entity_id: sensor.iphone_di_filippo_watch_battery_state
+    state: Charging
+  actions:
+  - target:
+      entity_id: switch.mg_wifi_plug_socket_2
+    action: switch.turn_off
+  - action: telegram_bot.send_message
+    metadata: {}
+    data:
+      config_entry_id: 01KFE3V7X0K1WR8591R20DGBK7
+      title: Livello batteria Apple Watch
+      message: 'Carica > 80%: presa di ricarica spenta automaticamente'
+  mode: single
+- id: '1772721328157'
+  alias: Apple Watch - Riaccendi presa sotto 60%
+  description: Riaccende la presa del caricatore Apple Watch quando la batteria scende
+    sotto il 40%.
+  triggers:
+  - entity_id:
+    - sensor.apple_watch_battery_level
+    below: 60
+    trigger: numeric_state
+  conditions: []
+  actions:
+  - target:
+      entity_id: switch.mg_wifi_plug_socket_2
+    action: switch.turn_on
+  - action: telegram_bot.send_message
+    metadata: {}
+    data:
+      config_entry_id: 01KFE3V7X0K1WR8591R20DGBK7
+      title: Livello batteria Apple Watch
+      message: 'Batteria < 60%: ho riacceso la presa per iniziare la ricarica'
+  mode: single
+- id: '1772748343015'
+  alias: Sicurezza - Arma zona comune quando Focus Notte attivo e iPhone a casa
+  description: 'Quando il Focus Notte dell''iPhone è attivato e il telefono è in zona
+    Casa, arma la partizione 1 Risco in modalità stay (notte).
+
+    '
+  triggers:
+  - trigger: state
+    entity_id: binary_sensor.iphone_di_filippo_focus
+    to: 'on'
+  conditions:
+  - condition: zone
+    entity_id: person.filippo_durzu
+    zone: zone.home
+  actions:
+  - action: alarm_control_panel.alarm_arm_home
+    target:
+      entity_id: alarm_control_panel.risco_casetta_partition_1
+  - action: notify.mobile_app_iphone_di_filippo
+    metadata: {}
+    data:
+      message: La modalità notte ha attivato l’allarme
+  mode: single
+- id: '1775067049263'
+  alias: AWTRIX - Consumo Totale App
+  description: ''
+  use_blueprint:
+    path: systemsNinja/awtrix_sensor_app.yaml
+    input:
+      awtrix:
+      - c98e222321323942a097d0fb2d51b252
+      sensor: sensor.consumo_totale
+      app_name: consumoTotApp
+      update_interval: /1
+      icon: greenplug
+      suffix_text: kW
+      effect: None
+      repeat_count: 3
+- id: '1775070672147'
+  alias: AWTRIX - Night Clock
+  description: ''
+  use_blueprint:
+    path: systemsNinja/awtrix_nightclock.yaml
+    input:
+      awtrix:
+      - c98e222321323942a097d0fb2d51b252
+      wake_up_time: 07:00:00
+      wakeup_settings_abri: true
+- id: '1775076519769'
+  alias: AWTRIX - Outside Temperature App
+  description: ''
+  use_blueprint:
+    path: systemsNinja/awtrix_sensor_app.yaml
+    input:
+      awtrix:
+      - c98e222321323942a097d0fb2d51b252
+      app_name: outsideTemperatureApp
+      sensor: sensor.stazione_meteo_modulo_meteo_esterno_temperature
+      icon: temperaturecenter
+      suffix_text: °C
+- id: '1775076781429'
+  alias: AWTRIX - Outside Humidity App
+  description: ''
+  use_blueprint:
+    path: systemsNinja/awtrix_sensor_app.yaml
+    input:
+      awtrix:
+      - c98e222321323942a097d0fb2d51b252
+      app_name: outsideHumidityApp
+      sensor: sensor.stazione_meteo_modulo_meteo_esterno_humidity
+      icon: humidity_
+      suffix_text: '%'
+- id: '1775132545682'
+  alias: AWTRIX - Heating State App
+  description: ''
+  use_blueprint:
+    path: systemsNinja/awtrix_sensor_app.yaml
+    input:
+      awtrix:
+      - c98e222321323942a097d0fb2d51b252
+      app_name: heatingStateApp
+      sensor: sensor.display_stato_riscaldamento
+      icon: heatmodex
+- id: '1775135946345'
+  alias: AWTRIX - Weather Condition App
+  description: ''
+  use_blueprint:
+    path: systemsNinja/awtrix_sensor_app.yaml
+    input:
+      awtrix:
+      - c98e222321323942a097d0fb2d51b252
+      app_name: weatherConditionApp
+      sensor: sensor.openweathermap_condition
+- id: '1775383082528'
+  alias: Sicurezza - Reinserisci allarme in automatico (modalità viaggio)
+  description: Se nessuno è a casa alle 7, reinserisce l'allarme dopo il disarmo automatico
+  triggers:
+  - trigger: state
+    entity_id: alarm_control_panel.risco_casetta_partition_1
+    to: disarmed
+  conditions:
+  - condition: time
+    after: 06:55:00
+    before: 07:05:00
+  - condition: state
+    entity_id: input_boolean.presence
+    state: 'off'
+  actions:
+  - action: notify.mobile_app_iphone_di_filippo
+    data:
+      title: "\U0001F514 Allarme disarmato"
+      message: Nessuno a casa — reinserisco tra 30 secondi...
+    enabled: false
+  - action: telegram_bot.send_message
+    data:
+      config_entry_id: 01KFE3V7X0K1WR8591R20DGBK7
+      message: Allarme disarmato automaticamente alle 7 ma nessuno a casa — reinserisco
+        tra 30 secondi
+  - delay:
+      seconds: 30
+  - action: switch.turn_on
+    target:
+      entity_id: switch.f_cucina_mirella_bypassed
+    note: Esclude sensore finestra cucina Mirella in quanto spesso causa falsi positivi...
+  - action: alarm_control_panel.alarm_arm_away
+    data: {}
+    target:
+      device_id:
+      - c903568bd46a79a3a35fa7b1b525f410
+      - df67f423d0dca29c15c6f8212f0bdb44
+      - b1801aea27f8c2682b8779dec10a12a9
+  - action: notify.mobile_app_iphone_di_filippo
+    data:
+      title: "\U0001F512 Allarme reinserito"
+      message: Tutte le zone armate in modalità away.
+    enabled: false
+  - action: telegram_bot.send_message
+    data:
+      config_entry_id: 01KFE3V7X0K1WR8591R20DGBK7
+      message: ✅ Allarme reinserito — tutte le zone attive (away mode)
+  mode: single
+- id: '1775590119998'
+  alias: AWTRIX - Previsioni meteo 12 ore
+  description: ''
+  triggers:
+  - trigger: time_pattern
+    hours: /1
+  - trigger: homeassistant
+    event: start
+  actions:
+  - action: weather.get_forecasts
+    target:
+      entity_id: weather.openweathermap
+    data:
+      type: hourly
+    response_variable: forecast
+  - action: mqtt.publish
+    data:
+      topic: awtrix_3e5e6c/custom/meteo12h
+      evaluate_payload: true
+      payload: "{% set ns = namespace(result=[]) %} {% set items = forecast['weather.openweathermap']['forecast'][:12]
+        %} {% for f in items %}\n  {% set ora = f.datetime[11:13] %}\n  {% set t =
+        f.temperature | round(0) | int %}\n  {% set rain = f.precipitation | round(1)
+        %}\n  {% set prob = f.precipitation_probability | int %}\n  {% set wind =
+        (f.wind_speed * 3.6) | round(0) | int %}\n  {% set testo = ora ~ \"h \" ~
+        t ~ \"° P\" ~ prob ~ \"% \" ~ rain ~ \"mm V\" ~ wind ~ \"kmh\" %}\n  {% set
+        ns.result = ns.result + [testo] %}\n{% endfor %} {{ {\"text\": ns.result |
+        join(\" | \"), \"icon\": \"11201\", \"duration\": 60, \"scrollSpeed\": 50}
+        | tojson }}\n"
+- id: '1776198745010'
+  alias: Meteo - Allerta Pioggia - Notifica 12h
+  description: Notifica su iPhone se prevista pioggia nelle prossime 12 ore (07:30-22:30)
+  triggers:
+  - trigger: time_pattern
+    hours: /2
+  conditions:
+  - condition: time
+    after: 07:30:00
+    before: '22:30:00'
+    enabled: false
+  actions:
+  - action: weather.get_forecasts
+    target:
+      entity_id: weather.openweathermap
+    data:
+      type: hourly
+    response_variable: forecast
+  - variables:
+      ore_pioggia: "{% set items = forecast['weather.openweathermap']['forecast'][:12]
+        %} {% set ns = namespace(result=[]) %} {% for f in items %}\n  {% set prob
+        = f.get('precipitation_probability', 0) | int %}\n  {% set rain = f.get('precipitation',
+        0) | float %}\n  {% set cond = f.get('condition', '') %}\n  {% if prob >=
+        40 or rain > 0.2 or cond in ['rainy','pouring','lightning-rainy'] %}\n    {%
+        set ora = (f.datetime | as_datetime | as_local).strftime('%H') %}\n    {%
+        set ns.result = ns.result + [ora ~ \"h prob=\" ~ prob ~ \"% rain=\" ~ rain
+        ~ \"mm cond=\" ~ cond] %}\n  {% endif %}\n{% endfor %} {{ ns.result }}\n"
+      pioggia_prevista: '{{ ore_pioggia | length > 0 }}'
+  - condition: template
+    value_template: '{{ pioggia_prevista }}'
+  - action: rest_command.claude_weather_forecast
+    data:
+      message: 'Sei un assistente meteo. Ricevi i dati orari di pioggia prevista nelle
+        prossime 6 ore e produci un messaggio di notifica breve (max 2 frasi) in italiano.
+        Indica quando inizia la pioggia, per quanto dura e l''intensità. Sii conciso
+        e diretto, niente preamboli. Dati: {{ ore_pioggia | join('' | '') }}
+
+        '
+    response_variable: claude_response
+  - variables:
+      testo_notifica: "{% set content = claude_response.get('content', {}) %} {% if
+        content is mapping %}\n  {{ content.get('content', [{}])[0].get('text', 'Pioggia
+        prevista nelle prossime ore.') }}\n{% else %}\n  Pioggia prevista nelle prossime
+        ore.\n{% endif %}\n"
+  - action: notify.mobile_app_iphone_di_filippo
+    data:
+      title: "\U0001F327 Pioggia in arrivo"
+      message: '{{ testo_notifica | trim }}'
+      data:
+        push:
+          sound: default
+    enabled: false
+  - action: telegram_bot.send_message
+    metadata: {}
+    data:
+      message: '{{ testo_notifica | trim }}'
+      title: "\U0001F327 Pioggia in arrivo"
+- id: '1776283524411'
+  alias: Meteo (RainViewer) - Controllo pioggia ogni 10 min
+  description: Controlla il radar RainViewer ogni 10 minuti e invia un alert Telegram
+    al primo rilevamento di pioggia. Il flag anti-spam si resetta quando smette di
+    piovere.
+  triggers:
+  - trigger: time_pattern
+    minutes: /10
+  conditions:
+  - condition: time
+    after: 06:00:00
+    before: '23:00:00'
+  actions:
+  - action: shell_command.rainviewer_check
+    response_variable: risultato
+  - variables:
+      esito: '{{ risultato.stdout | from_json if risultato.returncode == 0 else none
+        }}'
+  - choose:
+    - conditions:
+      - condition: template
+        value_template: '{{ esito is not none and esito.pioggia }}'
+      - condition: state
+        entity_id: input_boolean.alert_pioggia_inviato
+        state: 'off'
+      sequence:
+      - action: telegram_bot.send_message
+        data:
+          config_entry_id: 01KFE3V7X0K1WR8591R20DGBK7
+          title: "\U0001F327️ Alert Meteo"
+          message: Il radar segnala precipitazioni vicino a casa alle {{ now().strftime('%H:%M')
+            }}. ☂️ Ritira i panni se sono stesi! (dati radar aggiornati {{ esito.frame_minuti_fa
+            }} min fa)
+      - action: input_boolean.turn_on
+        target:
+          entity_id: input_boolean.alert_pioggia_inviato
+    - conditions:
+      - condition: template
+        value_template: '{{ esito is not none and not esito.pioggia }}'
+      - condition: state
+        entity_id: input_boolean.alert_pioggia_inviato
+        state: 'on'
+      sequence:
+      - action: input_boolean.turn_off
+        target:
+          entity_id: input_boolean.alert_pioggia_inviato
+  mode: single
+- id: '1779828485824'
+  alias: S3-Box Night Mode
+  description: ''
+  triggers:
+  - device_id: b1801aea27f8c2682b8779dec10a12a9
+    domain: alarm_control_panel
+    entity_id: b6424d6d88b000d316f25ccd0115edba
+    type: armed_home
+    trigger: device
+  conditions: []
+  actions:
+  - type: turn_off
+    device_id: f86efd5867382e824b396ea029fa2ef8
+    entity_id: 94fde0659eff82b3ad451e93d3acf765
+    domain: switch
+  - type: toggle
+    device_id: f86efd5867382e824b396ea029fa2ef8
+    entity_id: 37f0cec96fbdea02d6cddf149d539c67
+    domain: switch
+  mode: single
+- id: '1780041900729'
+  alias: Spegni faretto letto problematico
+  triggers:
+  - entity_id: light.faretto_letto_kblue
+    to: 'on'
+    trigger: state
+  - event: start
+    trigger: homeassistant
+  conditions:
+  - condition: state
+    entity_id: light.faretto_letto_kblue
+    state: 'on'
+  actions:
+  - target:
+      entity_id: light.faretto_letto_kblue
+    action: light.turn_off
+- id: '1780042467764'
+  alias: Notifica se ci sono luci accese durante il giorno
+  description: Notifica se ci sono luci accese tra alba e tramonto
+  triggers:
+  - minutes: /10
+    trigger: time_pattern
+  - event: sunrise
+    offset: +00:30:00
+    trigger: sun
+  - event: sunset
+    trigger: sun
+    id: reset
+  conditions: []
+  actions:
+  - if:
+    - condition: trigger
+      id: reset
+    then:
+    - entity_id: input_boolean.notifica_luci_giorno_inviata
+      action: input_boolean.turn_off
+    else:
+    - condition: sun
+      after: sunrise
+      before: sunset
+    - condition: template
+      value_template: "{% set escluse = label_entities('escludi_notifica_luci') %}\n{{
+        states.light\n   | rejectattr('entity_id', 'in', escluse)\n   | selectattr('state',
+        'eq', 'on')\n   | list | count > 0 }}\n"
+    - condition: state
+      entity_id: input_boolean.notifica_luci_giorno_inviata
+      state: 'off'
+    - entity_id: input_boolean.notifica_luci_giorno_inviata
+      action: input_boolean.turn_on
+    - action: telegram_bot.send_message
+      data:
+        config_entry_id: 01KFE3V7X0K1WR8591R20DGBK7
+        message: "\U0001F4A1 *Luci accese di giorno*\n{% set escluse = label_entities('escludi_notifica_luci')
+          %}\n{% set luci = states.light\n   | rejectattr('entity_id', 'in', escluse)\n
+          \  | selectattr('state', 'eq', 'on')\n   | map(attribute='name')\n   | list
+          %}\n{{ luci | join(', ') }}\n"
+- id: '1780057179610'
+  alias: S3Box - Apri tapparella camera matrioniale
+  description: ''
+  triggers:
+  - entity_id: input_boolean.apri_tapparella_camera_matrimoniale
+    to: 'on'
+    trigger: state
+  actions:
+  - target:
+      entity_id: cover.tapparella_camera_matrimoniale
+    action: cover.open_cover
+  - target:
+      entity_id: input_boolean.apri_tapparella_camera_matrimoniale
+    action: input_boolean.turn_off
+- id: '1780057267648'
+  alias: S3Box - Chiudi tapparella camera matrimoniale
+  description: ''
+  triggers:
+  - entity_id: input_boolean.chiudi_tapparella_camera_matrimoniale
+    to: 'on'
+    trigger: state
+  actions:
+  - target:
+      entity_id: cover.tapparella_camera_matrimoniale
+    action: cover.close_cover
+  - target:
+      entity_id: input_boolean.chiudi_tapparella_camera_matrimoniale
+    action: input_boolean.turn_off
+- id: '1780067477941'
+  alias: S3Box - Stop tapparella camera matrimoniale
+  description: ''
+  triggers:
+  - entity_id: input_boolean.stop_tapparella_camera_matrimoniale
+    to: 'on'
+    trigger: state
+  actions:
+  - target:
+      entity_id: cover.tapparella_camera_matrimoniale
+    action: cover.stop_cover
+  - target:
+      entity_id: input_boolean.stop_tapparella_camera_matrimoniale
+    action: input_boolean.turn_off
+- id: '1780070094957'
+  alias: Spegni luce specchio bagno privato problematica
+  description: ''
+  triggers:
+  - entity_id:
+    - light.specchio_bagno_letto_kblue
+    to:
+    - 'on'
+    trigger: state
+  - event: start
+    trigger: homeassistant
+  conditions:
+  - condition: state
+    entity_id: light.specchio_bagno_letto_kblue
+    state:
+    - 'on'
+  actions:
+  - target:
+      entity_id: light.specchio_bagno_letto_kblue
+    action: light.turn_off
+    data: {}
+  mode: single
+- id: '1780148299358'
+  alias: Presence - Notifica quando qualcuno rientra a casa
+  description: Notifica quando una specifica persona rientra a casa (solo se Filippo
+    è fuori)
+  triggers:
+  - trigger: state
+    entity_id:
+    - person.chiara
+    - person.greta
+    - person.mirella
+    to: home
+    from: not_home
+  conditions:
+  - condition: not
+    conditions:
+    - condition: state
+      entity_id: person.filippo_durzu
+      state: home
+  actions:
+  - action: notify.mobile_app_iphone_di_filippo
+    data:
+      title: "\U0001F3E0 Rientro a casa"
+      message: '{{ trigger.to_state.attributes.friendly_name }} è rientrato/a a casa'
+    enabled: false
+  - action: telegram_bot.send_message
+    data:
+      config_entry_id: 01KFE3V7X0K1WR8591R20DGBK7
+      message: "\U0001F3E0 {{ trigger.to_state.attributes.friendly_name }} è rientrato/a
+        a casa"
+  mode: single
+- id: '1780492608216'
+  alias: Presence - Gestione input_boolean.presence
+  description: 'Aggiorna input_boolean.presence in base alle persone tracciate. ON
+    = almeno una persona a casa, OFF = nessuno a casa.
+
+    '
+  triggers:
+  - trigger: state
+    entity_id:
+    - person.filippo_durzu
+    - person.chiara
+    - person.greta
+    - person.mirella
+    - person.francesco
+    to:
+    - home
+  - trigger: state
+    entity_id:
+    - person.filippo_durzu
+    - person.chiara
+    - person.greta
+    - person.mirella
+    - person.francesco
+    to:
+    - not_home
+    for:
+      minutes: 3
+  actions:
+  - choose:
+    - conditions:
+      - condition: template
+        value_template: '{{ persone_a_casa > 0 }}'
+      sequence:
+      - action: input_boolean.turn_on
+        target:
+          entity_id: input_boolean.presence
+    - conditions:
+      - condition: template
+        value_template: '{{ persone_a_casa == 0 }}'
+      sequence:
+      - action: input_boolean.turn_off
+        target:
+          entity_id: input_boolean.presence
+      - action: telegram_bot.send_message
+        data:
+          config_entry_id: 01KFE3V7X0K1WR8591R20DGBK7
+          message: "\U0001F3E0 Nessun tracker rilevato a casa"
+          entity_id:
+          - notify.homeassistant_filippo_8511463273
+  mode: restart
+  variables:
+    persone_a_casa: "{{ ['person.filippo_durzu', 'person.chiara', 'person.greta',
+      'person.mirella']\n   | select('is_state', 'home') | list | count }}\n"
+- id: '1780493292708'
+  alias: Spegni luce strip bagno privato problematica
+  description: ''
+  triggers:
+  - entity_id:
+    - light.strip_bagno_letto_kblue
+    to:
+    - 'on'
+    trigger: state
+  - event: start
+    trigger: homeassistant
+  conditions:
+  - condition: state
+    entity_id: light.strip_bagno_letto_kblue
+    state:
+    - 'on'
+  actions:
+  - target:
+      entity_id: light.strip_bagno_letto_kblue
+    action: light.turn_off
+    data: {}
+  mode: single
+- id: '1780520271664'
+  alias: Buonanotte (automazione HA richiamata da corrispondende script a sua volta
+    richiamato da Alexa)
+  description: ''
+  triggers: []
+  conditions: []
+  actions:
+  - if:
+    - condition: state
+      entity_id: alarm_control_panel.risco_casetta_partition_1
+      state:
+      - disarmed
+    then:
+    - action: automation.trigger
+      metadata: {}
+      target:
+        entity_id: automation.sicurezza_arma_zona_comune_quando_focus_notte_attivo_e_iphone_a_casa
+      data:
+        skip_condition: true
+    - action: alexa_devices.send_text_command
+      metadata: {}
+      data:
+        device_id: 1b04930ba2c41eaeb44d4a61c03360b4
+        text_command: Spegni schermo
+    - action: notify.mobile_app_iphone_di_filippo
+      data:
+        title: Allarme
+        message: Allarme inserito (Buonanotte) ✅
+    - action: telegram_bot.send_message
+      data:
+        config_entry_id: 01KFE3V7X0K1WR8591R20DGBK7
+        message: "\U0001F512 Allarme inserito (Buonanotte)"
+    else:
+    - action: notify.mobile_app_iphone_di_filippo
+      data:
+        title: Allarme
+        message: Allarme già inserito, nessuna azione eseguita ⚠️
+    - action: telegram_bot.send_message
+      data:
+        config_entry_id: 01KFE3V7X0K1WR8591R20DGBK7
+        message: ⚠️ Allarme già inserito, Buonanotte non eseguita
+      enabled: true
+  mode: single
+- id: '1780576454147'
+  alias: Sicurezza - Inserisci allarme quando non viene rilevata presenza in casa
+  description: 'Quando presence va OFF, se l''allarme non è già inserito, avvia il
+    timer timer.alarm_grace_period_timer (10 minuti) e manda una notifica Telegram
+    con i pulsanti "Annulla armo" e "Arma ora". L''inserimento viene annullato se
+    si preme Annulla, se si annulla il timer dalla dashboard o se torna presenza.
+    "Arma ora" salta l''attesa e i controlli. Allo scadere del timer controlla anche
+    i sensori IR e mmWave: se rileva attività negli ultimi 10 minuti (ospiti, pulizie)
+    non arma, ma chiede via Telegram se armare comunque o mettere in pausa l''armo
+    automatico (script.pausa_armo_automatico, 1 h o 3 h; senza risposta in 5 minuti
+    pausa di 1 h). Se invece la casa risulta vuota arma: se una o entrambe le porte
+    interne sono aperte, bypassa i relativi sensori, inserisce l''allarme e notifica
+    con riserva.
+
+    '
+  triggers:
+  - trigger: state
+    entity_id: input_boolean.presence
+    to: 'off'
+  conditions:
+  - condition: state
+    entity_id: alarm_control_panel.risco_casetta_partition_1
+    state: disarmed
+  actions:
+  - action: timer.start
+    target:
+      entity_id: timer.alarm_grace_period_timer
+    data:
+      duration: 600
+  - action: telegram_bot.send_message
+    data:
+      entity_id:
+      - notify.homeassistant_filippo_8511463273
+      message: Nessuna presenza rilevata in casa, entro 10 minuti si attiverà il sistema
+        anti-intrusione
+      inline_keyboard:
+      - ❌ Annulla armo:/annulla_armo, ⏩ Arma ora:/arma_ora
+    response_variable: msg_grace
+  - wait_for_trigger:
+    - trigger: event
+      event_type: timer.finished
+      event_data:
+        entity_id: timer.alarm_grace_period_timer
+      id: scaduto
+    - trigger: event
+      event_type: timer.cancelled
+      event_data:
+        entity_id: timer.alarm_grace_period_timer
+      id: annulla
+    - trigger: event
+      event_type: telegram_callback
+      event_data:
+        data: /annulla_armo
+        chat_id: 8511463273
+      id: annulla
+    - trigger: event
+      event_type: telegram_callback
+      event_data:
+        data: /arma_ora
+        chat_id: 8511463273
+      id: arma_ora
+    - trigger: state
+      entity_id: input_boolean.presence
+      to: 'on'
+      id: rientro
+    timeout:
+      minutes: 11
+    continue_on_timeout: true
+  - variables:
+      esito: '{{ wait.trigger.id if wait.trigger is not none else ''timeout'' }}'
+  - action: timer.cancel
+    target:
+      entity_id: timer.alarm_grace_period_timer
+  - action: telegram_bot.edit_replymarkup
+    continue_on_error: true
+    data:
+      chat_id: '{{ msg_grace.chats[0].chat_id }}'
+      message_id: '{{ msg_grace.chats[0].message_id }}'
+      inline_keyboard: []
+  - if:
+    - condition: template
+      value_template: '{{ wait.trigger is not none and wait.trigger.platform == ''event''
+        and wait.trigger.event.event_type == ''telegram_callback'' }}'
+    then:
+    - action: telegram_bot.answer_callback_query
+      continue_on_error: true
+      data:
+        callback_query_id: '{{ wait.trigger.event.data.id }}'
+        message: '{{ ''Inserimento annullato'' if esito == ''annulla'' else ''Inserimento
+          in corso'' }}'
+  - variables:
+      finestra_attivita_s: 600
+      sensori_attivita:
+        binary_sensor.esp32_s3_box_3_presence_detect: Camera matrimoniale (mmWave)
+        binary_sensor.s3_box_bedroom_presence_detect: Cucina (mmWave)
+        binary_sensor.presenza_salone_presence: Salone (mmWave)
+        binary_sensor.presenza_cabina_armadio_presence: Cabina armadio (mmWave)
+        binary_sensor.sensore_presenza_armadio_occupancy: Armadio (mmWave)
+        binary_sensor.ir_corr_filippo: Corridoio (IR)
+        binary_sensor.ir_mirella: Suite (IR)
+        binary_sensor.ir_ingresso: Ingresso (IR)
+        binary_sensor.ir_sal_filippo: Salone (IR)
+  - variables:
+      attivita: "{% set ns = namespace(l=[]) %} {% for e, n in sensori_attivita.items()
+        %}\n  {% set s = states[e] %}\n  {% if s is not none and (s.state == 'on'
+        or (s.state not in ['unavailable', 'unknown'] and (now() - s.last_changed).total_seconds()
+        < finestra_attivita_s)) %}\n    {% set ns.l = ns.l + [n] %}\n  {% endif %}\n{%
+        endfor %} {{ ns.l | join(', ') }}"
+  - choose:
+    - conditions:
+      - condition: template
+        value_template: '{{ esito == ''annulla'' }}'
+      sequence:
+      - action: telegram_bot.send_message
+        data:
+          entity_id:
+          - notify.homeassistant_filippo_8511463273
+          message: "\U0001F6D1 Inserimento allarme annullato manualmente."
+    - conditions:
+      - condition: state
+        entity_id: input_boolean.presence
+        state: 'on'
+      sequence:
+      - action: telegram_bot.send_message
+        data:
+          entity_id:
+          - notify.homeassistant_filippo_8511463273
+          message: '✅ Presenza rilevata durante il grace-period: inserimento allarme
+            annullato.'
+    - conditions:
+      - condition: state
+        entity_id: input_boolean.presence
+        state: 'off'
+      - condition: state
+        entity_id: alarm_control_panel.risco_casetta_partition_1
+        state: disarmed
+      - condition: template
+        value_template: '{{ esito in [''scaduto'', ''timeout''] and attivita | length
+          > 0 }}'
+      sequence:
+      - action: telegram_bot.send_message
+        data:
+          entity_id:
+          - notify.homeassistant_filippo_8511463273
+          message: "\U0001F6B6 Nessun tracker in casa, ma i sensori rilevano attività:
+            {{ attivita }}. Probabilmente c'è qualcuno (ospiti, pulizie). Non armo
+            automaticamente: come procedo?"
+          inline_keyboard:
+          - ⏩ Arma comunque:/arma_comunque, ⏸️ Pausa 1 h:/pausa_armo_1h, ⏸️ Pausa
+            3 h:/pausa_armo_3h
+        response_variable: msg_attivita
+      - wait_for_trigger:
+        - trigger: event
+          event_type: telegram_callback
+          event_data:
+            data: /arma_comunque
+            chat_id: 8511463273
+          id: arma_comunque
+        - trigger: event
+          event_type: telegram_callback
+          event_data:
+            data: /pausa_armo_1h
+            chat_id: 8511463273
+          id: pausa_1h
+        - trigger: event
+          event_type: telegram_callback
+          event_data:
+            data: /pausa_armo_3h
+            chat_id: 8511463273
+          id: pausa_3h
+        - trigger: state
+          entity_id: input_boolean.presence
+          to: 'on'
+          id: rientro
+        timeout:
+          minutes: 5
+        continue_on_timeout: true
+      - action: telegram_bot.edit_replymarkup
+        continue_on_error: true
+        data:
+          chat_id: '{{ msg_attivita.chats[0].chat_id }}'
+          message_id: '{{ msg_attivita.chats[0].message_id }}'
+          inline_keyboard: []
+      - if:
+        - condition: template
+          value_template: '{{ wait.trigger is not none and wait.trigger.platform ==
+            ''event'' }}'
+        then:
+        - action: telegram_bot.answer_callback_query
+          continue_on_error: true
+          data:
+            callback_query_id: '{{ wait.trigger.event.data.id }}'
+            message: Ricevuto
+      - choose:
+        - conditions:
+          - condition: template
+            value_template: '{{ wait.trigger is not none and wait.trigger.id == ''rientro''
+              }}'
+          sequence:
+          - action: telegram_bot.send_message
+            data:
+              entity_id:
+              - notify.homeassistant_filippo_8511463273
+              message: '✅ Presenza rilevata: inserimento allarme annullato.'
+        - conditions:
+          - condition: template
+            value_template: '{{ wait.trigger is not none and wait.trigger.id == ''arma_comunque''
+              }}'
+          sequence:
+          - variables:
+              porta_mirella_aperta: '{{ states(''binary_sensor.porta_mirella'') ==
+                ''on'' }}'
+              porta_filippo_aperta: '{{ states(''binary_sensor.porta_filippo'') ==
+                ''on'' }}'
+          - if:
+            - condition: template
+              value_template: '{{ porta_mirella_aperta }}'
+            then:
+            - action: switch.turn_on
+              target:
+                entity_id: switch.porta_mirella_bypassed
+          - if:
+            - condition: template
+              value_template: '{{ porta_filippo_aperta }}'
+            then:
+            - action: switch.turn_on
+              target:
+                entity_id: switch.porta_filippo_bypassed
+          - action: alarm_control_panel.alarm_arm_away
+            target:
+              device_id:
+              - b1801aea27f8c2682b8779dec10a12a9
+              - df67f423d0dca29c15c6f8212f0bdb44
+              - c903568bd46a79a3a35fa7b1b525f410
+            data: {}
+          - action: telegram_bot.send_message
+            data:
+              entity_id:
+              - notify.homeassistant_filippo_8511463273
+              message: ⚠️ Allarme inserito su tua conferma nonostante attività rilevata
+                ({{ attivita }}).{% if porta_mirella_aperta %} Porta di Mirella bypassata.{%
+                endif %}{% if porta_filippo_aperta %} Porta di Filippo bypassata.{%
+                endif %}
+        - conditions:
+          - condition: template
+            value_template: '{{ wait.trigger is not none and wait.trigger.id == ''pausa_3h''
+              }}'
+          sequence:
+          - action: telegram_bot.send_message
+            data:
+              entity_id:
+              - notify.homeassistant_filippo_8511463273
+              message: ⏸️ Armo automatico in pausa per 3 ore.
+          - action: script.pausa_armo_automatico
+            data:
+              ore: 3
+        default:
+        - action: telegram_bot.send_message
+          data:
+            entity_id:
+            - notify.homeassistant_filippo_8511463273
+            message: ⏸️ Armo automatico in pausa per 1 ora{% if wait.trigger is none
+              %} (nessuna risposta){% endif %}.
+        - action: script.pausa_armo_automatico
+          data:
+            ore: 1
+    - conditions:
+      - condition: state
+        entity_id: input_boolean.presence
+        state: 'off'
+      - condition: state
+        entity_id: alarm_control_panel.risco_casetta_partition_1
+        state: disarmed
+      sequence:
+      - variables:
+          porta_mirella_aperta: '{{ states(''binary_sensor.porta_mirella'') == ''on''
+            }}'
+          porta_filippo_aperta: '{{ states(''binary_sensor.porta_filippo'') == ''on''
+            }}'
+      - if:
+        - condition: template
+          value_template: '{{ porta_mirella_aperta }}'
+        then:
+        - action: switch.turn_on
+          target:
+            entity_id: switch.porta_mirella_bypassed
+      - if:
+        - condition: template
+          value_template: '{{ porta_filippo_aperta }}'
+        then:
+        - action: switch.turn_on
+          target:
+            entity_id: switch.porta_filippo_bypassed
+      - action: alarm_control_panel.alarm_arm_away
+        target:
+          device_id:
+          - b1801aea27f8c2682b8779dec10a12a9
+          - df67f423d0dca29c15c6f8212f0bdb44
+          - c903568bd46a79a3a35fa7b1b525f410
+        data: {}
+      - action: telegram_bot.send_message
+        data:
+          entity_id:
+          - notify.homeassistant_filippo_8511463273
+          message: '{% if porta_mirella_aperta and porta_filippo_aperta %} ⚠️ Allarme
+            inserito con RISERVA: porte di Mirella e Filippo erano aperte e sono state
+            bypassate. {% elif porta_mirella_aperta %} ⚠️ Allarme inserito con RISERVA:
+            porta di Mirella era aperta ed è stata bypassata. {% elif porta_filippo_aperta
+            %} ⚠️ Allarme inserito con RISERVA: porta di Filippo era aperta ed è stata
+            bypassata. {% else %} ✅ Allarme inserito correttamente. Tutte le porte
+            interne erano chiuse. {% endif %}'
+    default:
+    - action: telegram_bot.send_message
+      data:
+        entity_id:
+        - notify.homeassistant_filippo_8511463273
+        message: 'ℹ️ Allarme già inserito manualmente durante il periodo di grace-period:
+          nessuna azione necessaria.'
+  mode: restart
+- id: '1780578936994'
+  alias: Spegni faretti bagno privato problematici
+  description: ''
+  triggers:
+  - entity_id:
+    - light.faretti_bagno_letto_kblue
+    to:
+    - 'on'
+    trigger: state
+  - event: start
+    trigger: homeassistant
+  conditions:
+  - condition: state
+    entity_id: light.faretti_bagno_letto_kblue
+    state:
+    - 'on'
+  actions:
+  - target:
+      entity_id: light.faretti_bagno_letto_kblue
+    action: light.turn_off
+    data: {}
+  mode: single
+- id: '1781948155167'
+  alias: AWTRIX - Night mode quando nessuno in casa
+  triggers:
+  - trigger: state
+    entity_id: input_boolean.presence
+    to: 'off'
+  actions:
+  - action: mqtt.publish
+    data:
+      topic: awtrix_3e5e6c/settings
+      payload: '{ "ATRANS": false, "BRI": 1, "ABRI": false, "TMODE": 0, "WD": false
+        }
+
+        '
+    enabled: false
+  - action: mqtt.publish
+    data:
+      topic: awtrix_3e5e6c/switch
+      payload: '{"name": "Time"}'
+    enabled: false
+  - action: light.turn_on
+    metadata: {}
+    target:
+      entity_id: light.awtrix_3e5e6c_matrix
+    data: {}
+  mode: single
+- id: '1781948227304'
+  alias: AWTRIX - Ripristino quando qualcuno rientra
+  triggers:
+  - trigger: state
+    entity_id: input_boolean.presence
+    to: 'on'
+  actions:
+  - action: light.turn_on
+    metadata: {}
+    target:
+      entity_id: light.awtrix_3e5e6c_matrix
+    data: {}
+  mode: single
+- id: '1782055188103'
+  alias: Spegni luci esterne se nessuno a casa all'alba
+  description: All'alba, se nessuno è in casa, spegne le luci esterne
+  triggers:
+  - event: sunrise
+    trigger: sun
+  conditions:
+  - condition: state
+    entity_id: input_boolean.presence
+    state: 'off'
+  actions:
+  - action: light.turn_off
+    target:
+      area_id: outside
+    data: {}
+- id: '1783002472634'
+  alias: Meteo - Briefing meteo mattutino - fuori Roma
+  description: Alle 7:30 se Filippo è a più di 50km da Roma, genera briefing meteo
+    locale con Claude
+  triggers:
+  - at: 07:30:00
+    trigger: time
+  conditions:
+  - condition: template
+    value_template: '{{ distance(''person.filippo_durzu'', ''zone.home'') | float
+      > 50 }}
+
+      '
+  actions:
+  - action: weather.get_forecasts
+    target:
+      entity_id: weather.openweathermap
+    data:
+      type: daily
+    response_variable: forecast
+  - variables:
+      lat: '{{ state_attr(''person.filippo_durzu'', ''latitude'') | round(4) }}'
+      lon: '{{ state_attr(''person.filippo_durzu'', ''longitude'') | round(4) }}'
+      oggi: '{{ forecast[''weather.openweathermap''][''forecast''][0] }}'
+      domani: '{{ forecast[''weather.openweathermap''][''forecast''][1] }}'
+      temp_now: '{{ state_attr(''weather.openweathermap'', ''temperature'') }}'
+      umidita: '{{ state_attr(''weather.openweathermap'', ''humidity'') }}'
+      vento: '{{ state_attr(''weather.openweathermap'', ''wind_speed'') }}'
+      cond: '{{ states(''weather.openweathermap'') }}'
+      temp_min: '{{ oggi.get(''templow'', '''') }}'
+      temp_max: '{{ oggi.get(''temperature'', '''') }}'
+      pioggia: '{{ oggi.get(''precipitation'', 0) }}'
+      prob_pioggia: '{{ oggi.get(''precipitation_probability'', 0) }}'
+      domani_cond: '{{ domani.get(''condition'', '''') }}'
+      domani_min: '{{ domani.get(''templow'', '''') }}'
+      domani_max: '{{ domani.get(''temperature'', '''') }}'
+      domani_pioggia: '{{ domani.get(''precipitation'', 0) }}'
+  - action: rest_command.claude_weather_forecast
+    data:
+      message: "Sei un assistente meteo. Genera un briefing mattutino breve e naturale
+        in italiano, massimo 5 righe, per qualcuno che si trova a {{ states('sensor.posizione_filippo')
+        }}. Non usare titoli, intestazioni o markdown. Non iniziare con 'Buongiorno'.
+        Dati meteo: condizione {{ cond }}, temperatura attuale {{ temp_now }}°C, min/max
+        oggi {{ temp_min }}/{{ temp_max }}°C, umidità {{ umidita }}%, pioggia {{ pioggia
+        }}mm (prob {{ prob_pioggia }}%), vento {{ vento }} km/h. Domani: {{ domani_cond
+        }}, {{ domani_min }}/{{ domani_max }}°C, pioggia {{ domani_pioggia }}mm. Concludi
+        con valutazione per attività all'aperto: \U0001F7E2 Ottimo / \U0001F7E1 Accettabile
+        / \U0001F534 Sconsigliato."
+    response_variable: claude_response
+  - variables:
+      testo: "{% set content = claude_response.get('content', {}) %} {% if content
+        is mapping %}\n  {{ content.get('content', [{}])[0].get('text', 'Briefing
+        non disponibile.') }}\n{% else %}\n  Briefing non disponibile.\n{% endif %}\n"
+  - action: telegram_bot.send_message
+    data:
+      config_entry_id: 01KFE3V7X0K1WR8591R20DGBK7
+      message: "\U0001F4CD Buongiorno dall'{{ states('sensor.posizione_filippo') }}!\n\n{{
+        testo | trim }}"
+- id: '1783419882401'
+  alias: Sicurezza - Aggiorna snapshot cam Blink ogni 30 minuti
+  description: ''
+  triggers:
+  - trigger: time_pattern
+    minutes: /15
+  conditions: []
+  actions:
+  - action: script.turn_on
+    metadata: {}
+    target:
+      entity_id: script.sicurezza_aggiorna_snapshot_cam_blink
+    data: {}
+  mode: single
+- id: '1786981613315'
+  alias: Sicurezza - Arma zona comune in modalità notte (versione smart da testare)
+  description: 'Richiamata da un''altra automazione. Attende un grace period di 10
+    minuti (con notifica di avvio) prima di valutare la zona giorno. Se, trascorso
+    il grace period, l''allarme risulta già armato manualmente, notifica e si ferma;
+    se risulta "triggered" (intrusione in corso), invia un avviso distinto e si ferma
+    senza toccare nulla. Altrimenti: se la zona giorno è libera (luci spente e nessuna
+    presenza), arma subito senza chiedere; se occupata, chiede conferma via Telegram
+    (arma subito / attendi che si liberi / non armare). In caso di "attendi" o nessuna
+    risposta entro 5 minuti, attesa intelligente con timeout di sicurezza di 1 ora.
+    Prima di ogni armamento verifica sempre lo stato dell''allarme, distinguendo "triggered"
+    da "già armato manualmente".
+
+    '
+  triggers: []
+  conditions: []
+  actions:
+  - action: telegram_bot.send_message
+    data:
+      config_entry_id: 01KFE3V7X0K1WR8591R20DGBK7
+      message: "\U0001F319 Sicurezza notturna: l'attività nella zona giorno verrà
+        verificata tra 10 minuti."
+  - delay:
+      hours: 0
+      minutes: 10
+      seconds: 0
+      milliseconds: 0
+  - choose:
+    - conditions:
+      - condition: state
+        entity_id: alarm_control_panel.risco_casetta_partition_1
+        state: triggered
+      sequence:
+      - action: telegram_bot.send_message
+        data:
+          config_entry_id: 01KFE3V7X0K1WR8591R20DGBK7
+          message: "\U0001F6A8 Allarme in corso (stato \"triggered\"): non eseguo
+            alcuna azione automatica, verifica subito la situazione."
+      - stop: Allarme in stato triggered durante il grace period
+    - conditions:
+      - condition: not
+        conditions:
+        - condition: state
+          entity_id: alarm_control_panel.risco_casetta_partition_1
+          state: triggered
+        - condition: state
+          entity_id: alarm_control_panel.risco_casetta_partition_1
+          state: disarmed
+      sequence:
+      - action: telegram_bot.send_message
+        data:
+          config_entry_id: 01KFE3V7X0K1WR8591R20DGBK7
+          message: 'ℹ️ Sicurezza notturna: l''allarme risulta già armato manualmente
+            durante l''attesa. Nessuna ulteriore azione necessaria.'
+      - stop: Allarme già armato manualmente durante il grace period
+    default:
+    - choose:
+      - conditions:
+        - condition: state
+          entity_id: light.luci_zona_giorno
+          state: 'off'
+        - condition: state
+          entity_id: binary_sensor.presenza_salone_presence
+          state: 'off'
+        - condition: state
+          entity_id: binary_sensor.s3_box_bedroom_presence_detect
+          state: 'off'
+        sequence:
+        - choose:
+          - conditions:
+            - condition: state
+              entity_id: alarm_control_panel.risco_casetta_partition_1
+              state: triggered
+            sequence:
+            - action: telegram_bot.send_message
+              data:
+                config_entry_id: 01KFE3V7X0K1WR8591R20DGBK7
+                message: "\U0001F6A8 Allarme in corso (stato \"triggered\"): non eseguo
+                  alcuna azione automatica, verifica subito la situazione."
+          - conditions:
+            - condition: state
+              entity_id: alarm_control_panel.risco_casetta_partition_1
+              state: disarmed
+            sequence:
+            - action: alarm_control_panel.alarm_arm_home
+              target:
+                entity_id: alarm_control_panel.risco_casetta_partition_1
+            - action: telegram_bot.send_message
+              data:
+                config_entry_id: 01KFE3V7X0K1WR8591R20DGBK7
+                message: "\U0001F512 Sicurezza notturna: non risulta attività nella
+                  zona giorno, zona comune armata automaticamente"
+          - conditions:
+            - condition: not
+              conditions:
+              - condition: state
+                entity_id: alarm_control_panel.risco_casetta_partition_1
+                state: triggered
+              - condition: state
+                entity_id: alarm_control_panel.risco_casetta_partition_1
+                state: disarmed
+            sequence:
+            - action: telegram_bot.send_message
+              data:
+                config_entry_id: 01KFE3V7X0K1WR8591R20DGBK7
+                message: 'ℹ️ Sicurezza notturna: la zona comune risulta già armata
+                  manualmente. Nessuna ulteriore azione necessaria.'
+      default:
+      - action: telegram_bot.send_message
+        data:
+          config_entry_id: 01KFE3V7X0K1WR8591R20DGBK7
+          message: "\U0001F319 Sicurezza notturna: rilevata attività e/o luci ancora
+            accese nella zona giorno. Come vuoi gestire l'allarme?"
+          inline_keyboard:
+          - ✅ Arma subito:/arma_subito
+          - ⏳ Attendi zona libera:/attendi_zona_libera
+          - "\U0001F6AB Non armare:/non_armare"
+      - wait_for_trigger:
+        - trigger: event
+          event_type: telegram_callback
+          event_data:
+            data: /arma_subito
+        - trigger: event
+          event_type: telegram_callback
+          event_data:
+            data: /attendi_zona_libera
+        - trigger: event
+          event_type: telegram_callback
+          event_data:
+            data: /non_armare
+        timeout:
+          minutes: 5
+      - choose:
+        - conditions:
+          - condition: template
+            value_template: '{{ wait.trigger is not none and wait.trigger.event.data.data
+              == ''/arma_subito'' }}'
+          sequence:
+          - action: telegram_bot.answer_callback_query
+            data:
+              callback_query_id: '{{ wait.trigger.event.data.id }}'
+              message: ✅ Allarme attivato
+          - choose:
+            - conditions:
+              - condition: state
+                entity_id: alarm_control_panel.risco_casetta_partition_1
+                state: triggered
+              sequence:
+              - action: telegram_bot.send_message
+                data:
+                  config_entry_id: 01KFE3V7X0K1WR8591R20DGBK7
+                  message: "\U0001F6A8 Allarme in corso (stato \"triggered\"): non
+                    eseguo alcuna azione automatica, verifica subito la situazione."
+            - conditions:
+              - condition: state
+                entity_id: alarm_control_panel.risco_casetta_partition_1
+                state: disarmed
+              sequence:
+              - action: alarm_control_panel.alarm_arm_home
+                target:
+                  entity_id: alarm_control_panel.risco_casetta_partition_1
+              - action: telegram_bot.send_message
+                data:
+                  config_entry_id: 01KFE3V7X0K1WR8591R20DGBK7
+                  message: "\U0001F512 Allarme zona comune attivato subito, su tua
+                    conferma."
+            - conditions:
+              - condition: not
+                conditions:
+                - condition: state
+                  entity_id: alarm_control_panel.risco_casetta_partition_1
+                  state: triggered
+                - condition: state
+                  entity_id: alarm_control_panel.risco_casetta_partition_1
+                  state: disarmed
+              sequence:
+              - action: telegram_bot.send_message
+                data:
+                  config_entry_id: 01KFE3V7X0K1WR8591R20DGBK7
+                  message: ℹ️ Allarme già armato manualmente, nessuna azione necessaria.
+        - conditions:
+          - condition: template
+            value_template: '{{ wait.trigger is not none and wait.trigger.event.data.data
+              == ''/non_armare'' }}'
+          sequence:
+          - action: telegram_bot.answer_callback_query
+            data:
+              callback_query_id: '{{ wait.trigger.event.data.id }}'
+              message: "\U0001F6AB Ok, non armo"
+          - action: telegram_bot.send_message
+            data:
+              config_entry_id: 01KFE3V7X0K1WR8591R20DGBK7
+              message: "\U0001F6AB Allarme non attivato stanotte. Non farò altri tentativi:
+                se cambi idea, armalo manualmente da app o Alexa."
+        - conditions:
+          - condition: template
+            value_template: '{{ wait.trigger is not none and wait.trigger.event.data.data
+              == ''/attendi_zona_libera'' }}'
+          sequence:
+          - action: telegram_bot.answer_callback_query
+            data:
+              callback_query_id: '{{ wait.trigger.event.data.id }}'
+              message: ⏳ Ok, attendo
+          - action: telegram_bot.send_message
+            data:
+              config_entry_id: 01KFE3V7X0K1WR8591R20DGBK7
+              message: ⏳ Attendo che la zona giorno sia libera (luci spente o nessuna
+                presenza per 10 min). Se non succede entro 1 ora, armo comunque per
+                sicurezza. Ti avviso quando armo.
+        default:
+        - action: telegram_bot.send_message
+          data:
+            config_entry_id: 01KFE3V7X0K1WR8591R20DGBK7
+            message: ⏱️ Nessuna risposta entro 5 minuti. Passo comunque in attesa
+              della zona giorno libera (luci spente o nessuna presenza per 10 min),
+              con armamento automatico entro 1 ora. Ti avviso quando armo.
+      - condition: template
+        value_template: '{{ wait.trigger is none or wait.trigger.event.data.data ==
+          ''/attendi_zona_libera'' }}'
+      - wait_for_trigger:
+        - trigger: state
+          entity_id: light.luci_zona_giorno
+          to: 'off'
+        - trigger: template
+          value_template: '{{ is_state(''binary_sensor.presenza_salone_presence'',
+            ''off'') and is_state(''binary_sensor.s3_box_bedroom_presence_detect'',
+            ''off'') }}'
+          for:
+            minutes: 10
+        timeout:
+          hours: 1
+        continue_on_timeout: true
+      - choose:
+        - conditions:
+          - condition: state
+            entity_id: alarm_control_panel.risco_casetta_partition_1
+            state: triggered
+          sequence:
+          - action: telegram_bot.send_message
+            data:
+              config_entry_id: 01KFE3V7X0K1WR8591R20DGBK7
+              message: "\U0001F6A8 Allarme in corso (stato \"triggered\"): non eseguo
+                alcuna azione automatica, verifica subito la situazione."
+        - conditions:
+          - condition: state
+            entity_id: alarm_control_panel.risco_casetta_partition_1
+            state: disarmed
+          sequence:
+          - action: alarm_control_panel.alarm_arm_home
+            target:
+              entity_id: alarm_control_panel.risco_casetta_partition_1
+          - action: telegram_bot.send_message
+            data:
+              config_entry_id: 01KFE3V7X0K1WR8591R20DGBK7
+              message: "{{ '\U0001F512 Allarme armato automaticamente dopo 1 ora (timeout
+                di sicurezza, zona giorno non rilevata libera)' if wait.trigger is
+                none else '\U0001F512 Allarme armato: zona giorno libera (luci spente
+                o nessuna presenza)' }}"
+        - conditions:
+          - condition: not
+            conditions:
+            - condition: state
+              entity_id: alarm_control_panel.risco_casetta_partition_1
+              state: triggered
+            - condition: state
+              entity_id: alarm_control_panel.risco_casetta_partition_1
+              state: disarmed
+          sequence:
+          - action: telegram_bot.send_message
+            data:
+              config_entry_id: 01KFE3V7X0K1WR8591R20DGBK7
+              message: ℹ️ Allarme già armato manualmente nel frattempo, nessuna azione
+                necessaria.
+  mode: single
+- id: '1787260177284'
+  alias: Sicurezza - Reminder allarme ancora inserito in prossimità di casa
+  description: 'Notifica chi arriva in prossimità di casa se l''allarme Risco risulta
+    ancora armato.
+
+    '
+  triggers:
+  - entity_id: person.filippo_durzu
+    zone: zone.vicino_casa
+    event: enter
+    id: filippo
+    trigger: zone
+  - entity_id: person.chiara
+    zone: zone.vicino_casa
+    event: enter
+    id: chiara
+    trigger: zone
+  conditions:
+  - condition: not
+    conditions:
+    - condition: state
+      entity_id: alarm_control_panel.risco_casetta_partition_1
+      state: disarmed
+  actions:
+  - choose:
+    - conditions:
+      - condition: trigger
+        id: filippo
+      sequence:
+      - data:
+          title: "\U0001F6A8 Allarme inserito"
+          message: 'Sei quasi arrivato a casa e l''allarme è ancora inserito ({{ states(''alarm_control_panel.risco_casetta_partition_1'')
+            }}). Ricordati di disinserirlo!
+
+            '
+          data:
+            push:
+              sound: default
+        action: notify.mobile_app_iphone_di_filippo
+    - conditions:
+      - condition: trigger
+        id: chiara
+      sequence:
+      - action: notify.mobile_app_abr_nx1
+        data:
+          message: Sei quasi arrivato a casa e l'allarme è ancora inserito ({{ states('alarm_control_panel.risco_casetta_partition_1')
+            }}). Ricordati di disinserirlo!
+          title: "\U0001F6A8 Allarme inserito"
+          data:
+            push:
+              sound: default
+  mode: parallel
+- id: '1787310904418'
+  alias: Sicurezza - Notifica Telegram su attivazione allarme
+  description: 'Invia un avviso al canale Telegram condiviso ogni volta che l''allarme
+    Risco viene attivato, in qualsiasi modalità, escludendo il reinserimento automatico
+    delle 07:00 (modalità viaggio).
+
+    '
+  triggers:
+  - trigger: state
+    entity_id: alarm_control_panel.risco_casetta_partition_1
+    to:
+    - armed_away
+    - armed_home
+    - armed_night
+    - armed_vacation
+    - armed_custom_bypass
+  conditions:
+  - condition: template
+    value_template: '{{ trigger.to_state.context.parent_id != ''automation.sicurezza_reinserisci_allarme_in_automatico_modalita_viaggio''
+      }}
+
+      '
+  actions:
+  - action: telegram_bot.send_message
+    data:
+      entity_id:
+      - notify.notifiche_ha_condivise
+      message: "\U0001F512 Allarme attivato in modalità {{ trigger.to_state.state
+        | replace('armed_', '') | replace('_', ' ') | title }} alle {{ now().strftime('%H:%M')
+        }}.\n"
+  mode: single
+- id: '1787678465297'
+  alias: AWTRIX - App custom stato allarme
+  description: Aggiorna l'app allarme su AWTRIX ogni volta che cambia lo stato
+  triggers:
+  - trigger: state
+    entity_id: alarm_control_panel.risco_casetta_partition_1
+  actions:
+  - action: mqtt.publish
+    data:
+      topic: awtrix_3e5e6c/custom/allarme
+      evaluate_payload: true
+      payload: "{% set stato = trigger.to_state.state %} {% set mappa = {\n  'disarmed':
+        \     {'testo': 'DISARMATO',   'icona': '1961', 'colore': '#00FF00', 'ripeti':
+        1},\n  'armed_home':    {'testo': 'ARMATO CASA',  'icona': '1961', 'colore':
+        '#FFA500', 'ripeti': 1},\n  'armed_away':    {'testo': 'ARMATO',       'icona':
+        '1961', 'colore': '#FF0000', 'ripeti': 1},\n  'armed_night':   {'testo': 'ARMATO
+        NOTTE', 'icona': '1961', 'colore': '#FF8C00', 'ripeti': 1},\n  'armed_vacation':{'testo':
+        'ARMATO VAC.',  'icona': '1961', 'colore': '#FF0000', 'ripeti': 1},\n  'pending':
+        \      {'testo': 'IN ATTESA',    'icona': '1961', 'colore': '#FFFF00', 'ripeti':
+        1},\n  'arming':        {'testo': 'ARMANDO...',   'icona': '1961', 'colore':
+        '#FFFF00', 'ripeti': 1},\n  'disarming':     {'testo': 'DISARMANDO...','icona':
+        '1961', 'colore': '#FFFF00', 'ripeti': 1},\n  'triggered':     {'testo': 'ALLARME!',
+        \    'icona': '1961', 'colore': '#FF0000', 'ripeti': 10}\n} %} {% set d =
+        mappa.get(stato, {'testo': stato | upper, 'icona': '1961', 'colore': '#FFFFFF',
+        'ripeti': 1}) %} {{ {\"text\": d.testo, \"icon\": d.icona, \"color\": d.colore,
+        \"duration\": 6, \"repeat\": d.ripeti, \"pushIcon\": 1 if stato == 'triggered'
+        else 0} | tojson }}"
+  mode: single
+- id: '1789804504606'
+  alias: Auto turn-on luce specchio bagno piccolo - Motion-activated Light
+  description: ''
+  use_blueprint:
+    path: homeassistant/motion_light.yaml
+    input:
+      motion_entity: binary_sensor.presenza_cabina_armadio_presence
+      light_target:
+        entity_id: light.specchio_bagno_letto_kblue
+      no_motion_wait: 1
+- id: '1790974822614'
+  alias: ESP32-S3-Box-3 - Riaccendi screensaver enable
+  description: Quando switch.esp32_s3_box_3_scrsave_enable si spegne, dopo 15 secondi
+    lo riaccende automaticamente
+  triggers:
+  - trigger: state
+    entity_id: switch.esp32_s3_box_3_scrsave_enable
+    to: 'off'
+  actions:
+  - delay:
+      seconds: 15
+  - action: switch.turn_on
+    target:
+      entity_id: switch.esp32_s3_box_3_scrsave_enable
+  mode: single
+- id: '1791438373398'
+  alias: Sicurezza - Pausa armo - scaduta, chiedi cosa fare
+  triggers:
+  - trigger: event
+    event_type: timer.finished
+    event_data:
+      entity_id: timer.pausa_armo_automatico
+  actions:
+  - repeat:
+      while:
+      - condition: state
+        entity_id: automation.presence_attivazione_allarme_quando_nessuno_a_casa
+        state:
+        - 'off'
+      - condition: state
+        entity_id: timer.pausa_armo_automatico
+        state: idle
+      - condition: template
+        value_template: '{{ repeat.index <= 8 }}'
+      sequence:
+      - action: notify.mobile_app_iphone_di_filippo
+        data:
+          title: ⏸️ Pausa armo scaduta
+          message: Ripristino l'armo automatico o estendo la pausa?
+          data:
+            tag: pausa_armo_automatico
+            actions:
+            - action: PAUSA_RIPRISTINA
+              title: Ripristina
+            - action: PAUSA_ESTENDI_1H
+              title: Estendi 1 h
+            - action: PAUSA_ESTENDI_3H
+              title: Estendi 3 h
+      - delay:
+          minutes: 15
+  - if:
+    - condition: state
+      entity_id: automation.sicurezza_inserisci_allarme_quando_non_viene_rilevata_presenza_in_casa
+      state: 'off'
+    - condition: state
+      entity_id: timer.pausa_armo_automatico
+      state: idle
+    then:
+    - action: telegram_bot.send_message
+      data:
+        entity_id:
+        - notify.homeassistant_filippo_8511463273
+        message: ⏰ Nessuna risposta alla pausa scaduta, riattivo l'armo automatico
+    - action: script.ripristina_armo_automatico
+  mode: restart
+- id: '1791438422862'
+  alias: Sicurezza - Pausa armo - risposta alla notifica
+  triggers:
+  - trigger: event
+    event_type: mobile_app_notification_action
+    event_data:
+      action: PAUSA_RIPRISTINA
+    id: ripristina
+  - trigger: event
+    event_type: mobile_app_notification_action
+    event_data:
+      action: PAUSA_ESTENDI_1H
+    id: estendi_1h
+  - trigger: event
+    event_type: mobile_app_notification_action
+    event_data:
+      action: PAUSA_ESTENDI_3H
+    id: estendi_3h
+  actions:
+  - choose:
+    - conditions:
+      - condition: trigger
+        id: ripristina
+      sequence:
+      - action: script.ripristina_armo_automatico
+    - conditions:
+      - condition: trigger
+        id: estendi_1h
+      sequence:
+      - action: script.pausa_armo_automatico
+        data:
+          ore: 1
+    - conditions:
+      - condition: trigger
+        id: estendi_3h
+      sequence:
+      - action: script.pausa_armo_automatico
+        data:
+          ore: 3
+  mode: single
+- id: '1792062154918'
+  alias: Avviso sessione KBlue non valida
+  description: Notifica in HA se il KBlue risponde senza dati (sessione non valida)
+    per piu' di 5 minuti. In quel caso i sensori mostrano l'ultimo valore letto.
+  triggers:
+  - trigger: state
+    entity_id: sensor.stato_sessione_kblue
+    to: ko
+    for: 00:05:00
+  actions:
+  - action: persistent_notification.create
+    data:
+      title: KBlue - sessione non valida
+      message: Il KBlue risponde senza dati da piu' di 5 minuti. I sensori mostrano
+        l'ultimo valore letto. Controlla il login (kblue_login.sh).
+      notification_id: kblue_sessione_ko
+  mode: single
+- id: '1792413020505'
+  alias: Avviso finestra bagno aperta con riscaldamento acceso
+  description: 'Con finestra del bagno aperta e pompa di calore in riscaldamento:
+    abbassa il setpoint del termostato WC a 17 °C, mette in pausa la sua programmazione
+    in Timeline e avvisa ogni 5 minuti (iPhone + Echo Show). Se la temperatura del
+    bagno scende sotto i 17 °C gli avvisi diventano perentori (ogni 2 minuti, volume
+    alto, notifica time-sensitive, Telegram e notifica persistente). Alla chiusura
+    rilascia la pausa e Timeline ripristina il setpoint di programma. Se Timeline
+    è in pausa globale non tocca il setpoint e si limita ad avvisare. La pausa viene
+    rinnovata a ogni ciclo (30 min) come sicurezza.'
+  triggers:
+  - trigger: template
+    id: allarme_on
+    value_template: "{{ is_state('binary_sensor.sensore_dw_wc_contact', 'on')\n   and
+      is_state('binary_sensor.remocon_net_heat_pump_heat', 'on') }}"
+  - trigger: state
+    id: allarme_off
+    entity_id: binary_sensor.sensore_dw_wc_contact
+    from: 'on'
+    to: 'off'
+  conditions: []
+  actions:
+  - choose:
+    - conditions:
+      - condition: trigger
+        id: allarme_on
+      sequence:
+      - action: input_boolean.turn_on
+        target:
+          entity_id: input_boolean.allarme_finestra_bagno
+      - variables:
+          adesso: '{{ now().timestamp() | int }}'
+          rp: '{{ state_attr(''sensor.timeline_stato'', ''room_pause'') or {} }}'
+          tl_globale: '{{ is_state(''sensor.timeline_stato'', ''in_pausa'') }}'
+          gestito: '{{ not tl_globale }}'
+          zt: '{{ states(''input_text.zona_trattenuta'') }}'
+          trattenuta_wc: '{{ zt.startswith(clima ~ ''|'') }}'
+          setpoint_ora: '{{ state_attr(clima, ''temperature'') | float(0) }}'
+          minimo: '{{ state_attr(clima, ''min_temp'') | float(16) }}'
+          nuovo: '{{ [soglia | float(17), minimo] | max }}'
+          nuovo_txt: '{{ ''%g'' | format(nuovo) }}'
+          abbassa: '{{ gestito and setpoint_ora > nuovo }}'
+          esito: '{% if tl_globale %}Timeline è in pausa globale: non ho toccato il
+            setpoint, chiudi la finestra a mano.{% elif abbassa %}Ho abbassato il
+            setpoint del bagno a {{ nuovo_txt }} gradi e messo in pausa la programmazione.{%
+            else %}Ho messo in pausa la programmazione del bagno.{% endif %}'
+      - if:
+        - condition: template
+          value_template: '{{ gestito and trattenuta_wc }}'
+        then:
+        - action: input_text.set_value
+          target:
+            entity_id: input_text.zona_trattenuta
+          data:
+            value: ''
+      - if:
+        - condition: template
+          value_template: '{{ gestito }}'
+        then:
+        - action: thermostat_timeline.set_store
+          data:
+            settings:
+              room_pause: '{{ dict(rp.items() | list + [(clima, {''indef'': false,
+                ''until_ms'': (adesso + pausa_sec) * 1000})]) }}'
+      - if:
+        - condition: template
+          value_template: '{{ abbassa }}'
+        then:
+        - delay: 3
+        - action: climate.set_temperature
+          target:
+            entity_id: '{{ clima }}'
+          data:
+            temperature: '{{ nuovo }}'
+        - action: logbook.log
+          data:
+            name: Finestra bagno
+            message: 'Finestra aperta: {{ clima }} setpoint {{ setpoint_ora }} ->
+              {{ nuovo }}, Timeline in pausa'
+      - action: notify.mobile_app_iphone_di_filippo
+        data:
+          title: ⚠️ Finestra bagno aperta
+          message: La finestra del bagno è aperta e il riscaldamento è in funzione.
+            {{ esito }}
+      - action: notify.send_message
+        target:
+          entity_id: notify.echo_show_speak
+        data:
+          message: La finestra del bagno è aperta e il riscaldamento è in funzione.
+            {{ esito }}
+      - repeat:
+          while:
+          - condition: state
+            entity_id: binary_sensor.sensore_dw_wc_contact
+            state: 'on'
+          sequence:
+          - variables:
+              t_prima: '{% set t = state_attr(clima, ''current_temperature'') | float(0)
+                %}{{ t if t > 0 else none }}'
+          - delay: '{{ ''00:02:00'' if (t_prima is not none and t_prima < soglia |
+              float(17)) else ''00:05:00'' }}'
+          - condition: state
+            entity_id: binary_sensor.sensore_dw_wc_contact
+            state: 'on'
+          - variables:
+              adesso_l: '{{ now().timestamp() | int }}'
+              rp_l: '{{ state_attr(''sensor.timeline_stato'', ''room_pause'') or {}
+                }}'
+              t: '{% set x = state_attr(clima, ''current_temperature'') | float(0)
+                %}{{ x if x > 0 else none }}'
+              sotto: '{{ t is not none and t < soglia | float(17) }}'
+              t_txt: '{{ (t | round(1) | string | replace(''.'', '','')) if t is not
+                none else ''n.d.'' }}'
+          - if:
+            - condition: template
+              value_template: '{{ gestito }}'
+            then:
+            - action: thermostat_timeline.set_store
+              data:
+                settings:
+                  room_pause: '{{ dict(rp_l.items() | list + [(clima, {''indef'':
+                    false, ''until_ms'': (adesso_l + pausa_sec) * 1000})]) }}'
+          - choose:
+            - conditions:
+              - condition: template
+                value_template: '{{ sotto }}'
+              sequence:
+              - action: notify.mobile_app_iphone_di_filippo
+                data:
+                  title: "\U0001F6A8 Chiudi la finestra del bagno!"
+                  message: Finestra aperta e il bagno è sceso a {{ t_txt }} °C (sotto
+                    i {{ '%g' | format(soglia | float(17)) }}). Chiudila subito.
+                  data:
+                    push:
+                      interruption-level: time-sensitive
+              - action: telegram_bot.send_message
+                data:
+                  config_entry_id: 01KFE3V7X0K1WR8591R20DGBK7
+                  message: "\U0001F6A8 *Chiudi la finestra del bagno!* La finestra
+                    è ancora aperta e la temperatura è scesa a {{ t_txt }} °C."
+              - action: persistent_notification.create
+                data:
+                  title: "\U0001F6A8 Finestra bagno aperta"
+                  message: Il bagno è a {{ t_txt }} °C con la finestra aperta. Chiudila
+                    subito.
+                  notification_id: finestra_bagno_aperta
+              - action: alexa_devices.send_text_command
+                data:
+                  device_id: 1b04930ba2c41eaeb44d4a61c03360b4
+                  text_command: Imposta volume a 7
+              - action: notify.send_message
+                target:
+                  entity_id: notify.echo_show_speak
+                data:
+                  message: Attenzione! Chiudi subito la finestra del bagno. La temperatura
+                    è scesa a {{ t_txt }} gradi.
+              - delay: 20
+              - action: alexa_devices.send_text_command
+                data:
+                  device_id: 1b04930ba2c41eaeb44d4a61c03360b4
+                  text_command: Imposta volume a 5
+            default:
+            - action: notify.mobile_app_iphone_di_filippo
+              data:
+                title: ⚠️ Finestra bagno ancora aperta
+                message: 'La finestra del bagno è ancora aperta (bagno a {{ t_txt
+                  }} °C).{% if gestito %} Setpoint tenuto basso e programmazione in
+                  pausa fino alla chiusura.{% else %} Timeline è in pausa globale:
+                  il setpoint non è stato abbassato.{% endif %}'
+            - action: notify.send_message
+              target:
+                entity_id: notify.echo_show_speak
+              data:
+                message: Attenzione, la finestra del bagno è ancora aperta.
+    - conditions:
+      - condition: trigger
+        id: allarme_off
+      - condition: state
+        entity_id: input_boolean.allarme_finestra_bagno
+        state: 'on'
+      sequence:
+      - action: input_boolean.turn_off
+        target:
+          entity_id: input_boolean.allarme_finestra_bagno
+      - variables:
+          adesso: '{{ now().timestamp() | int }}'
+          rp: '{{ state_attr(''sensor.timeline_stato'', ''room_pause'') or {} }}'
+          tl_globale: '{{ is_state(''sensor.timeline_stato'', ''in_pausa'') }}'
+          esito: '{% if tl_globale %}Timeline è in pausa globale: controlla il setpoint
+            del termostato del bagno.{% else %}Il bagno torna alla programmazione.{%
+            endif %}'
+      - action: thermostat_timeline.set_store
+        data:
+          settings:
+            room_pause: '{{ dict(rp.items() | list + [(clima, {''indef'': false, ''until_ms'':
+              (adesso + 2) * 1000})]) }}'
+      - action: persistent_notification.dismiss
+        data:
+          notification_id: finestra_bagno_aperta
+      - action: logbook.log
+        data:
+          name: Finestra bagno
+          message: 'Finestra chiusa: pausa Timeline rilasciata. {{ esito }}'
+      - action: notify.mobile_app_iphone_di_filippo
+        data:
+          title: ✅ Allarme rientrato
+          message: La finestra del bagno è stata chiusa. {{ esito }}
+      - action: notify.send_message
+        target:
+          entity_id: notify.echo_show_speak
+        data:
+          message: La finestra del bagno è stata chiusa. {{ esito }}
+  mode: restart
+  variables:
+    clima: climate.termostato_wc
+    soglia: 17
+    pausa_sec: 1800
+- id: '1792481996439'
+  alias: Lavatrice - Avvio ciclo e previsione fine
+  description: Annuncia l'avvio e, appena WashData stima la durata, la fine prevista.
+  triggers:
+  - trigger: event
+    event_type: ha_washdata_cycle_started
+  actions:
+  - action: input_number.set_value
+    target:
+      entity_id: input_number.lavatrice_ultima_soglia_notificata
+    data:
+      value: 0
+  - action: script.lavatrice_notifica_telegram_voce
+    data:
+      messaggio: "\U0001F9FA▶️ La lavatrice è partita! Ti aggiorno appena stimo la
+        fine del ciclo."
+      voce: La lavatrice è partita.
+  - wait_template: "{{ states('sensor.lavatrice_time_remaining') | is_number\n   and
+      states('sensor.lavatrice_time_remaining') | float(0) > 0 }}\n"
+    timeout: 00:15:00
+    continue_on_timeout: false
+  - variables:
+      minuti: '{{ states(''sensor.lavatrice_time_remaining'') | float(0) | round(0)
+        | int }}'
+      fine: '{{ (now() + timedelta(minutes=minuti)).strftime(''%H:%M'') }}'
+      programma: '{{ states(''sensor.lavatrice_program'') }}'
+      programma_noto: '{{ programma not in [''unknown'', ''unavailable'', ''none'',
+        ''''] }}'
+  - action: script.lavatrice_notifica_telegram_voce
+    data:
+      messaggio: '⏱️ {% if programma_noto %}Programma: {{ programma }}.{% else %}Programma
+        in riconoscimento.{% endif %} Mancano circa {{ minuti }} minuti, fine prevista
+        alle {{ fine }}.
+
+        '
+      voce: 'Il ciclo della lavatrice finirà tra circa {{ minuti }} minuti, alle {{
+        fine.replace('':'', '' e '') }}.
+
+        '
+  mode: single
+- id: '1792482038448'
+  alias: Lavatrice - Avanzamento e fine ciclo
+  description: Aggiornamenti al 25/50/75% (una sola volta per soglia) e conferma finale.
+  triggers:
+  - trigger: numeric_state
+    entity_id: sensor.lavatrice_progress
+    above: 25
+    id: p25
+  - trigger: numeric_state
+    entity_id: sensor.lavatrice_progress
+    above: 50
+    id: p50
+  - trigger: numeric_state
+    entity_id: sensor.lavatrice_progress
+    above: 75
+    id: p75
+  - trigger: event
+    event_type: ha_washdata_cycle_ended
+    id: fine
+  actions:
+  - variables:
+      soglia: '{{ trigger.id[1:] | int(0) if trigger.id != ''fine'' else 100 }}'
+      minuti: '{{ states(''sensor.lavatrice_time_remaining'') | float(0) | round(0)
+        | int }}'
+      fine: '{{ (now() + timedelta(minutes=minuti)).strftime(''%H:%M'') }}'
+  - choose:
+    - conditions:
+      - condition: trigger
+        id: fine
+      sequence:
+      - action: input_number.set_value
+        target:
+          entity_id: input_number.lavatrice_ultima_soglia_notificata
+        data:
+          value: 0
+      - action: script.lavatrice_notifica_telegram_voce
+        data:
+          messaggio: "✅\U0001FAE7 Bucato pronto! La lavatrice ha terminato il ciclo:
+            è il momento di stendere. \U0001F455"
+          voce: La lavatrice ha terminato il ciclo. Il bucato è pronto da stendere.
+    - conditions:
+      - condition: template
+        value_template: '{{ soglia > states(''input_number.lavatrice_ultima_soglia_notificata'')
+          | float(0) }}
+
+          '
+      sequence:
+      - action: input_number.set_value
+        target:
+          entity_id: input_number.lavatrice_ultima_soglia_notificata
+        data:
+          value: '{{ soglia }}'
+      - action: script.lavatrice_notifica_telegram_voce
+        data:
+          messaggio: "\U0001F300 Lavatrice al {{ soglia }}% {% if minuti > 0 %}— mancano
+            circa {{ minuti }} min (fine alle {{ fine }}){% endif %}\n"
+          voce: 'La lavatrice è al {{ soglia }} per cento. {% if minuti > 0 %}Mancano
+            circa {{ minuti }} minuti.{% endif %}
+
+            '
+  mode: queued
+  max: 5
+- id: '1792702017070'
+  alias: Avviso riscaldamento attivo
+  description: Notifica su iPhone e Telegram quando parte il compressore del riscaldamento,
+    con l'elenco dei termostati attivi, tranne dalle 23 alle 8
+  triggers:
+  - trigger: state
+    entity_id: binary_sensor.remocon_net_heat_pump_heat
+    from: 'off'
+    to: 'on'
+  conditions:
+  - condition: time
+    after: 08:00:00
+    before: '23:00:00'
+  actions:
+  - variables:
+      nomi: "{{ states.climate\n   | selectattr('entity_id', 'match', 'climate.termostato_')\n
+        \  | selectattr('attributes.hvac_action', 'defined')\n   | selectattr('attributes.hvac_action',
+        'eq', 'heating')\n   | map(attribute='name')\n   | list }}"
+      testo: 'Il compressore della pompa di calore è attivo.
+
+
+        Termostati attivi:
+
+        {% if nomi | length > 0 %}{{ ''• '' ~ nomi | join(''\n• '') }}{% else %}Nessuno{%
+        endif %}'
+  - action: notify.mobile_app_iphone_di_filippo
+    data:
+      title: ⌇⌇⌇ Riscaldamento acceso
+      message: '{{ testo }}'
+  - action: telegram_bot.send_message
+    data:
+      config_entry_id: 01KFE3V7X0K1WR8591R20DGBK7
+      message: '*⌇⌇⌇ Riscaldamento acceso*
+
+
+        {{ testo }}'
+  mode: single
+- id: '1792816349691'
+  alias: Sicurezza - Notifica allarme scattato (da testare)
+  description: 'Invia una notifica Telegram quando una delle tre partizioni Risco
+    passa a "triggered", indicando quale partizione è scattata.
+
+    '
+  triggers:
+  - trigger: state
+    entity_id:
+    - alarm_control_panel.risco_casetta_partition_1
+    - alarm_control_panel.risco_casetta_partition_2
+    - alarm_control_panel.risco_casetta_partition_0
+    to:
+    - triggered
+  conditions: []
+  actions:
+  - action: telegram_bot.send_message
+    data:
+      config_entry_id: 01KFE3V7X0K1WR8591R20DGBK7
+      message: "\U0001F6A8 ALLARME SCATTATO: {{ trigger.to_state.name }} ({{ trigger.entity_id
+        }}) alle {{ now().strftime('%d/%m %H:%M:%S') }}. Verifica subito la situazione."
+  mode: queued
+  max: 10
+- id: '1792997022653'
+  alias: 'Riscaldamento: anomalia trend negativo (porte/finestre aperte?)'
+  description: 'Avvisa se in una stanza il riscaldamento è in funzione (hvac_action
+    = heating) ma il trend di temperatura (sensor.trend_temperatura_*, °C/h) è sotto
+    -0,5 (discesa / discesa_rapida) da almeno 5 minuti. Utile per controllare porte
+    o finestre aperte. Il bagno grande (wc) è escluso: ha il sensore finestra dedicato
+    e si controlla da lì.
+
+    '
+  triggers:
+  - trigger: numeric_state
+    entity_id:
+    - sensor.trend_temperatura_salone
+    - sensor.trend_temperatura_cucina
+    - sensor.trend_temperatura_camera_francesco
+    - sensor.trend_temperatura_camera_greta
+    - sensor.trend_temperatura_camera_matrimoniale
+    - sensor.trend_temperatura_wc_letto
+    - sensor.trend_temperatura_suite_letto
+    - sensor.trend_temperatura_suite_salone
+    - sensor.trend_temperatura_wc_suite
+    below: -0.5
+    for: 300
+  - trigger: state
+    entity_id:
+    - climate.termostato_salone
+    - climate.termostato_cucina
+    - climate.termostato_camera_francesco
+    - climate.termostato_camera_greta
+    - climate.termostato_camera_matrimoniale
+    - climate.termostato_wc_letto
+    - climate.termostato_suite_letto
+    - climate.termostato_suite_salone
+    - climate.termostato_wc_suite
+    attribute: hvac_action
+    to: heating
+    for: 300
+  conditions:
+  - alias: Riscaldamento in funzione nella stanza
+    condition: template
+    value_template: '{{ state_attr(clima, ''hvac_action'') == ''heating'' }}'
+  - alias: Trend valido e in discesa
+    condition: template
+    value_template: "{{ states(trend) not in ['unknown', 'unavailable']\n   and states(trend)
+      | float(0) < -0.5 }}"
+  actions:
+  - variables:
+      temp: '{{ state_attr(clima, ''current_temperature'') }}'
+      setpoint: '{{ state_attr(clima, ''temperature'') }}'
+      valore_trend: '{{ states(trend) | float(0) | round(1) }}'
+  - action: notify.mobile_app_iphone_di_filippo
+    data:
+      title: 'Anomalia riscaldamento: {{ nome }}'
+      message: Riscaldamento attivo ma temperatura in calo ({{ valore_trend }} °C/h,
+        {{ temp }} °C, setpoint {{ setpoint }} °C). Verifica porte o finestre aperte.
+  - action: telegram_bot.send_message
+    data:
+      config_entry_id: 01KFE3V7X0K1WR8591R20DGBK7
+      message: '⚠️ {{ nome }}: riscaldamento attivo ma temperatura in calo ({{ valore_trend
+        }} °C/h, {{ temp }} °C, setpoint {{ setpoint }} °C). Verificare porte o finestre
+        aperte.'
+  mode: parallel
+  max: 10
+  variables:
+    nomi:
+      salone: Soggiorno
+      cucina: Cucina
+      camera_francesco: Camera Francesco
+      camera_greta: Camera Greta
+      camera_matrimoniale: Camera Matrimoniale
+      wc_letto: Bagno privato
+      suite_letto: Suite - Camera
+      suite_salone: Suite - Soggiorno
+      wc_suite: Suite - Bagno
+    chiave: "{{ trigger.entity_id.split('.')[1]\n   | replace('trend_temperatura_',
+      '')\n   | replace('termostato_', '') }}"
+    nome: '{{ nomi.get(chiave, chiave) }}'
+    clima: '{{ ''climate.termostato_'' ~ chiave }}'
+    trend: '{{ ''sensor.trend_temperatura_'' ~ chiave }}'
+- id: '1793219188641'
+  alias: Riscaldamento - gestisci/rilascia zona trattenuta
+  triggers:
+  - trigger: time_pattern
+    minutes: /1
+  - trigger: state
+    entity_id:
+    - sensor.zone_in_riscaldamento
+    - sensor.timeline_stato
+    - binary_sensor.zona_altra_in_partenza
+  conditions:
+  - condition: template
+    value_template: '{{ states(''input_text.zona_trattenuta'') | length > 0 }}'
+  actions:
+  - variables:
+      p: '{{ states(''input_text.zona_trattenuta'').split(''|'') }}'
+      eid: '{{ p[0] }}'
+      base: '{{ p[1] | float(0) }}'
+      livello: '{{ p[2] | int(1) }}'
+      ts_passo: '{{ p[3] | int(0) }}'
+      ts_inizio: '{{ p[4] | int(0) }}'
+      adesso: '{{ now().timestamp() | int }}'
+      n_zone: '{{ states(''sensor.zone_in_riscaldamento'') | int(0) }}'
+      attive: '{{ state_attr(''sensor.zone_in_riscaldamento'', ''attive'') or [] }}'
+      zone_attive_txt: '{% if attive | length > 0 %}{{ n_zone }} ({{ attive | map(''state_attr'',
+        ''friendly_name'') | join('', '') }}){% else %}nessuna{% endif %}'
+      in_partenza: "{% set m = {\n  'climate.termostato_salone': ['sensor.riscaldamento_attivo_salone_kblue',
+        'sensor.trend_temperatura_salone'],\n  'climate.termostato_cucina': ['sensor.riscaldamento_attivo_cucina_kblue',
+        'sensor.trend_temperatura_cucina'],\n  'climate.termostato_camera_francesco':
+        ['sensor.riscaldamento_attivo_camera_francesco', 'sensor.trend_temperatura_camera_francesco'],\n
+        \ 'climate.termostato_camera_greta': ['sensor.riscaldamento_attivo_cam_greta_kblue',
+        'sensor.trend_temperatura_camera_greta'],\n  'climate.termostato_camera_matrimoniale':
+        ['sensor.riscaldamento_attivo_letto_kblue', 'sensor.trend_temperatura_camera_matrimoniale'],\n
+        \ 'climate.termostato_wc': ['sensor.riscaldamento_attivo_wc_kblue', 'sensor.trend_temperatura_wc'],\n
+        \ 'climate.termostato_wc_letto': ['sensor.riscaldamento_attivo_wc_letto_kblue',
+        'sensor.trend_temperatura_wc_letto'],\n  'climate.termostato_suite_letto':
+        ['sensor.riscaldamento_attivo_letto_suite_kblue', 'sensor.trend_temperatura_suite_letto'],\n
+        \ 'climate.termostato_suite_salone': ['sensor.riscaldamento_attivo_salone_suite_kblue',
+        'sensor.trend_temperatura_suite_salone'],\n  'climate.termostato_wc_suite':
+        ['sensor.riscaldamento_attivo_wc_suite_kblue', 'sensor.trend_temperatura_wc_suite']\n}
+        %} {% set ns = namespace(nomi=[]) %} {% for c, v in m.items() if c != eid
+        %} {% set t = state_attr(c, 'current_temperature') | float(none) %} {% set
+        sp = state_attr(c, 'temperature') | float(none) %} {% set cl = state_attr(v[1],
+        'classificazione') %} {% if states(c) not in ['off', 'unavailable', 'unknown']
+        %} {% if is_state(v[0], 'on') %} {% set ns.nomi = ns.nomi + [state_attr(c,
+        'friendly_name') ~ ' (riscaldamento attivo)'] %} {% elif t is not none and
+        t != 0 and sp is not none and t <= sp and cl not in ['salita', 'salita_rapida']
+        %} {% set ns.nomi = ns.nomi + [state_attr(c, 'friendly_name') ~ ' (ha raggiunto
+        il setpoint: ' ~ (t | round(1)) ~ ' °C, setpoint ' ~ (sp | round(1)) ~ ' °C)']
+        %} {% endif %} {% endif %} {% endfor %} {{ ns.nomi }}"
+      temp: '{% set t = state_attr(eid, ''current_temperature'') | float(none) %}
+        {{ t if t is not none and t != 0 else none }}'
+      sola_attiva: '{{ n_zone == 1 and eid in attive }}'
+      rp: '{{ state_attr(''sensor.timeline_stato'', ''room_pause'') or {} }}'
+      min_trattenuta: '{{ ((adesso - ts_inizio) / 60) | round(0) | int }}'
+      min_sola: '{{ ((adesso - ts_passo) / 60) | round(0) | int }}'
+      motivo: '{% if is_state(''binary_sensor.zona_altra_in_partenza'', ''on'') %}
+        {% if in_partenza | length > 0 %}{{ in_partenza | join(''; '') }}{% else %}un''altra
+        zona (non identificata){% endif %} {% elif is_state(''sensor.timeline_stato'',
+        ''in_pausa'') %} pausa globale Timeline attiva {% elif states(eid) in [''off'',
+        ''unavailable'', ''unknown''] %} termostato non disponibile (stato: {{ states(eid)
+        }}) {% elif temp is not none and temp < base - 1.0 %} temperatura {{ temp
+        | round(1) }} °C sotto il limite di {{ base - 1.0 }} °C {% elif adesso - ts_inizio
+        > 7200 %} trattenuta da {{ min_trattenuta }} min, superato il limite di sicurezza
+        di 120 min {% elif livello >= 2 and sola_attiva and adesso - ts_passo >= 300
+        %} unica zona attiva da {{ min_sola }} min con setpoint già abbassato di 1
+        °C {% endif %}'
+  - choose:
+    - conditions:
+      - condition: template
+        value_template: '{{ motivo | trim | length > 0 }}'
+      sequence:
+      - action: thermostat_timeline.set_store
+        data:
+          settings:
+            room_pause: '{{ dict(rp.items() | list + [(eid, {''indef'': false, ''until_ms'':
+              (adesso + 2) * 1000})]) }}'
+      - action: input_text.set_value
+        target:
+          entity_id: input_text.zona_trattenuta
+        data:
+          value: ''
+      - action: input_datetime.set_datetime
+        target:
+          entity_id: input_datetime.zona_ultimo_rilascio
+        data:
+          timestamp: '{{ adesso }}'
+      - action: logbook.log
+        data:
+          name: Riscaldamento zona singola
+          message: 'Rilasciata {{ eid }}: {{ motivo | trim }}'
+      - event: riscaldamento_zona_rilasciata
+        event_data:
+          zona: '{{ eid }}'
+          nome: '{{ state_attr(eid, ''friendly_name'') }}'
+          setpoint_base: '{{ base }}'
+          motivo: '{{ motivo | trim }}'
+          zone_attive: '{{ zone_attive_txt }}'
+          durata_min: '{{ min_trattenuta }}'
+      - action: script.riscaldamento_notifica
+        data:
+          titolo: 'Riscaldamento: zona rilasciata'
+          messaggio: '{{ state_attr(eid, ''friendly_name'') }} rilasciata, Timeline
+            ripristina il setpoint di programma ({{ base }} °C). Motivo: {{ motivo
+            | trim }}. Zone attive: {{ zone_attive_txt }}.'
+    - conditions:
+      - condition: template
+        value_template: '{{ livello == 1 and sola_attiva and adesso - ts_passo >=
+          300 }}'
+      sequence:
+      - action: climate.set_temperature
+        target:
+          entity_id: '{{ eid }}'
+        data:
+          temperature: '{{ base - 1.0 }}'
+      - action: input_text.set_value
+        target:
+          entity_id: input_text.zona_trattenuta
+        data:
+          value: '{{ eid }}|{{ base }}|2|{{ adesso }}|{{ ts_inizio }}'
+      - event: riscaldamento_zona_secondo_gradino
+        event_data:
+          zona: '{{ eid }}'
+          nome: '{{ state_attr(eid, ''friendly_name'') }}'
+          setpoint_base: '{{ base }}'
+          setpoint: '{{ base - 1.0 }}'
+          temperatura: '{{ temp }}'
+          durata_min: '{{ min_trattenuta }}'
+      - action: script.riscaldamento_notifica
+        data:
+          titolo: 'Riscaldamento: secondo gradino'
+          messaggio: '{{ state_attr(eid, ''friendly_name'') }} ancora sola in riscaldamento:
+            setpoint abbassato a {{ base - 1.0 }} °C (massimo -1 °C).'
+  mode: single
+- id: '1793219320776'
+  alias: Riscaldamento - trattieni zona singola (preventivo o di ripiego)
+  description: ''
+  triggers:
+  - trigger: time_pattern
+    minutes: /1
+  conditions:
+  - condition: state
+    entity_id: input_text.zona_trattenuta
+    state: ''
+  - condition: state
+    entity_id: sensor.timeline_stato
+    state: attivo
+  - condition: template
+    value_template: '{{ states(''sensor.zona_da_trattenere'') not in [''nessuna'',
+      ''unknown'', ''unavailable''] }}'
+  - condition: template
+    value_template: '{{ as_timestamp(now()) - as_timestamp(states(''input_datetime.zona_ultimo_rilascio''),
+      0) >= 300 }}'
+  - condition: template
+    value_template: '{% set st = states(''sensor.zona_da_trattenere'').replace(''climate.termostato_'',
+      '''') %} {{ as_timestamp(now()) - as_timestamp(states(''input_datetime.trattenuta_''
+      ~ st), 0) >= 1800 }}'
+  - condition: template
+    value_template: "{{ state_attr('sensor.zona_da_trattenere', 'motivo') == 'preventivo'\n
+      \  or (now() - states.sensor.zone_in_riscaldamento.last_changed).total_seconds()
+      >= 30 }}"
+  - condition: template
+    value_template: "{{ not (is_state('input_boolean.allarme_finestra_bagno', 'on')\n
+      \       and states('sensor.zona_da_trattenere') == 'climate.termostato_wc')
+      }}"
+  actions:
+  - variables:
+      eid: '{{ states(''sensor.zona_da_trattenere'') }}'
+      stanza: '{{ eid.replace(''climate.termostato_'', '''') }}'
+      motivo_hold: '{{ state_attr(''sensor.zona_da_trattenere'', ''motivo'') }}'
+      base: '{{ state_attr(eid, ''temperature'') | float(0) }}'
+      minimo: '{{ state_attr(eid, ''min_temp'') | float(5) }}'
+      nuovo: '{{ base - 0.5 }}'
+      adesso: '{{ now().timestamp() | int }}'
+      rp: '{{ state_attr(''sensor.timeline_stato'', ''room_pause'') or {} }}'
+      fine_ms: '{{ (adesso + 7200) * 1000 }}'
+  - condition: template
+    value_template: '{{ base > 0 and nuovo >= minimo and states(eid) in [''auto'',
+      ''heat''] }}'
+  - action: thermostat_timeline.set_store
+    data:
+      settings:
+        room_pause: '{{ dict(rp.items() | list + [(eid, {''indef'': false, ''until_ms'':
+          fine_ms})]) }}'
+  - delay: 3
+  - action: climate.set_temperature
+    target:
+      entity_id: '{{ eid }}'
+    data:
+      temperature: '{{ nuovo }}'
+  - action: input_text.set_value
+    target:
+      entity_id: input_text.zona_trattenuta
+    data:
+      value: '{{ eid }}|{{ base }}|1|{{ adesso }}|{{ adesso }}'
+  - action: input_datetime.set_datetime
+    target:
+      entity_id: input_datetime.trattenuta_{{ stanza }}
+    data:
+      timestamp: '{{ adesso }}'
+  - action: logbook.log
+    data:
+      name: Riscaldamento zona singola
+      message: 'Trattenuta ({{ motivo_hold }}) {{ eid }}: setpoint {{ base }} -> {{
+        nuovo }}'
+  - event: riscaldamento_zona_trattenuta
+    event_data:
+      zona: '{{ eid }}'
+      nome: '{{ state_attr(eid, ''friendly_name'') }}'
+      setpoint_base: '{{ base }}'
+      setpoint: '{{ nuovo }}'
+      temperatura: '{{ state_attr(eid, ''current_temperature'') }}'
+      motivo: '{{ motivo_hold }}'
+  - action: script.riscaldamento_notifica
+    data:
+      titolo: 'Riscaldamento: zona trattenuta'
+      messaggio: '{{ state_attr(eid, ''friendly_name'') }} {{ ''stava per partire
+        da sola'' if motivo_hold == ''preventivo'' else "era l''unica zona in riscaldamento"
+        }}: setpoint {{ base }} -> {{ nuovo }} °C (temperatura {{ state_attr(eid,
+        ''current_temperature'') }} °C). Evito la partenza dell''impianto per una
+        sola zona.'
+  mode: single
+- id: '1793448449064'
+  alias: Riscaldamento - Report serale
+  description: Resoconto alle 23:00 del funzionamento del riscaldamento, con stima
+    del consumo della pompa di calore, scritto da Claude
+  triggers:
+  - trigger: time
+    at: '23:00:00'
+  actions:
+  - choose:
+    - conditions:
+      - condition: template
+        value_template: '{{ eventi | count == 0 }}'
+      sequence:
+      - action: notify.send_message
+        target:
+          entity_id: notify.homeassistant_filippo_8511463273
+        data:
+          message: "\U0001F525 Riscaldamento: oggi non è entrato in funzione. Esterna
+            oggi: min {{ ext_min }} °C, max {{ ext_max }} °C (ora {{ ext_ora }} °C).
+            Consumo stimato pompa di calore: {{ pompa_kwh }} kWh (circa {{ pompa_costo
+            }} €).\n"
+    default:
+    - action: conversation.process
+      data:
+        agent_id: conversation.claude_conversation
+        text: "Scrivi in italiano un resoconto breve (max 8 righe, tono sintetico,
+          qualche emoji ok) del riscaldamento di oggi. Non controllare né modificare
+          dispositivi: usa solo i dati qui sotto, senza inventare nulla.\nCome leggere
+          il log: ogni evento è una zona che passa a \"on\" (riscaldamento in funzione)
+          o \"off\" (in temperatura). La zona \"IMPIANTO\" indica che almeno una zona
+          sta scaldando, quindi la sua durata è il tempo di funzionamento dell'impianto.
+          Calcola le durate accoppiando on/off di ogni zona; gli eventi delle 00:00
+          con nota sono continuazioni del giorno prima. Se l'ultimo evento di una
+          zona è \"on\" ed è ancora accesa ora, dillo.\nIndica: tempo totale di funzionamento
+          e numero di accensioni dell'impianto, temperatura esterna (minima, massima
+          di oggi e valore attuale), quanto ci ha messo ogni zona ad andare in temperatura,
+          quali zone sono ancora in riscaldamento e il consumo elettrico stimato della
+          pompa di calore con il costo. Consumo e costo sono stime (la pompa non ha
+          un contatore dedicato): scrivili come \"circa\" e non commentarli oltre.\nDATI
+          - Esterna oggi: min {{ ext_min }} °C, max {{ ext_max }} °C,\n  alle 23:00
+          {{ ext_ora }} °C\n- Consumo stimato pompa di calore oggi: {{ pompa_kwh }}
+          kWh,\n  costo stimato {{ pompa_costo }} €\n- Zone ancora in riscaldamento:
+          {{ accese_ora }} - Log eventi (ora, zona, stato, temperatura esterna): {{
+          eventi }}\n"
+      response_variable: ai
+    - action: notify.send_message
+      target:
+        entity_id: notify.homeassistant_filippo_8511463273
+      data:
+        message: "\U0001F525 Report riscaldamento\n{{ ai.response.speech.plain.speech
+          }}"
+  mode: single
+  variables:
+    ext_ora: '{{ states(''sensor.stazione_meteo_modulo_meteo_esterno_temperature'')
+      }}'
+    ext_min: '{{ states(''sensor.esterna_minima_oggi'') }}'
+    ext_max: '{{ states(''sensor.esterna_massima_oggi'') }}'
+    pompa_kwh: '{{ states(''sensor.pompa_elco_energia_stimata_oggi'') | float(0) |
+      round(1) }}'
+    pompa_costo: "{{ (states('sensor.pompa_elco_energia_stimata_oggi') | float(0)\n
+      \   * states('input_number.tariffa_energia') | float(0)) | round(2) }}\n"
+    eventi: '{{ state_attr(''sensor.riscaldamento_log_eventi'', ''eventi'') | default([],
+      true) }}'
+    accese_ora: "{% set nomi = {\n  'salone_kblue': 'Soggiorno',\n  'cucina_kblue':
+      'Cucina',\n  'camera_francesco': 'Camera Francesco',\n  'cam_greta_kblue': 'Camera
+      Greta',\n  'letto_kblue': 'Camera Matrimoniale',\n  'wc_kblue': 'Bagno',\n  'wc_letto_kblue':
+      'Bagno privato',\n  'salone_suite_kblue': 'Suite Soggiorno',\n  'letto_suite_kblue':
+      'Suite Camera',\n  'wc_suite_kblue': 'Suite Bagno'\n} %} {% set ns = namespace(r=[])
+      %} {% for s in states.sensor\n   if 'riscaldamento_attivo_' in s.entity_id and
+      s.state == 'on' %}\n  {% set k = s.entity_id.split('riscaldamento_attivo_')[1]
+      %}\n  {% set ns.r = ns.r + [nomi.get(k, k)] %}\n{% endfor %} {{ ns.r }}\n"
+- id: '1794075178567'
+  alias: Riavvii Home Assistant - registra
+  description: Conta e registra ogni avvio di Home Assistant (contatore, ultimo orario
+    e voce nel Logbook).
+  triggers:
+  - trigger: homeassistant
+    event: start
+  conditions: []
+  actions:
+  - variables:
+      numero_avvio: '{{ states(''counter.riavvii_home_assistant'') | int(0) + 1 }}'
+  - action: counter.increment
+    target:
+      entity_id: counter.riavvii_home_assistant
+  - action: input_datetime.set_datetime
+    target:
+      entity_id: input_datetime.ultimo_riavvio_home_assistant
+    data:
+      datetime: '{{ now().strftime(''%Y-%m-%d %H:%M:%S'') }}'
+  - action: logbook.log
+    data:
+      name: Riavvio Home Assistant
+      message: avvio n. {{ numero_avvio }} registrato
+      entity_id: counter.riavvii_home_assistant
+  mode: single

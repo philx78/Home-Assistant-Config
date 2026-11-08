@@ -1,0 +1,1666 @@
+# rest_sensors.yaml
+# Sensori Termostati KBlue - Metodo REST
+#
+# Modifica 07/11/2026: nessuno zero "inventato" dopo un riavvio o con risposta incompleta.
+#   Temperature, target, stato, riscaldamento, modo manuale e consumi:
+#   se non c'e' ne' un valore nuovo valido ne' un valore precedente valido
+#   il sensore resta "unknown" (nessun punto nello storico) invece di scrivere 0/off.
+- resource: http://192.168.1.54:50080/request_json
+  method: POST
+  payload: 'command={"cmd":20,"schema":0,"idmp":14}'
+  headers:
+    Connection: "close"
+    Content-Type: "application/x-www-form-urlencoded"
+    Cookie: "user={{ states('sensor.kblue_user_cookie') }}; session={{ states('sensor.kblue_session_cookie') }}"
+  scan_interval: 10
+
+  # =====================================================================
+  # REST SENSOR PER ESTRARRE I VALORI DI TEMPERATURA DALLA DOMOTICA KBLUE
+  # =====================================================================
+  sensor:
+    # --- Stato della sessione KBlue (ok/ko). Serve all'automazione di rinnovo sessione:
+    #     resta "ko" solo se il KBlue risponde senza OGGETTI (sessione non valida).
+    - name: "Stato Sessione (KBlue)"
+      unique_id: kblue_stato_sessione
+      value_template: >
+        {{ 'ok' if value_json.OGGETTI is defined else 'ko' }}
+      icon: mdi:account-key
+
+    # ==================================================
+    # SENSORI ZONA GIORNO
+    # ==================================================
+    # --- SALONE (ixogm: 0000008100000642) ---
+    - name: "Temperatura Salone (KBlue)"
+      unique_id: kblue_temp_salone
+      value_template: >
+        {% set prec = states('sensor.temperatura_salone_kblue') | float(0) %}
+        {% if value_json.OGGETTI is defined %}
+          {% set oggetto = value_json.OGGETTI | selectattr('ixogm', 'eq', '0000008100000642') | first %}
+          {% set nuovo = oggetto.V[2] | float(0) if oggetto is defined else 0 %}
+          {{ nuovo if nuovo > 0 else (prec if prec > 0 else none) }}
+        {% else %}
+          {{ prec if prec > 0 else none }}
+        {% endif %}
+      unit_of_measurement: "°C"
+      device_class: temperature
+      state_class: measurement
+    - name: "Target Temperatura Salone (KBlue)"
+      unique_id: kblue_target_salone
+      value_template: >
+        {% set prec = states('sensor.target_temperatura_salone_kblue') | float(0) %}
+        {% if value_json.OGGETTI is defined %}
+          {% set oggetto = value_json.OGGETTI | selectattr('ixogm', 'eq', '0000008100000642') | first %}
+          {% set nuovo = oggetto.V[10] | float(0) if oggetto is defined else 0 %}
+          {{ nuovo if nuovo > 0 else (prec if prec > 0 else none) }}
+        {% else %}
+          {{ prec if prec > 0 else none }}
+        {% endif %}
+      unit_of_measurement: "°C"
+      icon: mdi:thermometer
+    - name: "Stato Termostato Salone (KBlue)"
+      unique_id: kblue_stato_salone
+      value_template: >
+        {% set prec = states('sensor.stato_termostato_salone_kblue') %}
+        {% if value_json.OGGETTI is defined %}
+          {% set oggetto = value_json.OGGETTI | selectattr('ixogm', 'eq', '0000008100000642') | first %}
+          {% set valido = oggetto is defined and oggetto.V[2] | float(0) > 0 and oggetto.V[10] | float(0) > 0 %}
+          {% if valido %}{{ 'on' if oggetto.V[0] == '1' else 'off' }}{% elif prec in ['on','off'] %}{{ prec }}{% else %}{{ none }}{% endif %}
+        {% else %}
+          {{ prec if prec in ['on','off'] else none }}
+        {% endif %}
+      icon: mdi:radiator
+    - name: "Riscaldamento Attivo Salone (KBlue)"
+      unique_id: kblue_heating_active_salone
+      value_template: >
+        {% set prec = states('sensor.riscaldamento_attivo_salone_kblue') %}
+        {% if value_json.OGGETTI is defined %}
+          {% set oggetto = value_json.OGGETTI | selectattr('ixogm', 'eq', '0000008100000642') | first %}
+          {% set valido = oggetto is defined and oggetto.V[2] | float(0) > 0 and oggetto.V[10] | float(0) > 0 %}
+          {% if valido %}{{ 'on' if oggetto.V[7] | int == 1 else 'off' }}{% elif prec in ['on','off'] %}{{ prec }}{% else %}{{ none }}{% endif %}
+        {% else %}
+          {{ prec if prec in ['on','off'] else none }}
+        {% endif %}
+      icon: >
+        {% if value_json is defined and value_json.OGGETTI is defined %}
+          {% set oggetto = value_json.OGGETTI | selectattr('ixogm', 'eq', '0000008100000642') | first %}
+          {{ 'mdi:fire' if oggetto is defined and oggetto.V[7] | int == 1 else 'mdi:fire-off' }}
+        {% else %}
+          {{ 'mdi:fire' if is_state('sensor.riscaldamento_attivo_salone_kblue', 'on') else 'mdi:fire-off' }}
+        {% endif %}
+    - name: "Modo Manuale Salone (KBlue)"
+      unique_id: kblue_modo_manuale_salone
+      value_template: >
+        {% set prec = states('sensor.modo_manuale_salone_kblue') %}
+        {% if value_json.OGGETTI is defined %}
+          {% set oggetto = value_json.OGGETTI | selectattr('ixogm', 'eq', '0000008100000642') | first %}
+          {% set valido = oggetto is defined and oggetto.V[2] | float(0) > 0 and oggetto.V[10] | float(0) > 0 %}
+          {% if valido %}{{ oggetto.V[12] }}{% elif prec not in ['unknown','unavailable'] %}{{ prec }}{% else %}{{ none }}{% endif %}
+        {% else %}
+          {{ prec if prec not in ['unknown','unavailable'] else none }}
+        {% endif %}
+      icon: mdi:hand-back-right
+
+    # --- CUCINA (ixogm: 000000810000062D) ---
+    - name: "Temperatura Cucina (KBlue)"
+      unique_id: kblue_temp_cucina
+      value_template: >
+        {% set prec = states('sensor.temperatura_cucina_kblue') | float(0) %}
+        {% if value_json.OGGETTI is defined %}
+          {% set oggetto = value_json.OGGETTI | selectattr('ixogm', 'eq', '000000810000062D') | first %}
+          {% set nuovo = oggetto.V[2] | float(0) if oggetto is defined else 0 %}
+          {{ nuovo if nuovo > 0 else (prec if prec > 0 else none) }}
+        {% else %}
+          {{ prec if prec > 0 else none }}
+        {% endif %}
+      unit_of_measurement: "°C"
+      device_class: temperature
+      state_class: measurement
+    - name: "Target Temperatura Cucina (KBlue)"
+      unique_id: kblue_target_cucina
+      value_template: >
+        {% set prec = states('sensor.target_temperatura_cucina_kblue') | float(0) %}
+        {% if value_json.OGGETTI is defined %}
+          {% set oggetto = value_json.OGGETTI | selectattr('ixogm', 'eq', '000000810000062D') | first %}
+          {% set nuovo = oggetto.V[10] | float(0) if oggetto is defined else 0 %}
+          {{ nuovo if nuovo > 0 else (prec if prec > 0 else none) }}
+        {% else %}
+          {{ prec if prec > 0 else none }}
+        {% endif %}
+      unit_of_measurement: "°C"
+      icon: mdi:thermometer
+    - name: "Stato Termostato Cucina (KBlue)"
+      unique_id: kblue_stato_cucina
+      value_template: >
+        {% set prec = states('sensor.stato_termostato_cucina_kblue') %}
+        {% if value_json.OGGETTI is defined %}
+          {% set oggetto = value_json.OGGETTI | selectattr('ixogm', 'eq', '000000810000062D') | first %}
+          {% set valido = oggetto is defined and oggetto.V[2] | float(0) > 0 and oggetto.V[10] | float(0) > 0 %}
+          {% if valido %}{{ 'on' if oggetto.V[0] == '1' else 'off' }}{% elif prec in ['on','off'] %}{{ prec }}{% else %}{{ none }}{% endif %}
+        {% else %}
+          {{ prec if prec in ['on','off'] else none }}
+        {% endif %}
+      icon: mdi:radiator
+    - name: "Riscaldamento Attivo Cucina (KBlue)"
+      unique_id: kblue_heating_active_cucina
+      value_template: >
+        {% set prec = states('sensor.riscaldamento_attivo_cucina_kblue') %}
+        {% if value_json.OGGETTI is defined %}
+          {% set oggetto = value_json.OGGETTI | selectattr('ixogm', 'eq', '000000810000062D') | first %}
+          {% set valido = oggetto is defined and oggetto.V[2] | float(0) > 0 and oggetto.V[10] | float(0) > 0 %}
+          {% if valido %}{{ 'on' if oggetto.V[7] | int == 1 else 'off' }}{% elif prec in ['on','off'] %}{{ prec }}{% else %}{{ none }}{% endif %}
+        {% else %}
+          {{ prec if prec in ['on','off'] else none }}
+        {% endif %}
+      icon: >
+        {% if value_json is defined and value_json.OGGETTI is defined %}
+          {% set oggetto = value_json.OGGETTI | selectattr('ixogm', 'eq', '000000810000062D') | first %}
+          {{ 'mdi:fire' if oggetto is defined and oggetto.V[7] | int == 1 else 'mdi:fire-off' }}
+        {% else %}
+          {{ 'mdi:fire' if is_state('sensor.riscaldamento_attivo_cucina_kblue', 'on') else 'mdi:fire-off' }}
+        {% endif %}
+
+    # ==================================================
+    # SENSORI TEMPERATURA ZONA NOTTE
+    # ==================================================
+    # --- CAMERA FRANCESCO (ixogm: 0000008100000618) ---
+    - name: "Temperatura Camera Francesco (KBlue)"
+      unique_id: kblue_temp_cam_francesco
+      value_template: >
+        {% set prec = states('sensor.temperatura_camera_francesco') | float(0) %}
+        {% if value_json.OGGETTI is defined %}
+          {% set oggetto = value_json.OGGETTI | selectattr('ixogm', 'eq', '0000008100000618') | first %}
+          {% set nuovo = oggetto.V[2] | float(0) if oggetto is defined else 0 %}
+          {{ nuovo if nuovo > 0 else (prec if prec > 0 else none) }}
+        {% else %}
+          {{ prec if prec > 0 else none }}
+        {% endif %}
+      unit_of_measurement: "°C"
+      device_class: temperature
+      state_class: measurement
+
+    - name: "Target Temperatura Camera Francesco (KBlue)"
+      unique_id: kblue_target_cam_francesco
+      value_template: >
+        {% set prec = states('sensor.target_temperatura_camera_francesco') | float(0) %}
+        {% if value_json.OGGETTI is defined %}
+          {% set oggetto = value_json.OGGETTI | selectattr('ixogm', 'eq', '0000008100000618') | first %}
+          {% set nuovo = oggetto.V[10] | float(0) if oggetto is defined else 0 %}
+          {{ nuovo if nuovo > 0 else (prec if prec > 0 else none) }}
+        {% else %}
+          {{ prec if prec > 0 else none }}
+        {% endif %}
+      unit_of_measurement: "°C"
+      icon: mdi:thermometer
+
+    - name: "Stato Termostato Camera Francesco (KBlue)"
+      unique_id: kblue_stato_cam_francesco
+      value_template: >
+        {% set prec = states('sensor.stato_termostato_camera_francesco') %}
+        {% if value_json.OGGETTI is defined %}
+          {% set oggetto = value_json.OGGETTI | selectattr('ixogm', 'eq', '0000008100000618') | first %}
+          {% set valido = oggetto is defined and oggetto.V[2] | float(0) > 0 and oggetto.V[10] | float(0) > 0 %}
+          {% if valido %}{{ 'on' if oggetto.V[0] == '1' else 'off' }}{% elif prec in ['on','off'] %}{{ prec }}{% else %}{{ none }}{% endif %}
+        {% else %}
+          {{ prec if prec in ['on','off'] else none }}
+        {% endif %}
+      icon: mdi:radiator
+
+    - name: "Riscaldamento Attivo Camera Francesco (KBlue)"
+      unique_id: kblue_heating_active_cam_francesco
+      value_template: >
+        {% set prec = states('sensor.riscaldamento_attivo_camera_francesco') %}
+        {% if value_json.OGGETTI is defined %}
+          {% set oggetto = value_json.OGGETTI | selectattr('ixogm', 'eq', '0000008100000618') | first %}
+          {% set valido = oggetto is defined and oggetto.V[2] | float(0) > 0 and oggetto.V[10] | float(0) > 0 %}
+          {% if valido %}{{ 'on' if oggetto.V[7] | int == 1 else 'off' }}{% elif prec in ['on','off'] %}{{ prec }}{% else %}{{ none }}{% endif %}
+        {% else %}
+          {{ prec if prec in ['on','off'] else none }}
+        {% endif %}
+      icon: >
+        {% if value_json is defined and value_json.OGGETTI is defined %}
+          {% set oggetto = value_json.OGGETTI | selectattr('ixogm', 'eq', '0000008100000618') | first %}
+          {{ 'mdi:fire' if oggetto is defined and oggetto.V[7] | int == 1 else 'mdi:fire-off' }}
+        {% else %}
+          {{ 'mdi:fire' if is_state('sensor.riscaldamento_attivo_camera_francesco', 'on') else 'mdi:fire-off' }}
+        {% endif %}
+
+    # --- CAM GRETA (ixogm: 0000008100000603) ---
+    - name: "Temperatura Cam Greta (KBlue)"
+      unique_id: kblue_temp_cam_greta
+      value_template: >
+        {% set prec = states('sensor.temperatura_cam_greta_kblue') | float(0) %}
+        {% if value_json.OGGETTI is defined %}
+          {% set oggetto = value_json.OGGETTI | selectattr('ixogm', 'eq', '0000008100000603') | first %}
+          {% set nuovo = oggetto.V[2] | float(0) if oggetto is defined else 0 %}
+          {{ nuovo if nuovo > 0 else (prec if prec > 0 else none) }}
+        {% else %}
+          {{ prec if prec > 0 else none }}
+        {% endif %}
+      unit_of_measurement: "°C"
+      device_class: temperature
+      state_class: measurement
+    - name: "Target Temperatura Cam Greta (KBlue)"
+      unique_id: kblue_target_cam_greta
+      value_template: >
+        {% set prec = states('sensor.target_temperatura_cam_greta_kblue') | float(0) %}
+        {% if value_json.OGGETTI is defined %}
+          {% set oggetto = value_json.OGGETTI | selectattr('ixogm', 'eq', '0000008100000603') | first %}
+          {% set nuovo = oggetto.V[10] | float(0) if oggetto is defined else 0 %}
+          {{ nuovo if nuovo > 0 else (prec if prec > 0 else none) }}
+        {% else %}
+          {{ prec if prec > 0 else none }}
+        {% endif %}
+      unit_of_measurement: "°C"
+      icon: mdi:thermometer
+    - name: "Stato Termostato Cam Greta (KBlue)"
+      unique_id: kblue_stato_cam_greta
+      value_template: >
+        {% set prec = states('sensor.stato_termostato_cam_greta_kblue') %}
+        {% if value_json.OGGETTI is defined %}
+          {% set oggetto = value_json.OGGETTI | selectattr('ixogm', 'eq', '0000008100000603') | first %}
+          {% set valido = oggetto is defined and oggetto.V[2] | float(0) > 0 and oggetto.V[10] | float(0) > 0 %}
+          {% if valido %}{{ 'on' if oggetto.V[0] == '1' else 'off' }}{% elif prec in ['on','off'] %}{{ prec }}{% else %}{{ none }}{% endif %}
+        {% else %}
+          {{ prec if prec in ['on','off'] else none }}
+        {% endif %}
+      icon: mdi:radiator
+    - name: "Riscaldamento Attivo Cam Greta (KBlue)"
+      unique_id: kblue_heating_active_cam_greta
+      value_template: >
+        {% set prec = states('sensor.riscaldamento_attivo_cam_greta_kblue') %}
+        {% if value_json.OGGETTI is defined %}
+          {% set oggetto = value_json.OGGETTI | selectattr('ixogm', 'eq', '0000008100000603') | first %}
+          {% set valido = oggetto is defined and oggetto.V[2] | float(0) > 0 and oggetto.V[10] | float(0) > 0 %}
+          {% if valido %}{{ 'on' if oggetto.V[7] | int == 1 else 'off' }}{% elif prec in ['on','off'] %}{{ prec }}{% else %}{{ none }}{% endif %}
+        {% else %}
+          {{ prec if prec in ['on','off'] else none }}
+        {% endif %}
+      icon: >
+        {% if value_json is defined and value_json.OGGETTI is defined %}
+          {% set oggetto = value_json.OGGETTI | selectattr('ixogm', 'eq', '0000008100000603') | first %}
+          {{ 'mdi:fire' if oggetto is defined and oggetto.V[7] | int == 1 else 'mdi:fire-off' }}
+        {% else %}
+          {{ 'mdi:fire' if is_state('sensor.riscaldamento_attivo_cam_greta_kblue', 'on') else 'mdi:fire-off' }}
+        {% endif %}
+
+    # --- LETTO (ixogm: 00000081000005EE) ---
+    - name: "Temperatura Letto (KBlue)"
+      unique_id: kblue_temp_letto
+      value_template: >
+        {% set prec = states('sensor.temperatura_letto_kblue') | float(0) %}
+        {% if value_json.OGGETTI is defined %}
+          {% set oggetto = value_json.OGGETTI | selectattr('ixogm', 'eq', '00000081000005EE') | first %}
+          {% set nuovo = oggetto.V[2] | float(0) if oggetto is defined else 0 %}
+          {{ nuovo if nuovo > 0 else (prec if prec > 0 else none) }}
+        {% else %}
+          {{ prec if prec > 0 else none }}
+        {% endif %}
+      unit_of_measurement: "°C"
+      device_class: temperature
+      state_class: measurement
+    - name: "Target Temperatura Letto (KBlue)"
+      unique_id: kblue_target_letto
+      value_template: >
+        {% set prec = states('sensor.target_temperatura_letto_kblue') | float(0) %}
+        {% if value_json.OGGETTI is defined %}
+          {% set oggetto = value_json.OGGETTI | selectattr('ixogm', 'eq', '00000081000005EE') | first %}
+          {% set nuovo = oggetto.V[10] | float(0) if oggetto is defined else 0 %}
+          {{ nuovo if nuovo > 0 else (prec if prec > 0 else none) }}
+        {% else %}
+          {{ prec if prec > 0 else none }}
+        {% endif %}
+      unit_of_measurement: "°C"
+      icon: mdi:thermometer
+    - name: "Stato Termostato Letto (KBlue)"
+      unique_id: kblue_stato_letto
+      value_template: >
+        {% set prec = states('sensor.stato_termostato_letto_kblue') %}
+        {% if value_json.OGGETTI is defined %}
+          {% set oggetto = value_json.OGGETTI | selectattr('ixogm', 'eq', '00000081000005EE') | first %}
+          {% set valido = oggetto is defined and oggetto.V[2] | float(0) > 0 and oggetto.V[10] | float(0) > 0 %}
+          {% if valido %}{{ 'on' if oggetto.V[0] == '1' else 'off' }}{% elif prec in ['on','off'] %}{{ prec }}{% else %}{{ none }}{% endif %}
+        {% else %}
+          {{ prec if prec in ['on','off'] else none }}
+        {% endif %}
+      icon: mdi:radiator
+    - name: "Riscaldamento Attivo Letto (KBlue)"
+      unique_id: kblue_heating_active_letto
+      value_template: >
+        {% set prec = states('sensor.riscaldamento_attivo_letto_kblue') %}
+        {% if value_json.OGGETTI is defined %}
+          {% set oggetto = value_json.OGGETTI | selectattr('ixogm', 'eq', '00000081000005EE') | first %}
+          {% set valido = oggetto is defined and oggetto.V[2] | float(0) > 0 and oggetto.V[10] | float(0) > 0 %}
+          {% if valido %}{{ 'on' if oggetto.V[7] | int == 1 else 'off' }}{% elif prec in ['on','off'] %}{{ prec }}{% else %}{{ none }}{% endif %}
+        {% else %}
+          {{ prec if prec in ['on','off'] else none }}
+        {% endif %}
+      icon: >
+        {% if value_json is defined and value_json.OGGETTI is defined %}
+          {% set oggetto = value_json.OGGETTI | selectattr('ixogm', 'eq', '00000081000005EE') | first %}
+          {{ 'mdi:fire' if oggetto is defined and oggetto.V[7] | int == 1 else 'mdi:fire-off' }}
+        {% else %}
+          {{ 'mdi:fire' if is_state('sensor.riscaldamento_attivo_letto_kblue', 'on') else 'mdi:fire-off' }}
+        {% endif %}
+
+    # --- WC (ixogm: 000000810000067A) ---
+    - name: "Temperatura Wc (KBlue)"
+      unique_id: kblue_temp_wc
+      value_template: >
+        {% set prec = states('sensor.temperatura_wc_kblue') | float(0) %}
+        {% if value_json.OGGETTI is defined %}
+          {% set oggetto = value_json.OGGETTI | selectattr('ixogm', 'eq', '000000810000067A') | first %}
+          {% set nuovo = oggetto.V[2] | float(0) if oggetto is defined else 0 %}
+          {{ nuovo if nuovo > 0 else (prec if prec > 0 else none) }}
+        {% else %}
+          {{ prec if prec > 0 else none }}
+        {% endif %}
+      unit_of_measurement: "°C"
+      device_class: temperature
+      state_class: measurement
+    - name: "Target Temperatura Wc (KBlue)"
+      unique_id: kblue_target_wc
+      value_template: >
+        {% set prec = states('sensor.target_temperatura_wc_kblue') | float(0) %}
+        {% if value_json.OGGETTI is defined %}
+          {% set oggetto = value_json.OGGETTI | selectattr('ixogm', 'eq', '000000810000067A') | first %}
+          {% set nuovo = oggetto.V[10] | float(0) if oggetto is defined else 0 %}
+          {{ nuovo if nuovo > 0 else (prec if prec > 0 else none) }}
+        {% else %}
+          {{ prec if prec > 0 else none }}
+        {% endif %}
+      unit_of_measurement: "°C"
+      icon: mdi:thermometer
+    - name: "Stato Termostato Wc (KBlue)"
+      unique_id: kblue_stato_wc
+      value_template: >
+        {% set prec = states('sensor.stato_termostato_wc_kblue') %}
+        {% if value_json.OGGETTI is defined %}
+          {% set oggetto = value_json.OGGETTI | selectattr('ixogm', 'eq', '000000810000067A') | first %}
+          {% set valido = oggetto is defined and oggetto.V[2] | float(0) > 0 and oggetto.V[10] | float(0) > 0 %}
+          {% if valido %}{{ 'on' if oggetto.V[0] == '1' else 'off' }}{% elif prec in ['on','off'] %}{{ prec }}{% else %}{{ none }}{% endif %}
+        {% else %}
+          {{ prec if prec in ['on','off'] else none }}
+        {% endif %}
+      icon: mdi:radiator
+    - name: "Riscaldamento Attivo Wc (KBlue)"
+      unique_id: kblue_heating_active_wc
+      value_template: >
+        {% set prec = states('sensor.riscaldamento_attivo_wc_kblue') %}
+        {% if value_json.OGGETTI is defined %}
+          {% set oggetto = value_json.OGGETTI | selectattr('ixogm', 'eq', '000000810000067A') | first %}
+          {% set valido = oggetto is defined and oggetto.V[2] | float(0) > 0 and oggetto.V[10] | float(0) > 0 %}
+          {% if valido %}{{ 'on' if oggetto.V[7] | int == 1 else 'off' }}{% elif prec in ['on','off'] %}{{ prec }}{% else %}{{ none }}{% endif %}
+        {% else %}
+          {{ prec if prec in ['on','off'] else none }}
+        {% endif %}
+      icon: >
+        {% if value_json is defined and value_json.OGGETTI is defined %}
+          {% set oggetto = value_json.OGGETTI | selectattr('ixogm', 'eq', '000000810000067A') | first %}
+          {{ 'mdi:fire' if oggetto is defined and oggetto.V[7] | int == 1 else 'mdi:fire-off' }}
+        {% else %}
+          {{ 'mdi:fire' if is_state('sensor.riscaldamento_attivo_wc_kblue', 'on') else 'mdi:fire-off' }}
+        {% endif %}
+
+    # --- WC Letto (ixogm: 00000081000005D9) ---
+    - name: "Temperatura Wc Letto (KBlue)"
+      unique_id: kblue_temp_wc_letto
+      value_template: >
+        {% set prec = states('sensor.temperatura_wc_letto_kblue') | float(0) %}
+        {% if value_json.OGGETTI is defined %}
+          {% set oggetto = value_json.OGGETTI | selectattr('ixogm', 'eq', '00000081000005D9') | first %}
+          {% set nuovo = oggetto.V[2] | float(0) if oggetto is defined else 0 %}
+          {{ nuovo if nuovo > 0 else (prec if prec > 0 else none) }}
+        {% else %}
+          {{ prec if prec > 0 else none }}
+        {% endif %}
+      unit_of_measurement: "°C"
+      device_class: temperature
+      state_class: measurement
+    - name: "Target Temperatura Wc Letto (KBlue)"
+      unique_id: kblue_target_wc_letto
+      value_template: >
+        {% set prec = states('sensor.target_temperatura_wc_letto_kblue') | float(0) %}
+        {% if value_json.OGGETTI is defined %}
+          {% set oggetto = value_json.OGGETTI | selectattr('ixogm', 'eq', '00000081000005D9') | first %}
+          {% set nuovo = oggetto.V[10] | float(0) if oggetto is defined else 0 %}
+          {{ nuovo if nuovo > 0 else (prec if prec > 0 else none) }}
+        {% else %}
+          {{ prec if prec > 0 else none }}
+        {% endif %}
+      unit_of_measurement: "°C"
+      icon: mdi:thermometer
+    - name: "Stato Termostato Wc Letto (KBlue)"
+      unique_id: kblue_stato_wc_letto
+      value_template: >
+        {% set prec = states('sensor.stato_termostato_wc_letto_kblue') %}
+        {% if value_json.OGGETTI is defined %}
+          {% set oggetto = value_json.OGGETTI | selectattr('ixogm', 'eq', '00000081000005D9') | first %}
+          {% set valido = oggetto is defined and oggetto.V[2] | float(0) > 0 and oggetto.V[10] | float(0) > 0 %}
+          {% if valido %}{{ 'on' if oggetto.V[0] == '1' else 'off' }}{% elif prec in ['on','off'] %}{{ prec }}{% else %}{{ none }}{% endif %}
+        {% else %}
+          {{ prec if prec in ['on','off'] else none }}
+        {% endif %}
+      icon: mdi:radiator
+    - name: "Riscaldamento Attivo Wc Letto (KBlue)"
+      unique_id: kblue_heating_active_wc_letto
+      value_template: >
+        {% set prec = states('sensor.riscaldamento_attivo_wc_letto_kblue') %}
+        {% if value_json.OGGETTI is defined %}
+          {% set oggetto = value_json.OGGETTI | selectattr('ixogm', 'eq', '00000081000005D9') | first %}
+          {% set valido = oggetto is defined and oggetto.V[2] | float(0) > 0 and oggetto.V[10] | float(0) > 0 %}
+          {% if valido %}{{ 'on' if oggetto.V[7] | int == 1 else 'off' }}{% elif prec in ['on','off'] %}{{ prec }}{% else %}{{ none }}{% endif %}
+        {% else %}
+          {{ prec if prec in ['on','off'] else none }}
+        {% endif %}
+      icon: >
+        {% if value_json is defined and value_json.OGGETTI is defined %}
+          {% set oggetto = value_json.OGGETTI | selectattr('ixogm', 'eq', '00000081000005D9') | first %}
+          {{ 'mdi:fire' if oggetto is defined and oggetto.V[7] | int == 1 else 'mdi:fire-off' }}
+        {% else %}
+          {{ 'mdi:fire' if is_state('sensor.riscaldamento_attivo_wc_letto_kblue', 'on') else 'mdi:fire-off' }}
+        {% endif %}
+
+    # ==================================================
+    # SENSORI TEMPERATURA SUITE
+    # ==================================================
+    # --- LETTO SUITE (ixogm: 000000810000071C) ---
+    - name: "Temperatura Letto Suite (KBlue)"
+      unique_id: kblue_temp_letto_suite
+      value_template: >
+        {% set prec = states('sensor.temperatura_letto_suite_kblue') | float(0) %}
+        {% if value_json.OGGETTI is defined %}
+          {% set oggetto = value_json.OGGETTI | selectattr('ixogm', 'eq', '000000810000071C') | first %}
+          {% set nuovo = oggetto.V[2] | float(0) if oggetto is defined else 0 %}
+          {{ nuovo if nuovo > 0 else (prec if prec > 0 else none) }}
+        {% else %}
+          {{ prec if prec > 0 else none }}
+        {% endif %}
+      unit_of_measurement: "°C"
+      device_class: temperature
+      state_class: measurement
+    - name: "Target Temperatura Letto Suite (KBlue)"
+      unique_id: kblue_target_letto_suite
+      value_template: >
+        {% set prec = states('sensor.target_temperatura_letto_suite_kblue') | float(0) %}
+        {% if value_json.OGGETTI is defined %}
+          {% set oggetto = value_json.OGGETTI | selectattr('ixogm', 'eq', '000000810000071C') | first %}
+          {% set nuovo = oggetto.V[10] | float(0) if oggetto is defined else 0 %}
+          {{ nuovo if nuovo > 0 else (prec if prec > 0 else none) }}
+        {% else %}
+          {{ prec if prec > 0 else none }}
+        {% endif %}
+      unit_of_measurement: "°C"
+      icon: mdi:thermometer
+    - name: "Stato Termostato Letto Suite (KBlue)"
+      unique_id: kblue_stato_letto_suite
+      value_template: >
+        {% set prec = states('sensor.stato_termostato_letto_suite_kblue') %}
+        {% if value_json.OGGETTI is defined %}
+          {% set oggetto = value_json.OGGETTI | selectattr('ixogm', 'eq', '000000810000071C') | first %}
+          {% set valido = oggetto is defined and oggetto.V[2] | float(0) > 0 and oggetto.V[10] | float(0) > 0 %}
+          {% if valido %}{{ 'on' if oggetto.V[0] == '1' else 'off' }}{% elif prec in ['on','off'] %}{{ prec }}{% else %}{{ none }}{% endif %}
+        {% else %}
+          {{ prec if prec in ['on','off'] else none }}
+        {% endif %}
+    - name: "Riscaldamento Attivo Letto Suite (KBlue)"
+      unique_id: kblue_heating_active_letto_suite
+      value_template: >
+        {% set prec = states('sensor.riscaldamento_attivo_letto_suite_kblue') %}
+        {% if value_json.OGGETTI is defined %}
+          {% set oggetto = value_json.OGGETTI | selectattr('ixogm', 'eq', '000000810000071C') | first %}
+          {% set valido = oggetto is defined and oggetto.V[2] | float(0) > 0 and oggetto.V[10] | float(0) > 0 %}
+          {% if valido %}{{ 'on' if oggetto.V[7] | int == 1 else 'off' }}{% elif prec in ['on','off'] %}{{ prec }}{% else %}{{ none }}{% endif %}
+        {% else %}
+          {{ prec if prec in ['on','off'] else none }}
+        {% endif %}
+      icon: >
+        {% if value_json is defined and value_json.OGGETTI is defined %}
+          {% set oggetto = value_json.OGGETTI | selectattr('ixogm', 'eq', '000000810000071C') | first %}
+          {{ 'mdi:fire' if oggetto is defined and oggetto.V[7] | int == 1 else 'mdi:fire-off' }}
+        {% else %}
+          {{ 'mdi:fire' if is_state('sensor.riscaldamento_attivo_letto_suite_kblue', 'on') else 'mdi:fire-off' }}
+        {% endif %}
+
+    # --- SALONE SUITE (ixogm: 0000008100000700) ---
+    - name: "Temperatura Salone Suite (KBlue)"
+      unique_id: kblue_temp_salone_suite
+      value_template: >
+        {% set prec = states('sensor.temperatura_salone_suite_kblue') | float(0) %}
+        {% if value_json.OGGETTI is defined %}
+          {% set oggetto = value_json.OGGETTI | selectattr('ixogm', 'eq', '0000008100000700') | first %}
+          {% set nuovo = oggetto.V[2] | float(0) if oggetto is defined else 0 %}
+          {{ nuovo if nuovo > 0 else (prec if prec > 0 else none) }}
+        {% else %}
+          {{ prec if prec > 0 else none }}
+        {% endif %}
+      unit_of_measurement: "°C"
+      device_class: temperature
+      state_class: measurement
+    - name: "Target Temperatura Salone Suite (KBlue)"
+      unique_id: kblue_target_salone_suite
+      value_template: >
+        {% set prec = states('sensor.target_temperatura_salone_suite_kblue') | float(0) %}
+        {% if value_json.OGGETTI is defined %}
+          {% set oggetto = value_json.OGGETTI | selectattr('ixogm', 'eq', '0000008100000700') | first %}
+          {% set nuovo = oggetto.V[10] | float(0) if oggetto is defined else 0 %}
+          {{ nuovo if nuovo > 0 else (prec if prec > 0 else none) }}
+        {% else %}
+          {{ prec if prec > 0 else none }}
+        {% endif %}
+      unit_of_measurement: "°C"
+      icon: mdi:thermometer
+    - name: "Stato Termostato Salone Suite (KBlue)"
+      unique_id: kblue_stato_salone_suite
+      value_template: >
+        {% set prec = states('sensor.stato_termostato_salone_suite_kblue') %}
+        {% if value_json.OGGETTI is defined %}
+          {% set oggetto = value_json.OGGETTI | selectattr('ixogm', 'eq', '0000008100000700') | first %}
+          {% set valido = oggetto is defined and oggetto.V[2] | float(0) > 0 and oggetto.V[10] | float(0) > 0 %}
+          {% if valido %}{{ 'on' if oggetto.V[0] == '1' else 'off' }}{% elif prec in ['on','off'] %}{{ prec }}{% else %}{{ none }}{% endif %}
+        {% else %}
+          {{ prec if prec in ['on','off'] else none }}
+        {% endif %}
+    - name: "Riscaldamento Attivo Salone Suite (KBlue)"
+      unique_id: kblue_heating_active_salone_suite
+      value_template: >
+        {% set prec = states('sensor.riscaldamento_attivo_salone_suite_kblue') %}
+        {% if value_json.OGGETTI is defined %}
+          {% set oggetto = value_json.OGGETTI | selectattr('ixogm', 'eq', '0000008100000700') | first %}
+          {% set valido = oggetto is defined and oggetto.V[2] | float(0) > 0 and oggetto.V[10] | float(0) > 0 %}
+          {% if valido %}{{ 'on' if oggetto.V[7] | int == 1 else 'off' }}{% elif prec in ['on','off'] %}{{ prec }}{% else %}{{ none }}{% endif %}
+        {% else %}
+          {{ prec if prec in ['on','off'] else none }}
+        {% endif %}
+      icon: >
+        {% if value_json is defined and value_json.OGGETTI is defined %}
+          {% set oggetto = value_json.OGGETTI | selectattr('ixogm', 'eq', '0000008100000700') | first %}
+          {{ 'mdi:fire' if oggetto is defined and oggetto.V[7] | int == 1 else 'mdi:fire-off' }}
+        {% else %}
+          {{ 'mdi:fire' if is_state('sensor.riscaldamento_attivo_salone_suite_kblue', 'on') else 'mdi:fire-off' }}
+        {% endif %}
+
+    # --- WC SUITE (ixogm: 0000008100000732) ---
+    - name: "Temperatura Wc Suite (KBlue)"
+      unique_id: kblue_temp_wc_suite
+      value_template: >
+        {% set prec = states('sensor.temperatura_wc_suite_kblue') | float(0) %}
+        {% if value_json.OGGETTI is defined %}
+          {% set oggetto = value_json.OGGETTI | selectattr('ixogm', 'eq', '0000008100000732') | first %}
+          {% set nuovo = oggetto.V[2] | float(0) if oggetto is defined else 0 %}
+          {{ nuovo if nuovo > 0 else (prec if prec > 0 else none) }}
+        {% else %}
+          {{ prec if prec > 0 else none }}
+        {% endif %}
+      unit_of_measurement: "°C"
+      device_class: temperature
+      state_class: measurement
+    - name: "Stato Termostato Wc Suite (KBlue)"
+      unique_id: kblue_stato_wc_suite
+      value_template: >
+        {% set prec = states('sensor.stato_termostato_wc_suite_kblue') %}
+        {% if value_json.OGGETTI is defined %}
+          {% set oggetto = value_json.OGGETTI | selectattr('ixogm', 'eq', '0000008100000732') | first %}
+          {% set valido = oggetto is defined and oggetto.V[2] | float(0) > 0 and oggetto.V[10] | float(0) > 0 %}
+          {% if valido %}{{ 'on' if oggetto.V[0] == '1' else 'off' }}{% elif prec in ['on','off'] %}{{ prec }}{% else %}{{ none }}{% endif %}
+        {% else %}
+          {{ prec if prec in ['on','off'] else none }}
+        {% endif %}
+    - name: "Target Temperatura Wc Suite (KBlue)"
+      unique_id: kblue_target_wc_suite
+      value_template: >
+        {% set prec = states('sensor.target_temperatura_wc_suite_kblue') | float(0) %}
+        {% if value_json.OGGETTI is defined %}
+          {% set oggetto = value_json.OGGETTI | selectattr('ixogm', 'eq', '0000008100000732') | first %}
+          {% set nuovo = oggetto.V[10] | float(0) if oggetto is defined else 0 %}
+          {{ nuovo if nuovo > 0 else (prec if prec > 0 else none) }}
+        {% else %}
+          {{ prec if prec > 0 else none }}
+        {% endif %}
+      unit_of_measurement: "°C"
+      icon: mdi:thermometer
+    - name: "Riscaldamento Attivo Wc Suite (KBlue)"
+      unique_id: kblue_heating_active_wc_suite
+      value_template: >
+        {% set prec = states('sensor.riscaldamento_attivo_wc_suite_kblue') %}
+        {% if value_json.OGGETTI is defined %}
+          {% set oggetto = value_json.OGGETTI | selectattr('ixogm', 'eq', '0000008100000732') | first %}
+          {% set valido = oggetto is defined and oggetto.V[2] | float(0) > 0 and oggetto.V[10] | float(0) > 0 %}
+          {% if valido %}{{ 'on' if oggetto.V[7] | int == 1 else 'off' }}{% elif prec in ['on','off'] %}{{ prec }}{% else %}{{ none }}{% endif %}
+        {% else %}
+          {{ prec if prec in ['on','off'] else none }}
+        {% endif %}
+      icon: >
+        {% if value_json is defined and value_json.OGGETTI is defined %}
+          {% set oggetto = value_json.OGGETTI | selectattr('ixogm', 'eq', '0000008100000732') | first %}
+          {{ 'mdi:fire' if oggetto is defined and oggetto.V[7] | int == 1 else 'mdi:fire-off' }}
+        {% else %}
+          {{ 'mdi:fire' if is_state('sensor.riscaldamento_attivo_wc_suite_kblue', 'on') else 'mdi:fire-off' }}
+        {% endif %}
+
+    # ==================================================
+    # MODO MANUALE (V[12]) - tutte le zone
+    # '0' = programma orario, diverso da '0' = manuale (impostato da pannello, app o HA)
+    # (Salone gia' presente piu' sopra)
+    # ==================================================
+    - name: "Modo Manuale Cucina (KBlue)"
+      unique_id: kblue_modo_manuale_cucina
+      value_template: >
+        {% set prec = states('sensor.modo_manuale_cucina_kblue') %}
+        {% if value_json.OGGETTI is defined %}
+          {% set oggetto = value_json.OGGETTI | selectattr('ixogm', 'eq', '000000810000062D') | first %}
+          {% set valido = oggetto is defined and oggetto.V[2] | float(0) > 0 and oggetto.V[10] | float(0) > 0 %}
+          {% if valido %}{{ oggetto.V[12] }}{% elif prec not in ['unknown','unavailable'] %}{{ prec }}{% else %}{{ none }}{% endif %}
+        {% else %}
+          {{ prec if prec not in ['unknown','unavailable'] else none }}
+        {% endif %}
+      icon: mdi:hand-back-right
+
+    - name: "Modo Manuale Letto (KBlue)"
+      unique_id: kblue_modo_manuale_letto
+      value_template: >
+        {% set prec = states('sensor.modo_manuale_letto_kblue') %}
+        {% if value_json.OGGETTI is defined %}
+          {% set oggetto = value_json.OGGETTI | selectattr('ixogm', 'eq', '00000081000005EE') | first %}
+          {% set valido = oggetto is defined and oggetto.V[2] | float(0) > 0 and oggetto.V[10] | float(0) > 0 %}
+          {% if valido %}{{ oggetto.V[12] }}{% elif prec not in ['unknown','unavailable'] %}{{ prec }}{% else %}{{ none }}{% endif %}
+        {% else %}
+          {{ prec if prec not in ['unknown','unavailable'] else none }}
+        {% endif %}
+      icon: mdi:hand-back-right
+
+    - name: "Modo Manuale Camera Francesco (KBlue)"
+      unique_id: kblue_modo_manuale_cam_francesco
+      value_template: >
+        {% set prec = states('sensor.modo_manuale_camera_francesco_kblue') %}
+        {% if value_json.OGGETTI is defined %}
+          {% set oggetto = value_json.OGGETTI | selectattr('ixogm', 'eq', '0000008100000618') | first %}
+          {% set valido = oggetto is defined and oggetto.V[2] | float(0) > 0 and oggetto.V[10] | float(0) > 0 %}
+          {% if valido %}{{ oggetto.V[12] }}{% elif prec not in ['unknown','unavailable'] %}{{ prec }}{% else %}{{ none }}{% endif %}
+        {% else %}
+          {{ prec if prec not in ['unknown','unavailable'] else none }}
+        {% endif %}
+      icon: mdi:hand-back-right
+
+    - name: "Modo Manuale Cam Greta (KBlue)"
+      unique_id: kblue_modo_manuale_cam_greta
+      value_template: >
+        {% set prec = states('sensor.modo_manuale_cam_greta_kblue') %}
+        {% if value_json.OGGETTI is defined %}
+          {% set oggetto = value_json.OGGETTI | selectattr('ixogm', 'eq', '0000008100000603') | first %}
+          {% set valido = oggetto is defined and oggetto.V[2] | float(0) > 0 and oggetto.V[10] | float(0) > 0 %}
+          {% if valido %}{{ oggetto.V[12] }}{% elif prec not in ['unknown','unavailable'] %}{{ prec }}{% else %}{{ none }}{% endif %}
+        {% else %}
+          {{ prec if prec not in ['unknown','unavailable'] else none }}
+        {% endif %}
+      icon: mdi:hand-back-right
+
+    - name: "Modo Manuale Letto Suite (KBlue)"
+      unique_id: kblue_modo_manuale_letto_suite
+      value_template: >
+        {% set prec = states('sensor.modo_manuale_letto_suite_kblue') %}
+        {% if value_json.OGGETTI is defined %}
+          {% set oggetto = value_json.OGGETTI | selectattr('ixogm', 'eq', '000000810000071C') | first %}
+          {% set valido = oggetto is defined and oggetto.V[2] | float(0) > 0 and oggetto.V[10] | float(0) > 0 %}
+          {% if valido %}{{ oggetto.V[12] }}{% elif prec not in ['unknown','unavailable'] %}{{ prec }}{% else %}{{ none }}{% endif %}
+        {% else %}
+          {{ prec if prec not in ['unknown','unavailable'] else none }}
+        {% endif %}
+      icon: mdi:hand-back-right
+
+    - name: "Modo Manuale Salone Suite (KBlue)"
+      unique_id: kblue_modo_manuale_salone_suite
+      value_template: >
+        {% set prec = states('sensor.modo_manuale_salone_suite_kblue') %}
+        {% if value_json.OGGETTI is defined %}
+          {% set oggetto = value_json.OGGETTI | selectattr('ixogm', 'eq', '0000008100000700') | first %}
+          {% set valido = oggetto is defined and oggetto.V[2] | float(0) > 0 and oggetto.V[10] | float(0) > 0 %}
+          {% if valido %}{{ oggetto.V[12] }}{% elif prec not in ['unknown','unavailable'] %}{{ prec }}{% else %}{{ none }}{% endif %}
+        {% else %}
+          {{ prec if prec not in ['unknown','unavailable'] else none }}
+        {% endif %}
+      icon: mdi:hand-back-right
+
+    - name: "Modo Manuale Wc (KBlue)"
+      unique_id: kblue_modo_manuale_wc
+      value_template: >
+        {% set prec = states('sensor.modo_manuale_wc_kblue') %}
+        {% if value_json.OGGETTI is defined %}
+          {% set oggetto = value_json.OGGETTI | selectattr('ixogm', 'eq', '000000810000067A') | first %}
+          {% set valido = oggetto is defined and oggetto.V[2] | float(0) > 0 and oggetto.V[10] | float(0) > 0 %}
+          {% if valido %}{{ oggetto.V[12] }}{% elif prec not in ['unknown','unavailable'] %}{{ prec }}{% else %}{{ none }}{% endif %}
+        {% else %}
+          {{ prec if prec not in ['unknown','unavailable'] else none }}
+        {% endif %}
+      icon: mdi:hand-back-right
+
+    - name: "Modo Manuale Wc Letto (KBlue)"
+      unique_id: kblue_modo_manuale_wc_letto
+      value_template: >
+        {% set prec = states('sensor.modo_manuale_wc_letto_kblue') %}
+        {% if value_json.OGGETTI is defined %}
+          {% set oggetto = value_json.OGGETTI | selectattr('ixogm', 'eq', '00000081000005D9') | first %}
+          {% set valido = oggetto is defined and oggetto.V[2] | float(0) > 0 and oggetto.V[10] | float(0) > 0 %}
+          {% if valido %}{{ oggetto.V[12] }}{% elif prec not in ['unknown','unavailable'] %}{{ prec }}{% else %}{{ none }}{% endif %}
+        {% else %}
+          {{ prec if prec not in ['unknown','unavailable'] else none }}
+        {% endif %}
+      icon: mdi:hand-back-right
+
+    - name: "Modo Manuale Wc Suite (KBlue)"
+      unique_id: kblue_modo_manuale_wc_suite
+      value_template: >
+        {% set prec = states('sensor.modo_manuale_wc_suite_kblue') %}
+        {% if value_json.OGGETTI is defined %}
+          {% set oggetto = value_json.OGGETTI | selectattr('ixogm', 'eq', '0000008100000732') | first %}
+          {% set valido = oggetto is defined and oggetto.V[2] | float(0) > 0 and oggetto.V[10] | float(0) > 0 %}
+          {% if valido %}{{ oggetto.V[12] }}{% elif prec not in ['unknown','unavailable'] %}{{ prec }}{% else %}{{ none }}{% endif %}
+        {% else %}
+          {{ prec if prec not in ['unknown','unavailable'] else none }}
+        {% endif %}
+      icon: mdi:hand-back-right
+
+# ============================================
+# Sensori REST per i consumi KBlue
+# ============================================
+
+- resource: "http://192.168.1.54:50080/request_json"
+  method: POST
+  scan_interval: 10
+  headers:
+    Connection: "close"
+    Content-Type: "application/x-www-form-urlencoded; charset=UTF-8"
+    # Assicurati che questi sensori (che leggono dal file) siano attivi
+    Cookie: "user={{ states('sensor.kblue_user_cookie') }}; session={{ states('sensor.kblue_session_cookie') }}"
+  # Payload confermato funzionante
+  payload: '{"cmd":460}'
+
+  sensor:
+    # Consumo Fase L1
+    - name: "Consumo L1"
+      unique_id: consumo_l1_kblue
+      value_template: >
+        {% if value_json.SINOTTICI is defined %}
+          {{ value_json.SINOTTICI[0].SEGNALI[0].V[0] | float(0) }}
+        {% else %}
+          {{ states('sensor.consumo_l1') if states('sensor.consumo_l1') not in ['unknown','unavailable'] else none }}
+        {% endif %}
+      unit_of_measurement: "kW"
+      device_class: power
+      state_class: measurement
+      json_attributes_path: "$.SINOTTICI[0].SEGNALI[0]"
+      json_attributes:
+        - "alias"
+        - "ixogm"
+
+    # Consumo Fase L2
+    - name: "Consumo L2"
+      unique_id: consumo_l2_kblue
+      value_template: >
+        {% if value_json.SINOTTICI is defined %}
+          {{ value_json.SINOTTICI[0].SEGNALI[1].V[0] | float(0) }}
+        {% else %}
+          {{ states('sensor.consumo_l2') if states('sensor.consumo_l2') not in ['unknown','unavailable'] else none }}
+        {% endif %}
+      unit_of_measurement: "kW"
+      device_class: power
+      state_class: measurement
+
+    # Consumo Fase L3
+    - name: "Consumo L3"
+      unique_id: consumo_l3_kblue
+      value_template: >
+        {% if value_json.SINOTTICI is defined %}
+          {{ value_json.SINOTTICI[0].SEGNALI[2].V[0] | float(0) }}
+        {% else %}
+          {{ states('sensor.consumo_l3') if states('sensor.consumo_l3') not in ['unknown','unavailable'] else none }}
+        {% endif %}
+      unit_of_measurement: "kW"
+      device_class: power
+      state_class: measurement
+
+    # Consumo Totale Trifase (Sinottico 1)
+    - name: "Consumo Totale"
+      unique_id: consumo_totale_kblue
+      value_template: >
+        {% if value_json.SINOTTICI is defined and value_json.SINOTTICI|length > 1 %}
+          {{ value_json.SINOTTICI[1].SEGNALI[0].V[0] | float(0) }}
+        {% else %}
+          {{ states('sensor.consumo_totale') if states('sensor.consumo_totale') not in ['unknown','unavailable'] else none }}
+        {% endif %}
+      unit_of_measurement: "kW"
+      device_class: power
+      state_class: measurement
+
+# ============================================
+# Sensore REST per stato luci KBlue
+# ============================================
+
+# ============================================
+# Interrogazione Mappa CUCINA (idmp:6)
+# ============================================
+
+- resource: http://192.168.1.54:50080/request_json
+  method: POST
+  payload: 'command={"cmd":20,"schema":0,"idmp":6}'
+  headers:
+    Connection: "close"
+    Content-Type: "application/x-www-form-urlencoded"
+    Cookie: "user={{ states('sensor.kblue_user_cookie') }}; session={{ states('sensor.kblue_session_cookie') }}"
+  scan_interval: 10
+
+  sensor:
+    # === ZONA GIORNO ===
+
+    # Strip Salotto (ixogm: 0000008100000188 - variabile ixv:188)
+    - name: "Stato Strip Salotto (KBlue)"
+      unique_id: kblue_stato_strip_salotto
+      value_template: >
+        {% if value_json.OGGETTI is defined %}
+          {% set obj = value_json.OGGETTI | selectattr('C', 'defined') | selectattr('C', 'contains', 188) | first | default(none) %}
+          {% if obj and obj.V[0] | int > 0 %}on{% else %}off{% endif %}
+        {% else %}
+          {{ states('sensor.stato_strip_salotto_kblue') if states('sensor.stato_strip_salotto_kblue') not in ['unknown','unavailable'] else 'off' }}
+        {% endif %}
+
+    - name: "Brightness Strip Salotto (KBlue)"
+      unique_id: kblue_brightness_strip_salotto
+      value_template: >
+        {% if value_json.OGGETTI is defined %}
+          {% set obj = value_json.OGGETTI | selectattr('C', 'defined') | selectattr('C', 'contains', 188) | first | default(none) %}
+          {% if obj %}{{ ((obj.V[0] | int / 1000.0) * 255) | int }}{% else %}0{% endif %}
+        {% else %}
+          {{ states('sensor.brightness_strip_salotto_kblue') if states('sensor.brightness_strip_salotto_kblue') not in ['unknown','unavailable'] else 'off' }}
+        {% endif %}
+
+    # Pendenti Salotto (ixv:302)
+    - name: "Stato Pendenti Salotto (KBlue)"
+      unique_id: kblue_stato_pendenti_salotto
+      value_template: >
+        {% if value_json.OGGETTI is defined %}
+          {% set obj = value_json.OGGETTI | selectattr('C', 'defined') | selectattr('C', 'contains', 302) | first | default(none) %}
+          {% if obj and obj.V[0] | int > 0 %}on{% else %}off{% endif %}
+        {% else %}
+          {{ states('sensor.stato_pendenti_salotto_kblue') if states('sensor.stato_pendenti_salotto_kblue') not in ['unknown','unavailable'] else 'off' }}
+        {% endif %}
+
+    # Strip Ingresso (ixv:304)
+    - name: "Stato Strip Ingresso (KBlue)"
+      unique_id: kblue_stato_strip_ingresso
+      value_template: >
+        {% if value_json.OGGETTI is defined %}
+          {% set obj = value_json.OGGETTI | selectattr('C', 'defined') | selectattr('C', 'contains', 304) | first | default(none) %}
+          {% if obj and obj.V[0] | int > 0 %}on{% else %}off{% endif %}
+        {% else %}
+          {{ states('sensor.stato_strip_ingresso_kblue') if states('sensor.stato_strip_ingresso_kblue') not in ['unknown','unavailable'] else 'off' }}
+        {% endif %}
+
+    # Applique Salotto (ixv:368)
+    - name: "Stato Applique Salotto (KBlue)"
+      unique_id: kblue_stato_applique_salotto
+      value_template: >
+        {% if value_json.OGGETTI is defined %}
+          {% set obj = value_json.OGGETTI | selectattr('C', 'defined') | selectattr('C', 'contains', 368) | first | default(none) %}
+          {% if obj and obj.V[0] | int > 0 %}on{% else %}off{% endif %}
+        {% else %}
+          {{ states('sensor.stato_applique_salotto_kblue') if states('sensor.stato_applique_salotto_kblue') not in ['unknown','unavailable'] else 'off' }}
+        {% endif %}
+
+    # Faretti Uno Salotto (ixv:197)
+    - name: "Stato Faretti Uno Salotto (KBlue)"
+      unique_id: kblue_stato_faretti_uno_salotto
+      value_template: >
+        {% if value_json.OGGETTI is defined %}
+          {% set obj = value_json.OGGETTI | selectattr('C', 'defined') | selectattr('C', 'contains', 197) | first | default(none) %}
+          {% if obj and obj.V[0] | int > 0 %}on{% else %}off{% endif %}
+        {% else %}
+          {{ states('sensor.stato_faretti_uno_salotto_kblue') if states('sensor.stato_faretti_uno_salotto_kblue') not in ['unknown','unavailable'] else 'off' }}
+        {% endif %}
+
+    - name: "Brightness Faretti Uno Salotto (KBlue)"
+      unique_id: kblue_brightness_faretti_uno_salotto
+      value_template: >
+        {% if value_json.OGGETTI is defined %}
+          {% set obj = value_json.OGGETTI | selectattr('C', 'defined') | selectattr('C', 'contains', 197) | first | default(none) %}
+          {% if obj %}{{ ((obj.V[0] | int / 1000.0) * 255) | int }}{% else %}0{% endif %}
+        {% else %}
+          {{ states('sensor.brightness_faretti_uno_salotto_kblue') if states('sensor.brightness_faretti_uno_salotto_kblue') not in ['unknown','unavailable'] else 'off' }}
+        {% endif %}
+
+    # Faretti Due Salotto (ixv:206)
+    - name: "Stato Faretti Due Salotto (KBlue)"
+      unique_id: kblue_stato_faretti_due_salotto
+      value_template: >
+        {% if value_json.OGGETTI is defined %}
+          {% set obj = value_json.OGGETTI | selectattr('C', 'defined') | selectattr('C', 'contains', 206) | first | default(none) %}
+          {% if obj and obj.V[0] | int > 0 %}on{% else %}off{% endif %}
+        {% else %}
+          {{ states('sensor.stato_faretti_due_salotto_kblue') if states('sensor.stato_faretti_due_salotto_kblue') not in ['unknown','unavailable'] else 'off' }}
+        {% endif %}
+
+    - name: "Brightness Faretti Due Salotto (KBlue)"
+      unique_id: kblue_brightness_faretti_due_salotto
+      value_template: >
+        {% if value_json.OGGETTI is defined %}
+          {% set obj = value_json.OGGETTI | selectattr('C', 'defined') | selectattr('C', 'contains', 206) | first | default(none) %}
+          {% if obj %}{{ ((obj.V[0] | int / 1000.0) * 255) | int }}{% else %}0{% endif %}
+        {% else %}
+          {{ states('sensor.brightness_faretti_due_salotto_kblue') if states('sensor.brightness_faretti_due_salotto_kblue') not in ['unknown','unavailable'] else 'off' }}
+        {% endif %}
+
+    # === Strip TV (SWITCH - ixv:303) ===
+    - name: "Stato Strip TV (KBlue)"
+      unique_id: kblue_stato_strip_tv
+      value_template: >
+        {% if value_json.OGGETTI is defined %}
+          {% set obj = value_json.OGGETTI | selectattr('C', 'defined') | selectattr('C', 'contains', 303) | first | default(none) %}
+          {% if obj and obj.V[0] | int > 0 %}on{% else %}off{% endif %}
+        {% else %}
+          {{ states('sensor.stato_strip_tv_kblue') if states('sensor.stato_strip_tv_kblue') not in ['unknown','unavailable'] else 'off' }}
+        {% endif %}
+
+    # === Strip Balconcino (SWITCH - ixv:525) ===
+    - name: "Stato Strip Balconcino (KBlue)"
+      unique_id: kblue_stato_strip_balconcino
+      value_template: >
+        {% if value_json.OGGETTI is defined %}
+          {% set obj = value_json.OGGETTI | selectattr('C', 'defined') | selectattr('C', 'contains', 525) | first | default(none) %}
+          {% if obj and obj.V[0] | int > 0 %}on{% else %}off{% endif %}
+        {% else %}
+          {{ states('sensor.stato_strip_balconcino_kblue') if states('sensor.stato_strip_balconcino_kblue') not in ['unknown','unavailable'] else 'off' }}
+        {% endif %}
+
+# ============================================
+# SEZIONE INTERROGAZIONE MAPPE KBLUE
+# ============================================
+
+# ============================================
+# Interrogazione Mappa CUCINA (idmp:7)
+# ============================================
+- resource: http://192.168.1.54:50080/request_json
+  method: POST
+  payload: 'command={"cmd":20,"schema":0,"idmp":7}'
+  headers:
+    Connection: "close"
+    Content-Type: "application/x-www-form-urlencoded"
+    Cookie: "user={{ states('sensor.kblue_user_cookie') }}; session={{ states('sensor.kblue_session_cookie') }}"
+  scan_interval: 10
+
+  sensor:
+    # === iSign Cucina (DIMMER - ixv:215) ===
+    - name: "Stato iSign Cucina (KBlue)"
+      unique_id: kblue_stato_isign_cucina
+      value_template: >
+        {% if value_json.OGGETTI is defined %}
+          {% set obj = value_json.OGGETTI | selectattr('C', 'defined') | selectattr('C', 'contains', 215) | first | default(none) %}
+          {% if obj and obj.V[0] | int > 0 %}on{% else %}off{% endif %}
+        {% else %}
+          {{ states('sensor.stato_isign_cucina_kblue') if states('sensor.stato_isign_cucina_kblue') not in ['unknown','unavailable'] else 'off' }}
+        {% endif %}
+
+    - name: "Brightness iSign Cucina (KBlue)"
+      unique_id: kblue_brightness_isign_cucina
+      value_template: >
+        {% if value_json.OGGETTI is defined %}
+          {% set obj = value_json.OGGETTI | selectattr('C', 'defined') | selectattr('C', 'contains', 215) | first | default(none) %}
+          {% if obj %}{{ ((obj.V[0] | int / 1000.0) * 255) | int }}{% else %}0{% endif %}
+        {% else %}
+          {{ states('sensor.brightness_isign_cucina_kblue') if states('sensor.brightness_isign_cucina_kblue') not in ['unknown','unavailable'] else 'off' }}
+        {% endif %}
+
+    # === Pendenti Cucina (SWITCH - ixv:385) ===
+    - name: "Stato Pendenti Cucina (KBlue)"
+      unique_id: kblue_stato_pendenti_cucina
+      value_template: >
+        {% if value_json.OGGETTI is defined %}
+          {% set obj = value_json.OGGETTI | selectattr('C', 'defined') | selectattr('C', 'contains', 385) | first | default(none) %}
+          {% if obj and obj.V[0] | int > 0 %}on{% else %}off{% endif %}
+        {% else %}
+          {{ states('sensor.stato_pendenti_cucina_kblue') if states('sensor.stato_pendenti_cucina_kblue') not in ['unknown','unavailable'] else 'off' }}
+        {% endif %}
+
+    # === Luce Soppalco (SWITCH - ixv:299) ===
+    - name: "Stato Luce Soppalco (KBlue)"
+      unique_id: kblue_stato_luce_soppalco
+      value_template: >
+        {% if value_json.OGGETTI is defined %}
+          {% set obj = value_json.OGGETTI | selectattr('C', 'defined') | selectattr('C', 'contains', 299) | first | default(none) %}
+          {% if obj and obj.V[0] | int > 0 %}on{% else %}off{% endif %}
+        {% else %}
+          {{ states('sensor.stato_luce_soppalco_kblue') if states('sensor.stato_luce_soppalco_kblue') not in ['unknown','unavailable'] else 'off' }}
+        {% endif %}
+
+# ============================================
+# Interrogazione Mappa CAMERA FRANCESCO (idmp:9)
+# ============================================
+- resource: http://192.168.1.54:50080/request_json
+  method: POST
+  payload: 'command={"cmd":20,"schema":0,"idmp":9}'
+  headers:
+    Connection: "close"
+    Content-Type: "application/x-www-form-urlencoded"
+    Cookie: "user={{ states('sensor.kblue_user_cookie') }}; session={{ states('sensor.kblue_session_cookie') }}"
+  scan_interval: 10
+
+  # ============================================
+  # CAMERA FRANCESCO - LUCI E PRESE
+  # ============================================
+  sensor:
+    # === Luce Francesco (SWITCH - ixv:373) ===
+    - name: "Stato Luce Francesco (KBlue)"
+      unique_id: kblue_stato_luce_francesco
+      value_template: >
+        {% if value_json.OGGETTI is defined %}
+          {% set obj = value_json.OGGETTI | selectattr('C', 'defined') | selectattr('C', 'contains', 373) | first | default(none) %}
+          {% if obj and obj.V[0] | int > 0 %}on{% else %}off{% endif %}
+        {% else %}
+          {{ states('sensor.stato_luce_francesco_kblue') if states('sensor.stato_luce_francesco_kblue') not in ['unknown','unavailable'] else 'off' }}
+        {% endif %}
+
+    # === Presa Francesco (SWITCH - ixv:372) ===
+    - name: "Stato Presa Francesco (KBlue)"
+      unique_id: kblue_stato_presa_francesco
+      value_template: >
+        {% if value_json.OGGETTI is defined %}
+          {% set obj = value_json.OGGETTI | selectattr('C', 'defined') | selectattr('C', 'contains', 372) | first | default(none) %}
+          {% if obj and obj.V[0] | int > 0 %}on{% else %}off{% endif %}
+        {% else %}
+          {{ states('sensor.stato_presa_francesco_kblue') if states('sensor.stato_presa_francesco_kblue') not in ['unknown','unavailable'] else 'off' }}
+        {% endif %}
+
+# ============================================
+# Interrogazione Mappa CAMERA GRETA (idmp:8)
+# ============================================
+- resource: http://192.168.1.54:50080/request_json
+  method: POST
+  payload: 'command={"cmd":20,"schema":0,"idmp":8}'
+  headers:
+    Connection: "close"
+    Content-Type: "application/x-www-form-urlencoded"
+    Cookie: "user={{ states('sensor.kblue_user_cookie') }}; session={{ states('sensor.kblue_session_cookie') }}"
+  scan_interval: 10
+
+  # ============================================
+  # CAMERA GRETA - LUCI E PRESE
+  # ============================================
+  sensor:
+    # === Luce Greta (SWITCH - ixv:369) ===
+    - name: "Stato Luce Greta (KBlue)"
+      unique_id: kblue_stato_luce_greta
+      value_template: >
+        {% if value_json.OGGETTI is defined %}
+          {% set obj = value_json.OGGETTI | selectattr('C', 'defined') | selectattr('C', 'contains', 369) | first | default(none) %}
+          {% if obj and obj.V[0] | int > 0 %}on{% else %}off{% endif %}
+        {% else %}
+          {{ states('sensor.stato_luce_greta_kblue') if states('sensor.stato_luce_greta_kblue') not in ['unknown','unavailable'] else 'off' }}
+        {% endif %}
+
+    # === Presa Greta (SWITCH - ixv:370) ===
+    - name: "Stato Presa Greta (KBlue)"
+      unique_id: kblue_stato_presa_greta
+      value_template: >
+        {% if value_json.OGGETTI is defined %}
+          {% set obj = value_json.OGGETTI | selectattr('C', 'defined') | selectattr('C', 'contains', 370) | first | default(none) %}
+          {% if obj and obj.V[0] | int > 0 %}on{% else %}off{% endif %}
+        {% else %}
+          {{ states('sensor.stato_presa_greta_kblue') if states('sensor.stato_presa_greta_kblue') not in ['unknown','unavailable'] else 'off' }}
+        {% endif %}
+
+    # === Luce Ext Greta (SWITCH - ixv:371) ===
+    - name: "Stato Luce Ext Greta (KBlue)"
+      unique_id: kblue_stato_luce_ext_greta
+      value_template: >
+        {% if value_json.OGGETTI is defined %}
+          {% set obj = value_json.OGGETTI | selectattr('C', 'defined') | selectattr('C', 'contains', 371) | first | default(none) %}
+          {% if obj and obj.V[0] | int > 0 %}on{% else %}off{% endif %}
+        {% else %}
+          {{ states('sensor.stato_luce_ext_greta_kblue') if states('sensor.stato_luce_ext_greta_kblue') not in ['unknown','unavailable'] else 'off' }}
+        {% endif %}
+
+# ============================================
+# Interrogazione Mappa WC/BAGNO GRANDE (idmp:10)
+# ============================================
+- resource: http://192.168.1.54:50080/request_json
+  method: POST
+  payload: 'command={"cmd":20,"schema":0,"idmp":10}'
+  headers:
+    Connection: "close"
+    Content-Type: "application/x-www-form-urlencoded"
+    Cookie: "user={{ states('sensor.kblue_user_cookie') }}; session={{ states('sensor.kblue_session_cookie') }}"
+  scan_interval: 10
+
+  sensor:
+    # === Strip Bagno Grande (SWITCH - ixv:366) ===
+    - name: "Stato Strip Bagno Grande (KBlue)"
+      unique_id: kblue_stato_strip_bagno_grande
+      value_template: >
+        {% if value_json.OGGETTI is defined %}
+          {% set obj = value_json.OGGETTI | selectattr('C', 'defined') | selectattr('C', 'contains', 366) | first | default(none) %}
+          {% if obj and obj.V[0] | int > 0 %}on{% else %}off{% endif %}
+        {% else %}
+          {{ states('sensor.stato_strip_bagno_grande_kblue') if states('sensor.stato_strip_bagno_grande_kblue') not in ['unknown','unavailable'] else 'off' }}
+        {% endif %}
+
+    # === Faretti Bagno Grande (SWITCH - ixv:367) ===
+    - name: "Stato Faretti Bagno Grande (KBlue)"
+      unique_id: kblue_stato_faretti_bagno_grande
+      value_template: >
+        {% if value_json.OGGETTI is defined %}
+          {% set obj = value_json.OGGETTI | selectattr('C', 'defined') | selectattr('C', 'contains', 367) | first | default(none) %}
+          {% if obj and obj.V[0] | int > 0 %}on{% else %}off{% endif %}
+        {% else %}
+          {{ states('sensor.stato_faretti_bagno_grande_kblue') if states('sensor.stato_faretti_bagno_grande_kblue') not in ['unknown','unavailable'] else 'off' }}
+        {% endif %}
+
+    # === Specchio Bagno Grande (SWITCH - ixv:368) ===
+    - name: "Stato Specchio Bagno Grande (KBlue)"
+      unique_id: kblue_stato_specchio_bagno_grande
+      value_template: >
+        {% if value_json.OGGETTI is defined %}
+          {% set obj = value_json.OGGETTI | selectattr('C', 'defined') | selectattr('C', 'contains', 368) | first | default(none) %}
+          {% if obj and obj.V[0] | int > 0 %}on{% else %}off{% endif %}
+        {% else %}
+          {{ states('sensor.stato_specchio_bagno_grande_kblue') if states('sensor.stato_specchio_bagno_grande_kblue') not in ['unknown','unavailable'] else 'off' }}
+        {% endif %}
+
+# ============================================
+# Interrogazione Mappa CORRIDOIO/CAMERA DA LETTO/LETTO WC (idmp:11)
+# ============================================
+- resource: http://192.168.1.54:50080/request_json
+  method: POST
+  payload: 'command={"cmd":20,"schema":0,"idmp":11}'
+  headers:
+    Connection: "close"
+    Content-Type: "application/x-www-form-urlencoded"
+    Cookie: "user={{ states('sensor.kblue_user_cookie') }}; session={{ states('sensor.kblue_session_cookie') }}"
+  scan_interval: 10
+
+  sensor:
+    # === Strip Letto (ixv:359) ===
+    - name: "Stato Strip Letto (KBlue)"
+      unique_id: kblue_stato_strip_letto
+      value_template: >
+        {% if value_json.OGGETTI is defined %}
+          {% set obj = value_json.OGGETTI | selectattr('C', 'defined') | selectattr('C', 'contains', 359) | first | default(none) %}
+          {% if obj and obj.V[0] | int > 0 %}on{% else %}off{% endif %}
+        {% else %}
+          {{ states('sensor.stato_strip_letto_kblue') if states('sensor.stato_strip_letto_kblue') not in ['unknown','unavailable'] else 'off' }}
+        {% endif %}
+
+    # === Faretti Letto (ixv:361) ===
+    - name: "Stato Faretti Letto (KBlue)"
+      unique_id: kblue_stato_faretti_letto
+      value_template: >
+        {% if value_json.OGGETTI is defined %}
+          {% set obj = value_json.OGGETTI | selectattr('C', 'defined') | selectattr('C', 'contains', 361) | first | default(none) %}
+          {% if obj and obj.V[0] | int > 0 %}on{% else %}off{% endif %}
+        {% else %}
+          {{ states('sensor.stato_faretti_letto_kblue') if states('sensor.stato_faretti_letto_kblue') not in ['unknown','unavailable'] else 'off' }}
+        {% endif %}
+
+    # === Specchio Bagno Letto (ixv:364)===
+    - name: "Stato Specchio Bagno Letto (KBlue)"
+      unique_id: kblue_stato_specchio_bagno_letto
+      value_template: >
+        {% if value_json.OGGETTI is defined %}
+          {% set obj = value_json.OGGETTI | selectattr('C', 'defined') | selectattr('C', 'contains', 364) | first | default(none) %}
+          {% if obj and obj.V[0] | int > 0 %}on{% else %}off{% endif %}
+        {% else %}
+          {{ states('sensor.stato_specchio_bagno_letto_kblue') if states('sensor.stato_specchio_bagno_letto_kblue') not in ['unknown','unavailable'] else 'off' }}
+        {% endif %}
+
+    # === Applique Letto Dx (SWITCH - ixv:357) ===
+    - name: "Stato Applique Letto Dx (KBlue)"
+      unique_id: kblue_stato_applique_letto_dx
+      value_template: >
+        {% if value_json.OGGETTI is defined %}
+          {% set obj = value_json.OGGETTI | selectattr('C', 'defined') | selectattr('C', 'contains', 357) | first | default(none) %}
+          {% if obj and obj.V[0] | int > 0 %}on{% else %}off{% endif %}
+        {% else %}
+          {{ states('sensor.stato_applique_letto_dx_kblue') if states('sensor.stato_applique_letto_dx_kblue') not in ['unknown','unavailable'] else 'off' }}
+        {% endif %}
+
+    # === Applique Letto Sx (SWITCH - ixv:358) ===
+    - name: "Stato Applique Letto Sx (KBlue)"
+      unique_id: kblue_stato_applique_letto_sx
+      value_template: >
+        {% if value_json.OGGETTI is defined %}
+          {% set obj = value_json.OGGETTI | selectattr('C', 'defined') | selectattr('C', 'contains', 358) | first | default(none) %}
+          {% if obj and obj.V[0] | int > 0 %}on{% else %}off{% endif %}
+        {% else %}
+          {{ states('sensor.stato_applique_letto_sx_kblue') if states('sensor.stato_applique_letto_sx_kblue') not in ['unknown','unavailable'] else 'off' }}
+        {% endif %}
+
+    # === Faretto Letto (SWITCH - ixv:360) ===
+    - name: "Stato Faretto Letto (KBlue)"
+      unique_id: kblue_stato_faretto_letto
+      value_template: >
+        {% if value_json.OGGETTI is defined %}
+          {% set obj = value_json.OGGETTI | selectattr('C', 'defined') | selectattr('C', 'contains', 360) | first | default(none) %}
+          {% if obj and obj.V[0] | int > 0 %}on{% else %}off{% endif %}
+        {% else %}
+          {{ states('sensor.stato_faretto_letto_kblue') if states('sensor.stato_faretto_letto_kblue') not in ['unknown','unavailable'] else 'off' }}
+        {% endif %}
+
+    # === Faretti Bagno Letto (SWITCH - ixv:362) ===
+    - name: "Stato Faretti Bagno Letto (KBlue)"
+      unique_id: kblue_stato_faretti_bagno_letto
+      value_template: >
+        {% if value_json.OGGETTI is defined %}
+          {% set obj = value_json.OGGETTI | selectattr('C', 'defined') | selectattr('C', 'contains', 362) | first | default(none) %}
+          {% if obj and obj.V[0] | int > 0 %}on{% else %}off{% endif %}
+        {% else %}
+          {{ states('sensor.stato_faretti_bagno_letto_kblue') if states('sensor.stato_faretti_bagno_letto_kblue') not in ['unknown','unavailable'] else 'off' }}
+        {% endif %}
+
+    # === Strip Bagno Letto (SWITCH - ixv:363) ===
+    - name: "Stato Strip Bagno Letto (KBlue)"
+      unique_id: kblue_stato_strip_bagno_letto
+      value_template: >
+        {% if value_json.OGGETTI is defined %}
+          {% set obj = value_json.OGGETTI | selectattr('C', 'defined') | selectattr('C', 'contains', 363) | first | default(none) %}
+          {% if obj and obj.V[0] | int > 0 %}on{% else %}off{% endif %}
+        {% else %}
+          {{ states('sensor.stato_strip_bagno_letto_kblue') if states('sensor.stato_strip_bagno_letto_kblue') not in ['unknown','unavailable'] else 'off' }}
+        {% endif %}
+
+    # === Cabina Armadio (SWITCH - ixv:365) ===
+    - name: "Stato Cabina Armadio (KBlue)"
+      unique_id: kblue_stato_cabina_armadio
+      value_template: >
+        {% if value_json.OGGETTI is defined %}
+          {% set obj = value_json.OGGETTI | selectattr('C', 'defined') | selectattr('C', 'contains', 365) | first | default(none) %}
+          {% if obj and obj.V[0] | int > 0 %}on{% else %}off{% endif %}
+        {% else %}
+          {{ states('sensor.stato_cabina_armadio_kblue') if states('sensor.stato_cabina_armadio_kblue') not in ['unknown','unavailable'] else 'off' }}
+        {% endif %}
+
+    # === Strip Corridoio (SWITCH - ixv:380) ===
+    - name: "Stato Strip Corridoio (KBlue)"
+      unique_id: kblue_stato_strip_corridoio
+      value_template: >
+        {% if value_json.OGGETTI is defined %}
+          {% set obj = value_json.OGGETTI | selectattr('C', 'defined') | selectattr('C', 'contains', 380) | first | default(none) %}
+          {% if obj and obj.V[0] | int > 0 %}on{% else %}off{% endif %}
+        {% else %}
+          {{ states('sensor.stato_strip_corridoio_kblue') if states('sensor.stato_strip_corridoio_kblue') not in ['unknown','unavailable'] else 'off' }}
+        {% endif %}
+
+    # === Led Corridoio (SWITCH - ixv:390) ===
+    - name: "Stato Led Corridoio (KBlue)"
+      unique_id: kblue_stato_led_corridoio
+      value_template: >
+        {% if value_json.OGGETTI is defined %}
+          {% set obj = value_json.OGGETTI | selectattr('C', 'defined') | selectattr('C', 'contains', 390) | first | default(none) %}
+          {% if obj and obj.V[0] | int > 0 %}on{% else %}off{% endif %}
+        {% else %}
+          {{ states('sensor.stato_led_corridoio_kblue') if states('sensor.stato_led_corridoio_kblue') not in ['unknown','unavailable'] else 'off' }}
+        {% endif %}
+
+# ============================================
+# Interrogazione Mappa ESTERNO (idmp:17)
+# ============================================
+- resource: http://192.168.1.54:50080/request_json
+  method: POST
+  payload: 'command={"cmd":20,"schema":0,"idmp":17}'
+  headers:
+    Connection: "close"
+    Content-Type: "application/x-www-form-urlencoded"
+    Cookie: "user={{ states('sensor.kblue_user_cookie') }}; session={{ states('sensor.kblue_session_cookie') }}"
+  scan_interval: 10
+
+  sensor:
+    # === Luci Ext Salone (SWITCH - ixv:301) ===
+    - name: "Stato Luci Ext Salone (KBlue)"
+      unique_id: kblue_stato_luci_ext_salone
+      value_template: >
+        {% if value_json.OGGETTI is defined %}
+          {% set obj = value_json.OGGETTI | selectattr('C', 'defined') | selectattr('C', 'contains', 301) | first | default(none) %}
+          {% if obj and obj.V[0] | int > 0 %}on{% else %}off{% endif %}
+        {% else %}
+          {{ states('sensor.stato_luci_ext_salone_kblue') if states('sensor.stato_luci_ext_salone_kblue') not in ['unknown','unavailable'] else 'off' }}
+        {% endif %}
+
+    # === Luce Ext Lavanderia (SWITCH - ixv:376) ===
+    - name: "Stato Luce Ext Lavanderia (KBlue)"
+      unique_id: kblue_stato_luce_ext_lavanderia
+      value_template: >
+        {% if value_json.OGGETTI is defined %}
+          {% set obj = value_json.OGGETTI | selectattr('C', 'defined') | selectattr('C', 'contains', 376) | first | default(none) %}
+          {% if obj and obj.V[0] | int > 0 %}on{% else %}off{% endif %}
+        {% else %}
+          {{ states('sensor.stato_luce_ext_lavanderia_kblue') if states('sensor.stato_luce_ext_lavanderia_kblue') not in ['unknown','unavailable'] else 'off' }}
+        {% endif %}
+
+    # === Presa Ext (SWITCH - ixv:375) ===
+    - name: "Stato Presa Ext (KBlue)"
+      unique_id: kblue_stato_presa_ext
+      value_template: >
+        {% if value_json.OGGETTI is defined %}
+          {% set obj = value_json.OGGETTI | selectattr('C', 'defined') | selectattr('C', 'contains', 375) | first | default(none) %}
+          {% if obj and obj.V[0] | int > 0 %}on{% else %}off{% endif %}
+        {% else %}
+          {{ states('sensor.stato_presa_ext_kblue') if states('sensor.stato_presa_ext_kblue') not in ['unknown','unavailable'] else 'off' }}
+        {% endif %}
+
+    # === Presa TV Ext (SWITCH - ixv:300) ===
+    - name: "Stato Presa TV Ext (KBlue)"
+      unique_id: kblue_stato_presa_tv_ext
+      value_template: >
+        {% if value_json.OGGETTI is defined %}
+          {% set obj = value_json.OGGETTI | selectattr('C', 'defined') | selectattr('C', 'contains', 300) | first | default(none) %}
+          {% if obj and obj.V[0] | int > 0 %}on{% else %}off{% endif %}
+        {% else %}
+          {{ states('sensor.stato_presa_tv_ext_kblue') if states('sensor.stato_presa_tv_ext_kblue') not in ['unknown','unavailable'] else 'off' }}
+        {% endif %}
+
+    # === Led Pergotenda (SWITCH - ixv:524) ===
+    - name: "Stato Led Pergotenda (KBlue)"
+      unique_id: kblue_stato_led_pergotenda
+      value_template: >
+        {% if value_json.OGGETTI is defined %}
+          {% set obj = value_json.OGGETTI | selectattr('C', 'defined') | selectattr('C', 'contains', 524) | first | default(none) %}
+          {% if obj and obj.V[0] | int > 0 %}on{% else %}off{% endif %}
+        {% else %}
+          {{ states('sensor.stato_led_pergotenda_kblue') if states('sensor.stato_led_pergotenda_kblue') not in ['unknown','unavailable'] else 'off' }}
+        {% endif %}
+
+    # === Pergotenda Esterna - Posizione ===
+    - name: "Posizione Pergotenda Esterna (KBlue)"
+      unique_id: kblue_posizione_pergotenda_esterna
+      value_template: >
+        {% if value_json.OGGETTI is defined %}
+          {% set obj = value_json.OGGETTI | selectattr('C', 'defined') | selectattr('C', 'contains', 146) | first | default(none) %}
+          {% if obj and obj.V[2] is defined %}
+            {{ [((obj.V[2] | int(0) / 1000.0) * 100) | int, 100] | min }}
+          {% else %}
+            0
+          {% endif %}
+        {% else %}
+          {{ states('sensor.posizione_pergotenda_esterna_kblue') if states('sensor.posizione_pergotenda_esterna_kblue') not in ['unknown','unavailable'] else 0 }}
+        {% endif %}
+      unit_of_measurement: '%'
+
+# ============================================
+# Interrogazione Mappa SUITE LETTO/WC (idmp:1)
+# ============================================
+
+- resource: http://192.168.1.54:50080/request_json
+  method: POST
+  payload: 'command={"cmd":20,"schema":0,"idmp":1}'
+  headers:
+    Connection: "close"
+    Content-Type: "application/x-www-form-urlencoded"
+    Cookie: "user={{ states('sensor.kblue_user_cookie') }}; session={{ states('sensor.kblue_session_cookie') }}"
+  scan_interval: 10
+
+  sensor:
+    # === Presa Letto Suite (SWITCH - ixv:263) ===
+    - name: "Stato Presa Letto Suite (KBlue)"
+      unique_id: kblue_stato_presa_letto_suite
+      value_template: >
+        {% if value_json.OGGETTI is defined %}
+          {% set obj = value_json.OGGETTI | selectattr('C', 'defined') | selectattr('C', 'contains', 263) | first | default(none) %}
+          {% if obj and obj.V[0] | int > 0 %}on{% else %}off{% endif %}
+        {% else %}
+          {{ states('sensor.stato_presa_letto_suite_kblue') if states('sensor.stato_presa_letto_suite_kblue') not in ['unknown','unavailable'] else 'off' }}
+        {% endif %}
+
+    # === Luce Letto Suite (SWITCH - ixv:266) ===
+    - name: "Stato Luce Letto Suite (KBlue)"
+      unique_id: kblue_stato_luce_letto_suite
+      value_template: >
+        {% if value_json.OGGETTI is defined %}
+          {% set obj = value_json.OGGETTI | selectattr('C', 'defined') | selectattr('C', 'contains', 266) | first | default(none) %}
+          {% if obj and obj.V[0] | int > 0 %}on{% else %}off{% endif %}
+        {% else %}
+          {{ states('sensor.stato_luce_letto_suite_kblue') if states('sensor.stato_luce_letto_suite_kblue') not in ['unknown','unavailable'] else 'off' }}
+        {% endif %}
+
+    # === Luce Cucina Suite (SWITCH - ixv:257) ===
+    - name: "Stato Luce Cucina Suite (KBlue)"
+      unique_id: kblue_stato_luce_cucina_suite
+      value_template: >
+        {% if value_json.OGGETTI is defined %}
+          {% set obj = value_json.OGGETTI | selectattr('C', 'defined') | selectattr('C', 'contains', 257) | first | default(none) %}
+          {% if obj and obj.V[0] | int > 0 %}on{% else %}off{% endif %}
+        {% else %}
+          {{ states('sensor.stato_luce_cucina_suite_kblue') if states('sensor.stato_luce_cucina_suite_kblue') not in ['unknown','unavailable'] else 'off' }}
+        {% endif %}
+
+    # === Applique Ingresso Suite (SWITCH - ixv:258) ===
+    - name: "Stato Applique Ingresso Suite (KBlue)"
+      unique_id: kblue_stato_applique_ingresso_suite
+      value_template: >
+        {% if value_json.OGGETTI is defined %}
+          {% set obj = value_json.OGGETTI | selectattr('C', 'defined') | selectattr('C', 'contains', 258) | first | default(none) %}
+          {% if obj and obj.V[0] | int > 0 %}on{% else %}off{% endif %}
+        {% else %}
+          {{ states('sensor.stato_applique_ingresso_suite_kblue_2') if states('sensor.stato_applique_ingresso_suite_kblue_2') not in ['unknown','unavailable'] else 'off' }}
+        {% endif %}
+
+    # === Luce WC Suite (SWITCH - ixv:261) ===
+    - name: "Stato Luce WC Suite (KBlue)"
+      unique_id: kblue_stato_luce_wc_suite
+      value_template: >
+        {% if value_json.OGGETTI is defined %}
+          {% set obj = value_json.OGGETTI | selectattr('C', 'defined') | selectattr('C', 'contains', 261) | first | default(none) %}
+          {% if obj and obj.V[0] | int > 0 %}on{% else %}off{% endif %}
+        {% else %}
+          {{ states('sensor.stato_luce_wc_suite_kblue') if states('sensor.stato_luce_wc_suite_kblue') not in ['unknown','unavailable'] else 'off' }}
+        {% endif %}
+
+    # === Luci Esterne Suite (SWITCH - ixv:267) ===
+    - name: "Stato Luci Esterne Suite (KBlue)"
+      unique_id: kblue_stato_luci_esterne_suite
+      value_template: >
+        {% if value_json.OGGETTI is defined %}
+          {% set obj = value_json.OGGETTI | selectattr('C', 'defined') | selectattr('C', 'contains', 267) | first | default(none) %}
+          {% if obj and obj.V[0] | int > 0 %}on{% else %}off{% endif %}
+        {% else %}
+          {{ states('sensor.stato_luci_esterne_suite_kblue') if states('sensor.stato_luci_esterne_suite_kblue') not in ['unknown','unavailable'] else 'off' }}
+        {% endif %}
+
+    # === Presa Esterna TV Suite (SWITCH - ixv:269) ===
+    - name: "Stato Presa Esterna TV Suite (KBlue)"
+      unique_id: kblue_stato_presa_esterna_tv_suite
+      value_template: >
+        {% if value_json.OGGETTI is defined %}
+          {% set obj = value_json.OGGETTI | selectattr('C', 'defined') | selectattr('C', 'contains', 269) | first | default(none) %}
+          {% if obj and obj.V[0] | int > 0 %}on{% else %}off{% endif %}
+        {% else %}
+          {{ states('sensor.stato_presa_esterna_tv_suite_kblue') if states('sensor.stato_presa_esterna_tv_suite_kblue') not in ['unknown','unavailable'] else 'off' }}
+        {% endif %}
+
+    # === Presa Esterna Suite (SWITCH - ixv:268) ===
+    - name: "Stato Presa Esterna Suite (KBlue)"
+      unique_id: kblue_stato_presa_esterna_suite
+      value_template: >
+        {% if value_json.OGGETTI is defined %}
+          {% set obj = value_json.OGGETTI | selectattr('C', 'defined') | selectattr('C', 'contains', 268) | first | default(none) %}
+          {% if obj and obj.V[0] | int > 0 %}on{% else %}off{% endif %}
+        {% else %}
+          {{ states('sensor.stato_presa_esterna_suite_kblue') if states('sensor.stato_presa_esterna_suite_kblue') not in ['unknown','unavailable'] else 'off' }}
+        {% endif %}
+
+    # === Luce Soppalco Suite (SWITCH - ixv:264) ===
+    - name: "Stato Luce Soppalco Suite (KBlue)"
+      unique_id: kblue_stato_luce_soppalco_suite
+      value_template: >
+        {% if value_json.OGGETTI is defined %}
+          {% set obj = value_json.OGGETTI | selectattr('C', 'defined') | selectattr('C', 'contains', 264) | first | default(none) %}
+          {% if obj and obj.V[0] | int > 0 %}on{% else %}off{% endif %}
+        {% else %}
+          {{ states('sensor.stato_luce_soppalco_suite_kblue') if states('sensor.stato_luce_soppalco_suite_kblue') not in ['unknown','unavailable'] else 'off' }}
+        {% endif %}
+
+    # === Strip Suite (SWITCH - ixv:260) ===
+    - name: "Stato Strip Suite (KBlue)"
+      unique_id: kblue_stato_strip_suite
+      value_template: >
+        {% if value_json.OGGETTI is defined %}
+          {% set obj = value_json.OGGETTI | selectattr('C', 'defined') | selectattr('C', 'contains', 260) | first | default(none) %}
+          {% if obj and obj.V[0] | int > 0 %}on{% else %}off{% endif %}
+        {% else %}
+          {{ states('sensor.stato_strip_suite_kblue') if states('sensor.stato_strip_suite_kblue') not in ['unknown','unavailable'] else 'off' }}
+        {% endif %}
+
+    # === Specchio WC Suite (SWITCH - ixv:262) ===
+    - name: "Stato Specchio WC Suite (KBlue)"
+      unique_id: kblue_stato_specchio_wc_suite
+      value_template: >
+        {% if value_json.OGGETTI is defined %}
+          {% set obj = value_json.OGGETTI | selectattr('C', 'defined') | selectattr('C', 'contains', 262) | first | default(none) %}
+          {% if obj and obj.V[0] | int > 0 %}on{% else %}off{% endif %}
+        {% else %}
+          {{ states('sensor.stato_specchio_wc_suite_kblue') if states('sensor.stato_specchio_wc_suite_kblue') not in ['unknown','unavailable'] else 'off' }}
+        {% endif %}
+
+# ============================================
+# Interrogazione Mappa SUITE MOTORI (idmp:5)
+# ============================================
+
+- resource: http://192.168.1.54:50080/request_json
+  method: POST
+  payload: 'command={"cmd":20,"schema":0,"idmp":5}'
+  headers:
+    Connection: "close"
+    Content-Type: "application/x-www-form-urlencoded"
+    Cookie: "user={{ states('sensor.kblue_user_cookie') }}; session={{ states('sensor.kblue_session_cookie') }}"
+  scan_interval: 10
+
+  sensor:
+    # === Tapparella Letto Suite - Posizione (ixv:161) ===
+    - name: "Posizione Tapparella Letto Suite (KBlue)"
+      unique_id: kblue_posizione_tapparella_letto_suite
+      value_template: >
+        {% if value_json.OGGETTI is defined %}
+          {% set obj = value_json.OGGETTI | selectattr('C', 'defined') | selectattr('C', 'contains', 161) | first | default(none) %}
+          {% if obj and obj.V[2] is defined %}
+            {{ [((obj.V[2] | int(0) / 1000.0) * 100) | int, 100] | min }}
+          {% else %}
+            0
+          {% endif %}
+        {% else %}
+          {{ states('sensor.posizione_tapparella_letto_suite_kblue') if states('sensor.posizione_tapparella_letto_suite_kblue') not in ['unknown','unavailable'] else 0 }}
+        {% endif %}
+      unit_of_measurement: '%'
+
+    # === Tapparella WC Suite - Posizione (ixv:158) ===
+    - name: "Posizione Tapparella WC Suite (KBlue)"
+      unique_id: kblue_posizione_tapparella_wc_suite
+      value_template: >
+        {% if value_json.OGGETTI is defined %}
+          {% set obj = value_json.OGGETTI | selectattr('C', 'defined') | selectattr('C', 'contains', 158) | first | default(none) %}
+          {% if obj and obj.V[2] is defined %}
+            {{ [((obj.V[2] | int(0) / 1000.0) * 100) | int, 100] | min }}
+          {% else %}
+            0
+          {% endif %}
+        {% else %}
+          {{ states('sensor.posizione_tapparella_wc_suite_kblue') if states('sensor.posizione_tapparella_wc_suite_kblue') not in ['unknown','unavailable'] else 0 }}
+        {% endif %}
+      unit_of_measurement: '%'
+
+    # === Grata Fin Pranzo Suite - Posizione (ixv:148) ===
+    - name: "Posizione Grata Fin Pranzo Suite (KBlue)"
+      unique_id: kblue_posizione_grata_fin_pranzo_suite
+      value_template: >
+        {% if value_json.OGGETTI is defined %}
+          {% set obj = value_json.OGGETTI | selectattr('C', 'defined') | selectattr('C', 'contains', 148) | first | default(none) %}
+          {% if obj and obj.V[2] is defined %}
+            {{ [((obj.V[2] | int(0) / 1000.0) * 100) | int, 100] | min }}
+          {% else %}
+            0
+          {% endif %}
+        {% else %}
+          {{ states('sensor.posizione_grata_fin_pranzo_suite_kblue') if states('sensor.posizione_grata_fin_pranzo_suite_kblue') not in ['unknown','unavailable'] else 0 }}
+        {% endif %}
+      unit_of_measurement: '%'
+
+    # === Grata Vasistas Suite - Posizione (ixv:142) ===
+    - name: "Posizione Grata Vasistas Suite (KBlue)"
+      unique_id: kblue_posizione_grata_vasistas_suite
+      value_template: >
+        {% if value_json.OGGETTI is defined %}
+          {% set obj = value_json.OGGETTI | selectattr('C', 'defined') | selectattr('C', 'contains', 142) | first | default(none) %}
+          {% if obj and obj.V[2] is defined %}
+            {{ [((obj.V[2] | int(0) / 1000.0) * 100) | int, 100] | min }}
+          {% else %}
+            0
+          {% endif %}
+        {% else %}
+          {{ states('sensor.posizione_grata_vasistas_suite_kblue') if states('sensor.posizione_grata_vasistas_suite_kblue') not in ['unknown','unavailable'] else 0 }}
+        {% endif %}
+      unit_of_measurement: '%'
+
+    # === Grata Scorr Pranzo Suite - Posizione (ixv:145) ===
+    - name: "Posizione Grata Scorr Pranzo Suite (KBlue)"
+      unique_id: kblue_posizione_grata_scorr_pranzo_suite
+      value_template: >
+        {% if value_json.OGGETTI is defined %}
+          {% set obj = value_json.OGGETTI | selectattr('C', 'defined') | selectattr('C', 'contains', 145) | first | default(none) %}
+          {% if obj and obj.V[2] is defined %}
+            {{ [((obj.V[2] | int(0) / 1000.0) * 100) | int, 100] | min }}
+          {% else %}
+            0
+          {% endif %}
+        {% else %}
+          {{ states('sensor.posizione_grata_scorr_pranzo_suite_kblue') if states('sensor.posizione_grata_scorr_pranzo_suite_kblue') not in ['unknown','unavailable'] else 0 }}
+        {% endif %}
+      unit_of_measurement: '%'
+
+    # === Tenda Fin Pranzo Suite - Posizione (ixv:139) ===
+    - name: "Posizione Tenda Fin Pranzo Suite (KBlue)"
+      unique_id: kblue_posizione_tenda_fin_pranzo_suite
+      value_template: >
+        {% if value_json.OGGETTI is defined %}
+          {% set obj = value_json.OGGETTI | selectattr('C', 'defined') | selectattr('C', 'contains', 139) | first | default(none) %}
+          {% if obj and obj.V[2] is defined %}
+            {{ [((obj.V[2] | int(0) / 1000.0) * 100) | int, 100] | min }}
+          {% else %}
+            0
+          {% endif %}
+        {% else %}
+          {{ states('sensor.posizione_tenda_fin_pranzo_suite_kblue') if states('sensor.posizione_tenda_fin_pranzo_suite_kblue') not in ['unknown','unavailable'] else 0 }}
+        {% endif %}
+      unit_of_measurement: '%'
+
+    # === Tenda Scorr Pranzo Suite - Posizione (ixv:136) ===
+    - name: "Posizione Tenda Scorr Pranzo Suite (KBlue)"
+      unique_id: kblue_posizione_tenda_scorr_pranzo_suite
+      value_template: >
+        {% if value_json.OGGETTI is defined %}
+          {% set obj = value_json.OGGETTI | selectattr('C', 'defined') | selectattr('C', 'contains', 136) | first | default(none) %}
+          {% if obj and obj.V[2] is defined %}
+            {{ [((obj.V[2] | int(0) / 1000.0) * 100) | int, 100] | min }}
+          {% else %}
+            0
+          {% endif %}
+        {% else %}
+          {{ states('sensor.posizione_tenda_scorr_pranzo_suite_kblue') if states('sensor.posizione_tenda_scorr_pranzo_suite_kblue') not in ['unknown','unavailable'] else 0 }}
+        {% endif %}
+      unit_of_measurement: '%'
+
+    # === Tenda Vasistas Suite - Posizione (ixv:133) ===
+    - name: "Posizione Tenda Vasistas Suite (KBlue)"
+      unique_id: kblue_posizione_tenda_vasistas_suite
+      value_template: >
+        {% if value_json.OGGETTI is defined %}
+          {% set obj = value_json.OGGETTI | selectattr('C', 'defined') | selectattr('C', 'contains', 133) | first | default(none) %}
+          {% if obj and obj.V[2] is defined %}
+            {{ [((obj.V[2] | int(0) / 1000.0) * 100) | int, 100] | min }}
+          {% else %}
+            0
+          {% endif %}
+        {% else %}
+          {{ states('sensor.posizione_tenda_vasistas_suite_kblue') if states('sensor.posizione_tenda_vasistas_suite_kblue') not in ['unknown','unavailable'] else 0 }}
+        {% endif %}
+      unit_of_measurement: '%'
+
+# ============================================
+# FINE SEZIONE INTERROGAZIONE MAPPE
+# ============================================
+
+# NOTE:
+# - Le mappe già interrogate (Salone idmp:6, Termostati idmp:14) sono già presenti
+# - Ogni mappa viene interrogata ogni 10 secondi

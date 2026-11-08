@@ -1,0 +1,76 @@
+# =============================================================================
+# RISCALDAMENTO - EVENTI ZONA SINGOLA (per la Chronicle card)
+# Salvare come:  /config/packages/riscaldamento_eventi_zona.yaml
+# (stessa cartella packages del file riscaldamento_zona_singola.yaml)
+#
+# Tre sensori basati su evento, uno per tipo, cosi' la Chronicle card puo'
+# dare a ciascuno icona e gravita' diverse:
+#   sensor.evento_trattenuta_zona        <- evento riscaldamento_zona_trattenuta
+#   sensor.evento_secondo_gradino_zona   <- evento riscaldamento_zona_secondo_gradino
+#   sensor.evento_rilascio_zona          <- evento riscaldamento_zona_rilasciata
+# Lo stato e' una frase leggibile, con l'ora in fondo: cosi' due eventi
+# consecutivi uguali producono comunque due righe distinte nello storico.
+# Il dettaglio completo e' negli attributi.
+# =============================================================================
+
+template:
+  - triggers:
+      - trigger: event
+        event_type: riscaldamento_zona_trattenuta
+    sensor:
+      - name: "Evento trattenuta zona"
+        unique_id: evento_trattenuta_zona
+        state: >-
+          {% set d = trigger.event.data %}
+          {% set t = 'Trattenuta ' ~ d.nome ~ ' · setpoint ' ~ d.setpoint_base ~ ' → ' ~ d.setpoint ~ ' °C'
+             ~ (' · ' ~ d.motivo if d.motivo else '')
+             ~ ' (' ~ now().strftime('%H:%M') ~ ')' %}
+          {{ t | regex_replace('\\s+', ' ') | trim | truncate(250, true, '…') }}
+        attributes:
+          zona: "{{ trigger.event.data.zona }}"
+          nome: "{{ trigger.event.data.nome }}"
+          setpoint_base: "{{ trigger.event.data.setpoint_base }}"
+          setpoint: "{{ trigger.event.data.setpoint }}"
+          temperatura: "{{ trigger.event.data.temperatura }}"
+          motivo: "{{ trigger.event.data.motivo }}"
+          evento_alle: "{{ now().isoformat() }}"
+
+  - triggers:
+      - trigger: event
+        event_type: riscaldamento_zona_secondo_gradino
+    sensor:
+      - name: "Evento secondo gradino zona"
+        unique_id: evento_secondo_gradino_zona
+        state: >-
+          {% set d = trigger.event.data %}
+          {% set t = 'Secondo gradino ' ~ d.nome ~ ' · setpoint ' ~ d.setpoint_base ~ ' → ' ~ d.setpoint ~ ' °C'
+             ~ ' (' ~ now().strftime('%H:%M') ~ ')' %}
+          {{ t | regex_replace('\\s+', ' ') | trim | truncate(250, true, '…') }}
+        attributes:
+          zona: "{{ trigger.event.data.zona }}"
+          nome: "{{ trigger.event.data.nome }}"
+          setpoint_base: "{{ trigger.event.data.setpoint_base }}"
+          setpoint: "{{ trigger.event.data.setpoint }}"
+          temperatura: "{{ trigger.event.data.temperatura }}"
+          durata_min: "{{ trigger.event.data.durata_min }}"
+          evento_alle: "{{ now().isoformat() }}"
+
+  - triggers:
+      - trigger: event
+        event_type: riscaldamento_zona_rilasciata
+    sensor:
+      - name: "Evento rilascio zona"
+        unique_id: evento_rilascio_zona
+        state: >-
+          {% set d = trigger.event.data %}
+          {% set t = 'Rilasciata ' ~ d.nome ~ ' dopo ' ~ d.durata_min ~ ' min · ' ~ d.motivo
+             ~ ' (' ~ now().strftime('%H:%M') ~ ')' %}
+          {{ t | regex_replace('\\s+', ' ') | trim | truncate(250, true, '…') }}
+        attributes:
+          zona: "{{ trigger.event.data.zona }}"
+          nome: "{{ trigger.event.data.nome }}"
+          setpoint_base: "{{ trigger.event.data.setpoint_base }}"
+          motivo: "{{ trigger.event.data.motivo }}"
+          zone_attive: "{{ trigger.event.data.zone_attive }}"
+          durata_min: "{{ trigger.event.data.durata_min }}"
+          evento_alle: "{{ now().isoformat() }}"

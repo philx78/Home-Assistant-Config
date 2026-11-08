@@ -1,0 +1,8 @@
+- platform: group
+  name: Luci Esterno
+  unique_id: luci_esterno_group
+  entities:
+    - light.antela_filament_a60_1
+    - light.antela_filament_a60_2
+    - light.antela_filament_a60_3
+    - light.antela_filament_a60_4

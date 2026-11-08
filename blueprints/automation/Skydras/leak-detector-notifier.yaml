@@ -1,0 +1,157 @@
+blueprint:
+  name: Leak detection & notifier (Custom text + repeat + clear + multi-device)
+  description: 'Automatically notifies when any moisture sensor detects a leak. Supports
+    multiple mobile devices using service name templating.
+
+    '
+  domain: automation
+  input:
+    notify_device:
+      name: Notify devices
+      description: Select one or more mobile devices
+      selector:
+        device:
+          integration: mobile_app
+          multiple: true
+    notification_title:
+      name: Leak notification title
+      default: "⚠️\U0001F4A7 Leak detected!"
+      selector:
+        text:
+          multiple: false
+          multiline: false
+    notification_message:
+      name: Leak notification message
+      default: "\U0001F6A8 {{ sensor_name }} has detected water!"
+      selector:
+        text:
+          multiple: false
+          multiline: false
+    clear_enabled:
+      name: Enable auto-clear notification
+      default: false
+      selector:
+        boolean: {}
+    clear_title:
+      name: Clear notification title
+      default: ✅ Leak cleared
+      selector:
+        text:
+          multiple: false
+          multiline: false
+    clear_message:
+      name: Clear notification message
+      default: ✔️ {{ sensor_name }} is dry again.
+      selector:
+        text:
+          multiple: false
+          multiline: false
+    repeat_enabled:
+      name: Enable repeating alarm
+      default: false
+      selector:
+        boolean: {}
+    repeat_interval:
+      name: Repeat interval (minutes)
+      default: 5
+      selector:
+        number:
+          min: 1.0
+          max: 60.0
+          unit_of_measurement: minutes
+          mode: box
+          step: 1.0
+    script_to_run:
+      name: Optional script to run
+      default: []
+      selector:
+        entity:
+          domain:
+          - script
+          multiple: false
+          reorder: false
+  source_url: https://gist.github.com/Skydras/0b66e2aed6aa3eb8c09842d94a24ec16
+trigger:
+- platform: event
+  event_type: state_changed
+condition:
+- condition: template
+  value_template: "{{ trigger.event.data.new_state is not none\n   and trigger.event.data.new_state.attributes.device_class
+    == \"moisture\" }}\n"
+action:
+- variables:
+    sensor_name: "{{ trigger.event.data.new_state.attributes.friendly_name\n   | default(trigger.event.data.entity_id)
+      }}\n"
+    entity_id: '{{ trigger.event.data.entity_id }}'
+    new_state: '{{ trigger.event.data.new_state.state }}'
+    leak_title: !input notification_title
+    leak_message: !input notification_message
+    clear_title_var: !input clear_title
+    clear_message_var: !input clear_message
+    clear_enabled_var: !input clear_enabled
+    repeat_enabled_var: !input repeat_enabled
+    repeat_interval_var: !input repeat_interval
+    selected_script: !input script_to_run
+    notify_devices: !input notify_device
+- choose:
+  - conditions:
+    - condition: template
+      value_template: '{{ new_state == ''on'' }}'
+    sequence:
+    - repeat:
+        for_each: '{{ notify_devices }}'
+        sequence:
+        - service: notify.mobile_app_{{ device_attr(repeat.item, 'name') | slugify
+            }}
+          data:
+            title: '{{ leak_title }}'
+            message: '{{ leak_message }}'
+            data:
+              icon: mdi:water-alert
+    - choose:
+      - conditions:
+        - condition: template
+          value_template: '{{ selected_script != [] }}'
+        sequence:
+        - service: script.turn_on
+          target:
+            entity_id: '{{ selected_script }}'
+    - choose:
+      - conditions:
+        - condition: template
+          value_template: '{{ repeat_enabled_var }}'
+        sequence:
+        - repeat:
+            while:
+            - condition: template
+              value_template: '{{ is_state(entity_id,''on'') }}
+
+                '
+            sequence:
+            - delay:
+                minutes: '{{ repeat_interval_var }}'
+            - repeat:
+                for_each: '{{ notify_devices }}'
+                sequence:
+                - service: notify.mobile_app_{{ device_attr(repeat.item, 'name') |
+                    slugify }}
+                  data:
+                    title: "\U0001F501 Reminder"
+                    message: '{{ leak_message }}'
+                    data:
+                      icon: mdi:water-alert
+  - conditions:
+    - condition: template
+      value_template: '{{ new_state == ''off'' and clear_enabled_var }}'
+    sequence:
+    - repeat:
+        for_each: '{{ notify_devices }}'
+        sequence:
+        - service: notify.mobile_app_{{ device_attr(repeat.item, 'name') | slugify
+            }}
+          data:
+            title: '{{ clear_title_var }}'
+            message: '{{ clear_message_var }}'
+            data:
+              icon: mdi:water-check
+mode: restart

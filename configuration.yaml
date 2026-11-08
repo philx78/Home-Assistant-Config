@@ -1,0 +1,228 @@
+# Loads default set of integrations. Do not remove.
+default_config:
+
+# Load frontend themes from the themes folder
+frontend:
+  themes: !include_dir_merge_named themes
+
+automation: !include automations.yaml
+script: !include scripts.yaml
+scene: !include scenes.yaml
+sensor: !include sensors.yaml
+template: !include templates.yaml
+command_line: !include command_line.yaml
+rest_command: !include rest_commands.yaml
+rest: !include rest_sensors.yaml
+switch: !include switches.yaml
+light: !include lights.yaml
+climate: !include climate.yaml
+shell_command: !include shell_commands.yaml
+
+homeassistant:
+#  external_url: "https://ha.philx.us"
+
+  packages: !include_dir_named packages
+
+lovelace:
+  resource_mode: yaml
+  resources: !include lovelace-resources.yaml
+  dashboards:
+    lovelace:
+      mode: yaml
+      filename: ui-lovelace.yaml
+      title: Overview
+      icon: mdi:view-dashboard
+      show_in_sidebar: true
+
+panel_custom:
+  - name: Developer Tools
+    sidebar_title: Developer Tools
+    sidebar_icon: mdi:hammer
+    js_url: /api/hassio/app/entrypoint.js
+    url_path: developer-tools/yaml
+    embed_iframe: true
+    require_admin: true
+    config:
+      ingress: core_configurator
+
+input_boolean:
+  alert_pioggia_inviato:
+    name: "Alert pioggia già inviato"
+    initial: false
+
+input_number:
+  tariffa_energia:
+    name: "Tariffa Energia"
+    icon: mdi:currency-eur
+    min: 0
+    max: 1
+    step: 0.0001
+    initial: 0.1488
+    unit_of_measurement: "€/kWh"
+    mode: box
+
+# ============================================
+# UTILITY METERS - Tracciamento Temporale Energia
+# ============================================
+utility_meter:
+  # === GIORNALIERI ===
+  energia_giornaliera_l1:
+    source: sensor.energia_l1
+    cycle: daily
+    name: Energia Giornaliera L1
+
+  energia_giornaliera_l2:
+    source: sensor.energia_l2
+    cycle: daily
+    name: Energia Giornaliera L2
+
+  energia_giornaliera_l3:
+    source: sensor.energia_l3
+    cycle: daily
+    name: Energia Giornaliera L3
+
+  energia_giornaliera_totale:
+    source: sensor.energia_totale
+    cycle: daily
+    name: Energia Giornaliera Totale
+
+  # === SETTIMANALI ===
+  energia_settimanale_l1:
+    source: sensor.energia_l1
+    cycle: weekly
+    name: Energia Settimanale L1
+
+  energia_settimanale_l2:
+    source: sensor.energia_l2
+    cycle: weekly
+    name: Energia Settimanale L2
+
+  energia_settimanale_l3:
+    source: sensor.energia_l3
+    cycle: weekly
+    name: Energia Settimanale L3
+
+  energia_settimanale_totale:
+    source: sensor.energia_totale
+    cycle: weekly
+    name: Energia Settimanale Totale
+
+  # === MENSILI ===
+  energia_mensile_l1:
+    source: sensor.energia_l1
+    cycle: monthly
+    name: Energia Mensile L1
+
+  energia_mensile_l2:
+    source: sensor.energia_l2
+    cycle: monthly
+    name: Energia Mensile L2
+
+  energia_mensile_l3:
+    source: sensor.energia_l3
+    cycle: monthly
+    name: Energia Mensile L3
+
+  energia_mensile_totale:
+    source: sensor.energia_totale
+    cycle: monthly
+    name: Energia Mensile Totale
+
+  # === ANNUALI ===
+  energia_annuale_totale:
+    source: sensor.energia_totale
+    cycle: yearly
+    name: Energia Annuale Totale
+
+# ============================================
+# RECORDER - Configurazione Database e Statistiche
+# ============================================
+recorder:
+  # db_url lasciato commentato = usa SQLite predefinito in /config/home-assistant_v2.db
+  # Se vuoi usare MariaDB/PostgreSQL, decommentalo e aggiungi db_url in secrets.yaml:
+  # db_url: !secret db_url
+
+  purge_keep_days: 90  # Mantieni 90 giorni di storico
+  commit_interval: 30  # Salva ogni 30 secondi
+
+  # Includi esplicitamente i sensori energetici
+  include:
+    domains:
+      - sensor
+      - light
+      - climate
+      - alarm_control_panel   # Risco + Blink (card Sicurezza)
+    entities:
+      - binary_sensor.sensore_dw_wc_contact   # finestra WC (contatto originale)
+      - binary_sensor.storico_finestra_wc     # finestra WC con temperatura (card riscaldamento)
+      - binary_sensor.ir_corr_filippo         # sensori IR Risco (card Sicurezza)
+      - binary_sensor.ir_mirella
+      - binary_sensor.ir_sal_filippo
+      - binary_sensor.ir_ingresso
+      - binary_sensor.remocon_net_heat_pump_heat
+      - binary_sensor.remocon_net_heat_pump_running
+    entity_globs:
+      - sensor.consumo_*
+      - sensor.energia_*
+      - sensor.costo_*
+      - sensor.bilanciamento_*
+      - sensor.utilizzo_*
+      - sensor.stato_allarme_*  # AGGIUNTA RIGA 10/01/2025
+      - sensor.margine_*         # AGGIUNTA RIGA 10/01/2025
+      - switch.*_bypassed        # bypass sensori Risco (card Sicurezza)
+
+  # Escludi sensori ad alta frequenza non necessari
+  exclude:
+    entities:
+      - sensor.time
+      - sensor.date
+    entity_globs:
+      - sensor.*_linkquality
+      - sensor.*_battery
+      - sensor.uptime*
+
+influxdb:
+  max_retries: 3
+  default_measurement: state
+  include:
+    entity_globs:
+      - climate.termostato_*
+      - sensor.riscaldamento_attivo_*
+      - sensor.trend_temperatura_*
+      - sensor.storico_*
+      - sensor.modo_manuale_*_kblue
+      - input_datetime.trattenuta_*
+      # Irraggiamento (Open-Meteo): orizzontale, diretta, diffusa, facciata sud-est e previsione 3h
+      - sensor.irradianza_*
+    entities:
+      # Pompa di calore (riscontro diretto di quando l'impianto parte)
+      - binary_sensor.remocon_net_heat_pump_running
+      - climate.remocon_net_heat_pump
+      # Pompa di calore: setpoint di mandata e temperature comfort/ridotta dell'Elco
+      - sensor.outside_remocon_net_heat_pump_flow_setpoint_temperature
+      - sensor.remocon_net_heat_pump_desired_temperature
+      - sensor.remocon_net_heat_pump_reduced_temperature
+      # Zone e trattenimento
+      - sensor.zone_in_riscaldamento
+      - sensor.zona_da_trattenere
+      - binary_sensor.zona_altra_in_partenza
+      - input_text.zona_trattenuta
+      - input_datetime.zona_ultimo_rilascio
+      - sensor.timeline_stato
+      # Esterno e meteo
+      - sensor.stazione_meteo_modulo_meteo_esterno_temperature
+      - sensor.stazione_meteo_modulo_meteo_esterno_humidity
+      - weather.home_assistant_vdl123
+      - weather.forecast_home
+      # Sole e nuvolosità
+      - sun.sun
+      - sensor.nuvolosita_open_meteo
+      - sensor.sole_facciata_sud_est_previsto_mattina
+      # Potenza elettrica: totale e tre fasi (kW)
+      - sensor.consumo_totale
+      - sensor.consumo_l1
+      - sensor.consumo_l2
+      - sensor.consumo_l3
+      # Finestra bagno grande
+      - binary_sensor.sensore_dw_wc_contact
+

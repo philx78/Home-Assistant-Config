@@ -1,0 +1,1664 @@
+# ============================================================
+# NOTE GENERALI
+# ------------------------------------------------------------
+# File incluso in configuration.yaml con:
+#   rest_command: !include rest_commands.yaml
+# La chiave rest_command: NON va ripetuta qui.
+#
+# Tutti i comandi usano il metodo POST verso:
+#   http://192.168.1.54:50080/request_json
+#
+# Autenticazione tramite cookie di sessione KBlue:
+#   user=    → sensor.kblue_user_cookie
+#   session= → sensor.kblue_session_cookie
+#
+# Struttura payload:
+#   cmd:31   → comando generico KBlue
+#   ixm      → indice modulo (0=zona notte, 1=zona giorno, 2=suite)
+#   ixv      → indice variabile (identifica il singolo dispositivo)
+#   v        → valore del comando
+#
+# Convenzione valori per LUCI:
+#   switch:  v=1 on  |  v=0 off
+#   dimmer:  v=0..1000 (HA usa 0..255, convertito con formula brightness/255*1000)
+#
+# Convenzione valori per MOTORI (tapparelle, grate, tende):
+#   v=2 → apri (su)  |  v=1 → chiudi (giù)  |  v=3 → stop
+#   ECCEZIONE: pergotenda_suite usa ixv diversi per up e down (vedi sezione)
+#
+# Modifica 07/10/2026:
+#   - corretto typo JSON in tapparella_bagno_grande_down ("VARIABILI">)
+#   - aggiunto timeout: 5 ai comandi motori di zona giorno e zona notte
+#     (prima mancava e usavano il timeout di default)
+# ============================================================
+
+claude_weather_forecast:
+  url: "https://api.anthropic.com/v1/messages"
+  method: POST
+  headers:
+    x-api-key: !secret anthropic_api_key
+    anthropic-version: "2023-06-01"
+    content-type: "application/json"
+  payload: >
+    {
+      "model": "claude-haiku-4-5-20251001",
+      "max_tokens": 256,
+      "messages": [{
+        "role": "user",
+        "content": {{ message | tojson }}
+      }]
+    }
+
+# ============================================================
+# ZONA GIORNO — LUCI
+# ixm: 1
+# ============================================================
+
+# --- Strip Salotto -------------------------------------------
+# Tipo: dimmerabile (v: 0..1000)
+# ixv: 188
+kblue_strip_salotto_on:
+  url: http://192.168.1.54:50080/request_json
+  method: POST
+  headers:
+    Content-Type: "application/x-www-form-urlencoded; charset=UTF-8"
+    Cookie: "user={{ states('sensor.kblue_user_cookie') }}; session={{ states('sensor.kblue_session_cookie') }}"
+  payload: 'command={"cmd":31,"VARIABILI":[{"ixm":1,"ixv":188,"v":1000}]}'
+  timeout: 5
+
+kblue_strip_salotto_off:
+  url: http://192.168.1.54:50080/request_json
+  method: POST
+  headers:
+    Content-Type: "application/x-www-form-urlencoded; charset=UTF-8"
+    Cookie: "user={{ states('sensor.kblue_user_cookie') }}; session={{ states('sensor.kblue_session_cookie') }}"
+  payload: 'command={"cmd":31,"VARIABILI":[{"ixm":1,"ixv":188,"v":0}]}'
+  timeout: 5
+
+# brightness: valore 0-255 da HA, convertito in scala 0-1000 per KBlue
+kblue_strip_salotto_brightness:
+  url: http://192.168.1.54:50080/request_json
+  method: POST
+  headers:
+    Content-Type: "application/x-www-form-urlencoded; charset=UTF-8"
+    Cookie: "user={{ states('sensor.kblue_user_cookie') }}; session={{ states('sensor.kblue_session_cookie') }}"
+  payload: 'command={"cmd":31,"VARIABILI":[{"ixm":1,"ixv":188,"v":{{ (brightness / 255 * 1000) | int }}}]}'
+  timeout: 5
+
+# --- Applique Salotto ----------------------------------------
+# Tipo: switch (v: 0/1)
+# ixv: 368
+kblue_applique_salotto_on:
+  url: http://192.168.1.54:50080/request_json
+  method: POST
+  headers:
+    Content-Type: "application/x-www-form-urlencoded; charset=UTF-8"
+    Cookie: "user={{ states('sensor.kblue_user_cookie') }}; session={{ states('sensor.kblue_session_cookie') }}"
+  payload: 'command={"cmd":31,"VARIABILI":[{"ixm":1,"ixv":368,"v":1}]}'
+  timeout: 5
+
+kblue_applique_salotto_off:
+  url: http://192.168.1.54:50080/request_json
+  method: POST
+  headers:
+    Content-Type: "application/x-www-form-urlencoded; charset=UTF-8"
+    Cookie: "user={{ states('sensor.kblue_user_cookie') }}; session={{ states('sensor.kblue_session_cookie') }}"
+  payload: 'command={"cmd":31,"VARIABILI":[{"ixm":1,"ixv":368,"v":0}]}'
+  timeout: 5
+
+# --- Faretti Uno Salotto -------------------------------------
+# Tipo: dimmerabile (v: 0..1000)
+# ixv: 197
+kblue_faretti_uno_salotto_on:
+  url: http://192.168.1.54:50080/request_json
+  method: POST
+  headers:
+    Content-Type: "application/x-www-form-urlencoded; charset=UTF-8"
+    Cookie: "user={{ states('sensor.kblue_user_cookie') }}; session={{ states('sensor.kblue_session_cookie') }}"
+  payload: 'command={"cmd":31,"VARIABILI":[{"ixm":1,"ixv":197,"v":1000}]}'
+  timeout: 5
+
+kblue_faretti_uno_salotto_off:
+  url: http://192.168.1.54:50080/request_json
+  method: POST
+  headers:
+    Content-Type: "application/x-www-form-urlencoded; charset=UTF-8"
+    Cookie: "user={{ states('sensor.kblue_user_cookie') }}; session={{ states('sensor.kblue_session_cookie') }}"
+  payload: 'command={"cmd":31,"VARIABILI":[{"ixm":1,"ixv":197,"v":0}]}'
+  timeout: 5
+
+kblue_faretti_uno_salotto_brightness:
+  url: http://192.168.1.54:50080/request_json
+  method: POST
+  headers:
+    Content-Type: "application/x-www-form-urlencoded; charset=UTF-8"
+    Cookie: "user={{ states('sensor.kblue_user_cookie') }}; session={{ states('sensor.kblue_session_cookie') }}"
+  payload: 'command={"cmd":31,"VARIABILI":[{"ixm":1,"ixv":197,"v":{{ (brightness / 255 * 1000) | int }}}]}'
+  timeout: 5
+
+# --- Faretti Due Salotto -------------------------------------
+# Tipo: dimmerabile (v: 0..1000)
+# ixv: 206
+kblue_faretti_due_salotto_on:
+  url: http://192.168.1.54:50080/request_json
+  method: POST
+  headers:
+    Content-Type: "application/x-www-form-urlencoded; charset=UTF-8"
+    Cookie: "user={{ states('sensor.kblue_user_cookie') }}; session={{ states('sensor.kblue_session_cookie') }}"
+  payload: 'command={"cmd":31,"VARIABILI":[{"ixm":1,"ixv":206,"v":1000}]}'
+  timeout: 5
+
+kblue_faretti_due_salotto_off:
+  url: http://192.168.1.54:50080/request_json
+  method: POST
+  headers:
+    Content-Type: "application/x-www-form-urlencoded; charset=UTF-8"
+    Cookie: "user={{ states('sensor.kblue_user_cookie') }}; session={{ states('sensor.kblue_session_cookie') }}"
+  payload: 'command={"cmd":31,"VARIABILI":[{"ixm":1,"ixv":206,"v":0}]}'
+  timeout: 5
+
+kblue_faretti_due_salotto_brightness:
+  url: http://192.168.1.54:50080/request_json
+  method: POST
+  headers:
+    Content-Type: "application/x-www-form-urlencoded; charset=UTF-8"
+    Cookie: "user={{ states('sensor.kblue_user_cookie') }}; session={{ states('sensor.kblue_session_cookie') }}"
+  payload: 'command={"cmd":31,"VARIABILI":[{"ixm":1,"ixv":206,"v":{{ (brightness / 255 * 1000) | int }}}]}'
+  timeout: 5
+
+# --- Pendenti Salotto ----------------------------------------
+# Tipo: switch (v: 0/1)
+# ixv: 302
+kblue_pendenti_salotto_on:
+  url: http://192.168.1.54:50080/request_json
+  method: POST
+  headers:
+    Content-Type: "application/x-www-form-urlencoded; charset=UTF-8"
+    Cookie: "user={{ states('sensor.kblue_user_cookie') }}; session={{ states('sensor.kblue_session_cookie') }}"
+  payload: 'command={"cmd":31,"VARIABILI":[{"ixm":1,"ixv":302,"v":1}]}'
+  timeout: 5
+
+kblue_pendenti_salotto_off:
+  url: http://192.168.1.54:50080/request_json
+  method: POST
+  headers:
+    Content-Type: "application/x-www-form-urlencoded; charset=UTF-8"
+    Cookie: "user={{ states('sensor.kblue_user_cookie') }}; session={{ states('sensor.kblue_session_cookie') }}"
+  payload: 'command={"cmd":31,"VARIABILI":[{"ixm":1,"ixv":302,"v":0}]}'
+  timeout: 5
+
+# --- Strip TV ------------------------------------------------
+# Tipo: switch (v: 0/1)
+# ixv: 303
+kblue_strip_tv_on:
+  url: http://192.168.1.54:50080/request_json
+  method: POST
+  headers:
+    Content-Type: "application/x-www-form-urlencoded; charset=UTF-8"
+    Cookie: "user={{ states('sensor.kblue_user_cookie') }}; session={{ states('sensor.kblue_session_cookie') }}"
+  payload: 'command={"cmd":31,"VARIABILI":[{"ixm":1,"ixv":303,"v":1}]}'
+  timeout: 5
+
+kblue_strip_tv_off:
+  url: http://192.168.1.54:50080/request_json
+  method: POST
+  headers:
+    Content-Type: "application/x-www-form-urlencoded; charset=UTF-8"
+    Cookie: "user={{ states('sensor.kblue_user_cookie') }}; session={{ states('sensor.kblue_session_cookie') }}"
+  payload: 'command={"cmd":31,"VARIABILI":[{"ixm":1,"ixv":303,"v":0}]}'
+  timeout: 5
+
+# --- Strip Balconcino ----------------------------------------
+# Tipo: switch (v: 0/1)
+# ixv: 525
+kblue_strip_balconcino_on:
+  url: http://192.168.1.54:50080/request_json
+  method: POST
+  headers:
+    Content-Type: "application/x-www-form-urlencoded; charset=UTF-8"
+    Cookie: "user={{ states('sensor.kblue_user_cookie') }}; session={{ states('sensor.kblue_session_cookie') }}"
+  payload: 'command={"cmd":31,"VARIABILI":[{"ixm":1,"ixv":525,"v":1}]}'
+  timeout: 5
+
+kblue_strip_balconcino_off:
+  url: http://192.168.1.54:50080/request_json
+  method: POST
+  headers:
+    Content-Type: "application/x-www-form-urlencoded; charset=UTF-8"
+    Cookie: "user={{ states('sensor.kblue_user_cookie') }}; session={{ states('sensor.kblue_session_cookie') }}"
+  payload: 'command={"cmd":31,"VARIABILI":[{"ixm":1,"ixv":525,"v":0}]}'
+  timeout: 5
+
+# --- Strip Ingresso ------------------------------------------
+# Tipo: switch (v: 0/1)
+# ixv: 304
+kblue_strip_ingresso_on:
+  url: http://192.168.1.54:50080/request_json
+  method: POST
+  headers:
+    Content-Type: "application/x-www-form-urlencoded; charset=UTF-8"
+    Cookie: "user={{ states('sensor.kblue_user_cookie') }}; session={{ states('sensor.kblue_session_cookie') }}"
+  payload: 'command={"cmd":31,"VARIABILI":[{"ixm":1,"ixv":304,"v":1}]}'
+  timeout: 5
+
+kblue_strip_ingresso_off:
+  url: http://192.168.1.54:50080/request_json
+  method: POST
+  headers:
+    Content-Type: "application/x-www-form-urlencoded; charset=UTF-8"
+    Cookie: "user={{ states('sensor.kblue_user_cookie') }}; session={{ states('sensor.kblue_session_cookie') }}"
+  payload: 'command={"cmd":31,"VARIABILI":[{"ixm":1,"ixv":304,"v":0}]}'
+  timeout: 5
+
+# --- Strip Corridoio -----------------------------------------
+# Tipo: switch (v: 0/1)
+# ixm: 0  |  ixv: 380
+kblue_strip_corridoio_on:
+  url: http://192.168.1.54:50080/request_json
+  method: POST
+  headers:
+    Content-Type: "application/x-www-form-urlencoded; charset=UTF-8"
+    Cookie: "user={{ states('sensor.kblue_user_cookie') }}; session={{ states('sensor.kblue_session_cookie') }}"
+  payload: 'command={"cmd":31,"VARIABILI":[{"ixm":0,"ixv":380,"v":1}]}'
+  timeout: 5
+
+kblue_strip_corridoio_off:
+  url: http://192.168.1.54:50080/request_json
+  method: POST
+  headers:
+    Content-Type: "application/x-www-form-urlencoded; charset=UTF-8"
+    Cookie: "user={{ states('sensor.kblue_user_cookie') }}; session={{ states('sensor.kblue_session_cookie') }}"
+  payload: 'command={"cmd":31,"VARIABILI":[{"ixm":0,"ixv":380,"v":0}]}'
+  timeout: 5
+
+# --- LED Corridoio -------------------------------------------
+# Tipo: switch (v: 0/1)
+# ixm: 0  |  ixv: 390
+kblue_led_corridoio_on:
+  url: http://192.168.1.54:50080/request_json
+  method: POST
+  headers:
+    Content-Type: "application/x-www-form-urlencoded; charset=UTF-8"
+    Cookie: "user={{ states('sensor.kblue_user_cookie') }}; session={{ states('sensor.kblue_session_cookie') }}"
+  payload: 'command={"cmd":31,"VARIABILI":[{"ixm":0,"ixv":390,"v":1}]}'
+  timeout: 5
+
+kblue_led_corridoio_off:
+  url: http://192.168.1.54:50080/request_json
+  method: POST
+  headers:
+    Content-Type: "application/x-www-form-urlencoded; charset=UTF-8"
+    Cookie: "user={{ states('sensor.kblue_user_cookie') }}; session={{ states('sensor.kblue_session_cookie') }}"
+  payload: 'command={"cmd":31,"VARIABILI":[{"ixm":0,"ixv":390,"v":0}]}'
+  timeout: 5
+
+
+# ============================================================
+# CUCINA — LUCI
+# ixm: 0 (pendenti) / 1 (iSign, soppalco)
+# ============================================================
+
+# --- iSign Cucina --------------------------------------------
+# Tipo: dimmerabile (v: 0..1000)
+# ixm: 1  |  ixv: 215
+kblue_isign_cucina_on:
+  url: http://192.168.1.54:50080/request_json
+  method: POST
+  headers:
+    Content-Type: "application/x-www-form-urlencoded; charset=UTF-8"
+    Cookie: "user={{ states('sensor.kblue_user_cookie') }}; session={{ states('sensor.kblue_session_cookie') }}"
+  payload: 'command={"cmd":31,"VARIABILI":[{"ixm":1,"ixv":215,"v":1000}]}'
+  timeout: 5
+
+kblue_isign_cucina_off:
+  url: http://192.168.1.54:50080/request_json
+  method: POST
+  headers:
+    Content-Type: "application/x-www-form-urlencoded; charset=UTF-8"
+    Cookie: "user={{ states('sensor.kblue_user_cookie') }}; session={{ states('sensor.kblue_session_cookie') }}"
+  payload: 'command={"cmd":31,"VARIABILI":[{"ixm":1,"ixv":215,"v":0}]}'
+  timeout: 5
+
+kblue_isign_cucina_brightness:
+  url: http://192.168.1.54:50080/request_json
+  method: POST
+  headers:
+    Content-Type: "application/x-www-form-urlencoded; charset=UTF-8"
+    Cookie: "user={{ states('sensor.kblue_user_cookie') }}; session={{ states('sensor.kblue_session_cookie') }}"
+  payload: 'command={"cmd":31,"VARIABILI":[{"ixm":1,"ixv":215,"v":{{ (brightness / 255 * 1000) | int }}}]}'
+  timeout: 5
+
+# --- Pendenti Cucina -----------------------------------------
+# Tipo: switch (v: 0/1)
+# ixm: 0  |  ixv: 385
+kblue_pendenti_cucina_on:
+  url: http://192.168.1.54:50080/request_json
+  method: POST
+  headers:
+    Content-Type: "application/x-www-form-urlencoded; charset=UTF-8"
+    Cookie: "user={{ states('sensor.kblue_user_cookie') }}; session={{ states('sensor.kblue_session_cookie') }}"
+  payload: 'command={"cmd":31,"VARIABILI":[{"ixm":0,"ixv":385,"v":1}]}'
+  timeout: 5
+
+kblue_pendenti_cucina_off:
+  url: http://192.168.1.54:50080/request_json
+  method: POST
+  headers:
+    Content-Type: "application/x-www-form-urlencoded; charset=UTF-8"
+    Cookie: "user={{ states('sensor.kblue_user_cookie') }}; session={{ states('sensor.kblue_session_cookie') }}"
+  payload: 'command={"cmd":31,"VARIABILI":[{"ixm":0,"ixv":385,"v":0}]}'
+  timeout: 5
+
+# --- Luce Soppalco -------------------------------------------
+# Tipo: switch (v: 0/1)
+# ixm: 1  |  ixv: 299
+kblue_luce_soppalco_on:
+  url: http://192.168.1.54:50080/request_json
+  method: POST
+  headers:
+    Content-Type: "application/x-www-form-urlencoded; charset=UTF-8"
+    Cookie: "user={{ states('sensor.kblue_user_cookie') }}; session={{ states('sensor.kblue_session_cookie') }}"
+  payload: 'command={"cmd":31,"VARIABILI":[{"ixm":1,"ixv":299,"v":1}]}'
+  timeout: 5
+
+kblue_luce_soppalco_off:
+  url: http://192.168.1.54:50080/request_json
+  method: POST
+  headers:
+    Content-Type: "application/x-www-form-urlencoded; charset=UTF-8"
+    Cookie: "user={{ states('sensor.kblue_user_cookie') }}; session={{ states('sensor.kblue_session_cookie') }}"
+  payload: 'command={"cmd":31,"VARIABILI":[{"ixm":1,"ixv":299,"v":0}]}'
+  timeout: 5
+
+
+# ============================================================
+# CAMERA FRANCESCO — LUCI
+# ixm: 0
+# ============================================================
+
+# --- Luce Francesco ------------------------------------------
+# Tipo: switch (v: 0/1)
+# ixv: 373
+kblue_luce_francesco_on:
+  url: http://192.168.1.54:50080/request_json
+  method: POST
+  headers:
+    Content-Type: "application/x-www-form-urlencoded; charset=UTF-8"
+    Cookie: "user={{ states('sensor.kblue_user_cookie') }}; session={{ states('sensor.kblue_session_cookie') }}"
+  payload: 'command={"cmd":31,"VARIABILI":[{"ixm":0,"ixv":373,"v":1}]}'
+  timeout: 5
+
+kblue_luce_francesco_off:
+  url: http://192.168.1.54:50080/request_json
+  method: POST
+  headers:
+    Content-Type: "application/x-www-form-urlencoded; charset=UTF-8"
+    Cookie: "user={{ states('sensor.kblue_user_cookie') }}; session={{ states('sensor.kblue_session_cookie') }}"
+  payload: 'command={"cmd":31,"VARIABILI":[{"ixm":0,"ixv":373,"v":0}]}'
+  timeout: 5
+
+# --- Presa Francesco -----------------------------------------
+# Tipo: switch (v: 0/1)
+# ixv: 372
+kblue_presa_francesco_on:
+  url: http://192.168.1.54:50080/request_json
+  method: POST
+  headers:
+    Content-Type: "application/x-www-form-urlencoded; charset=UTF-8"
+    Cookie: "user={{ states('sensor.kblue_user_cookie') }}; session={{ states('sensor.kblue_session_cookie') }}"
+  payload: 'command={"cmd":31,"VARIABILI":[{"ixm":0,"ixv":372,"v":1}]}'
+  timeout: 5
+
+kblue_presa_francesco_off:
+  url: http://192.168.1.54:50080/request_json
+  method: POST
+  headers:
+    Content-Type: "application/x-www-form-urlencoded; charset=UTF-8"
+    Cookie: "user={{ states('sensor.kblue_user_cookie') }}; session={{ states('sensor.kblue_session_cookie') }}"
+  payload: 'command={"cmd":31,"VARIABILI":[{"ixm":0,"ixv":372,"v":0}]}'
+  timeout: 5
+
+
+# ============================================================
+# CAMERA GRETA — LUCI
+# ixm: 0
+# ============================================================
+
+# --- Luce Greta ----------------------------------------------
+# Tipo: switch (v: 0/1)
+# ixv: 369
+kblue_luce_greta_on:
+  url: http://192.168.1.54:50080/request_json
+  method: POST
+  headers:
+    Content-Type: "application/x-www-form-urlencoded; charset=UTF-8"
+    Cookie: "user={{ states('sensor.kblue_user_cookie') }}; session={{ states('sensor.kblue_session_cookie') }}"
+  payload: 'command={"cmd":31,"VARIABILI":[{"ixm":0,"ixv":369,"v":1}]}'
+  timeout: 5
+
+kblue_luce_greta_off:
+  url: http://192.168.1.54:50080/request_json
+  method: POST
+  headers:
+    Content-Type: "application/x-www-form-urlencoded; charset=UTF-8"
+    Cookie: "user={{ states('sensor.kblue_user_cookie') }}; session={{ states('sensor.kblue_session_cookie') }}"
+  payload: 'command={"cmd":31,"VARIABILI":[{"ixm":0,"ixv":369,"v":0}]}'
+  timeout: 5
+
+# --- Presa Greta ---------------------------------------------
+# Tipo: switch (v: 0/1)
+# ixv: 370
+kblue_presa_greta_on:
+  url: http://192.168.1.54:50080/request_json
+  method: POST
+  headers:
+    Content-Type: "application/x-www-form-urlencoded; charset=UTF-8"
+    Cookie: "user={{ states('sensor.kblue_user_cookie') }}; session={{ states('sensor.kblue_session_cookie') }}"
+  payload: 'command={"cmd":31,"VARIABILI":[{"ixm":0,"ixv":370,"v":1}]}'
+  timeout: 5
+
+kblue_presa_greta_off:
+  url: http://192.168.1.54:50080/request_json
+  method: POST
+  headers:
+    Content-Type: "application/x-www-form-urlencoded; charset=UTF-8"
+    Cookie: "user={{ states('sensor.kblue_user_cookie') }}; session={{ states('sensor.kblue_session_cookie') }}"
+  payload: 'command={"cmd":31,"VARIABILI":[{"ixm":0,"ixv":370,"v":0}]}'
+  timeout: 5
+
+# --- Luce Ext Greta ------------------------------------------
+# Tipo: switch (v: 0/1)
+# ixv: 371
+kblue_luce_ext_greta_on:
+  url: http://192.168.1.54:50080/request_json
+  method: POST
+  headers:
+    Content-Type: "application/x-www-form-urlencoded; charset=UTF-8"
+    Cookie: "user={{ states('sensor.kblue_user_cookie') }}; session={{ states('sensor.kblue_session_cookie') }}"
+  payload: 'command={"cmd":31,"VARIABILI":[{"ixm":0,"ixv":371,"v":1}]}'
+  timeout: 5
+
+kblue_luce_ext_greta_off:
+  url: http://192.168.1.54:50080/request_json
+  method: POST
+  headers:
+    Content-Type: "application/x-www-form-urlencoded; charset=UTF-8"
+    Cookie: "user={{ states('sensor.kblue_user_cookie') }}; session={{ states('sensor.kblue_session_cookie') }}"
+  payload: 'command={"cmd":31,"VARIABILI":[{"ixm":0,"ixv":371,"v":0}]}'
+  timeout: 5
+
+
+# ============================================================
+# BAGNO GRANDE — LUCI
+# ixm: 0
+# ============================================================
+
+# --- Strip Bagno Grande --------------------------------------
+# Tipo: switch (v: 0/1)
+# ixv: 366
+kblue_strip_bagno_grande_on:
+  url: http://192.168.1.54:50080/request_json
+  method: POST
+  headers:
+    Content-Type: "application/x-www-form-urlencoded; charset=UTF-8"
+    Cookie: "user={{ states('sensor.kblue_user_cookie') }}; session={{ states('sensor.kblue_session_cookie') }}"
+  payload: 'command={"cmd":31,"VARIABILI":[{"ixm":0,"ixv":366,"v":1}]}'
+  timeout: 5
+
+kblue_strip_bagno_grande_off:
+  url: http://192.168.1.54:50080/request_json
+  method: POST
+  headers:
+    Content-Type: "application/x-www-form-urlencoded; charset=UTF-8"
+    Cookie: "user={{ states('sensor.kblue_user_cookie') }}; session={{ states('sensor.kblue_session_cookie') }}"
+  payload: 'command={"cmd":31,"VARIABILI":[{"ixm":0,"ixv":366,"v":0}]}'
+  timeout: 5
+
+# --- Faretti Bagno Grande ------------------------------------
+# Tipo: switch (v: 0/1)
+# ixv: 367
+kblue_faretti_bagno_grande_on:
+  url: http://192.168.1.54:50080/request_json
+  method: POST
+  headers:
+    Content-Type: "application/x-www-form-urlencoded; charset=UTF-8"
+    Cookie: "user={{ states('sensor.kblue_user_cookie') }}; session={{ states('sensor.kblue_session_cookie') }}"
+  payload: 'command={"cmd":31,"VARIABILI":[{"ixm":0,"ixv":367,"v":1}]}'
+  timeout: 5
+
+kblue_faretti_bagno_grande_off:
+  url: http://192.168.1.54:50080/request_json
+  method: POST
+  headers:
+    Content-Type: "application/x-www-form-urlencoded; charset=UTF-8"
+    Cookie: "user={{ states('sensor.kblue_user_cookie') }}; session={{ states('sensor.kblue_session_cookie') }}"
+  payload: 'command={"cmd":31,"VARIABILI":[{"ixm":0,"ixv":367,"v":0}]}'
+  timeout: 5
+
+# --- Specchio Bagno Grande -----------------------------------
+# Tipo: switch (v: 0/1)
+# ixv: 368
+kblue_specchio_bagno_grande_on:
+  url: http://192.168.1.54:50080/request_json
+  method: POST
+  headers:
+    Content-Type: "application/x-www-form-urlencoded; charset=UTF-8"
+    Cookie: "user={{ states('sensor.kblue_user_cookie') }}; session={{ states('sensor.kblue_session_cookie') }}"
+  payload: 'command={"cmd":31,"VARIABILI":[{"ixm":0,"ixv":368,"v":1}]}'
+  timeout: 5
+
+kblue_specchio_bagno_grande_off:
+  url: http://192.168.1.54:50080/request_json
+  method: POST
+  headers:
+    Content-Type: "application/x-www-form-urlencoded; charset=UTF-8"
+    Cookie: "user={{ states('sensor.kblue_user_cookie') }}; session={{ states('sensor.kblue_session_cookie') }}"
+  payload: 'command={"cmd":31,"VARIABILI":[{"ixm":0,"ixv":368,"v":0}]}'
+  timeout: 5
+
+
+# ============================================================
+# CAMERA MATRIMONIALE — LUCI
+# ixm: 0
+# ============================================================
+
+# --- Strip Letto ---------------------------------------------
+# Tipo: switch (v: 0/1)
+# ixv: 359
+kblue_strip_letto_on:
+  url: http://192.168.1.54:50080/request_json
+  method: POST
+  headers:
+    Content-Type: "application/x-www-form-urlencoded; charset=UTF-8"
+    Cookie: "user={{ states('sensor.kblue_user_cookie') }}; session={{ states('sensor.kblue_session_cookie') }}"
+  payload: 'command={"cmd":31,"VARIABILI":[{"ixm":0,"ixv":359,"v":1}]}'
+  timeout: 5
+
+kblue_strip_letto_off:
+  url: http://192.168.1.54:50080/request_json
+  method: POST
+  headers:
+    Content-Type: "application/x-www-form-urlencoded; charset=UTF-8"
+    Cookie: "user={{ states('sensor.kblue_user_cookie') }}; session={{ states('sensor.kblue_session_cookie') }}"
+  payload: 'command={"cmd":31,"VARIABILI":[{"ixm":0,"ixv":359,"v":0}]}'
+  timeout: 5
+
+# --- Faretti Letto -------------------------------------------
+# Tipo: switch (v: 0/1)
+# ixv: 361
+kblue_faretti_letto_on:
+  url: http://192.168.1.54:50080/request_json
+  method: POST
+  headers:
+    Content-Type: "application/x-www-form-urlencoded; charset=UTF-8"
+    Cookie: "user={{ states('sensor.kblue_user_cookie') }}; session={{ states('sensor.kblue_session_cookie') }}"
+  payload: 'command={"cmd":31,"VARIABILI":[{"ixm":0,"ixv":361,"v":1}]}'
+  timeout: 5
+
+kblue_faretti_letto_off:
+  url: http://192.168.1.54:50080/request_json
+  method: POST
+  headers:
+    Content-Type: "application/x-www-form-urlencoded; charset=UTF-8"
+    Cookie: "user={{ states('sensor.kblue_user_cookie') }}; session={{ states('sensor.kblue_session_cookie') }}"
+  payload: 'command={"cmd":31,"VARIABILI":[{"ixm":0,"ixv":361,"v":0}]}'
+  timeout: 5
+
+# --- Applique Letto DX ---------------------------------------
+# Tipo: switch (v: 0/1)
+# ixv: 357
+kblue_applique_letto_dx_on:
+  url: http://192.168.1.54:50080/request_json
+  method: POST
+  headers:
+    Content-Type: "application/x-www-form-urlencoded; charset=UTF-8"
+    Cookie: "user={{ states('sensor.kblue_user_cookie') }}; session={{ states('sensor.kblue_session_cookie') }}"
+  payload: 'command={"cmd":31,"VARIABILI":[{"ixm":0,"ixv":357,"v":1}]}'
+  timeout: 5
+
+kblue_applique_letto_dx_off:
+  url: http://192.168.1.54:50080/request_json
+  method: POST
+  headers:
+    Content-Type: "application/x-www-form-urlencoded; charset=UTF-8"
+    Cookie: "user={{ states('sensor.kblue_user_cookie') }}; session={{ states('sensor.kblue_session_cookie') }}"
+  payload: 'command={"cmd":31,"VARIABILI":[{"ixm":0,"ixv":357,"v":0}]}'
+  timeout: 5
+
+# --- Applique Letto SX ---------------------------------------
+# Tipo: switch (v: 0/1)
+# ixv: 358
+kblue_applique_letto_sx_on:
+  url: http://192.168.1.54:50080/request_json
+  method: POST
+  headers:
+    Content-Type: "application/x-www-form-urlencoded; charset=UTF-8"
+    Cookie: "user={{ states('sensor.kblue_user_cookie') }}; session={{ states('sensor.kblue_session_cookie') }}"
+  payload: 'command={"cmd":31,"VARIABILI":[{"ixm":0,"ixv":358,"v":1}]}'
+  timeout: 5
+
+kblue_applique_letto_sx_off:
+  url: http://192.168.1.54:50080/request_json
+  method: POST
+  headers:
+    Content-Type: "application/x-www-form-urlencoded; charset=UTF-8"
+    Cookie: "user={{ states('sensor.kblue_user_cookie') }}; session={{ states('sensor.kblue_session_cookie') }}"
+  payload: 'command={"cmd":31,"VARIABILI":[{"ixm":0,"ixv":358,"v":0}]}'
+  timeout: 5
+
+# --- Cabina Armadio ------------------------------------------
+# Tipo: switch (v: 0/1)
+# ixv: 365
+kblue_cabina_armadio_on:
+  url: http://192.168.1.54:50080/request_json
+  method: POST
+  headers:
+    Content-Type: "application/x-www-form-urlencoded; charset=UTF-8"
+    Cookie: "user={{ states('sensor.kblue_user_cookie') }}; session={{ states('sensor.kblue_session_cookie') }}"
+  payload: 'command={"cmd":31,"VARIABILI":[{"ixm":0,"ixv":365,"v":1}]}'
+  timeout: 5
+
+kblue_cabina_armadio_off:
+  url: http://192.168.1.54:50080/request_json
+  method: POST
+  headers:
+    Content-Type: "application/x-www-form-urlencoded; charset=UTF-8"
+    Cookie: "user={{ states('sensor.kblue_user_cookie') }}; session={{ states('sensor.kblue_session_cookie') }}"
+  payload: 'command={"cmd":31,"VARIABILI":[{"ixm":0,"ixv":365,"v":0}]}'
+  timeout: 5
+
+# --- Faretto Letto -------------------------------------------
+# Tipo: switch (v: 0/1)
+# ixv: 360
+kblue_faretto_letto_on:
+  url: http://192.168.1.54:50080/request_json
+  method: POST
+  headers:
+    Content-Type: "application/x-www-form-urlencoded; charset=UTF-8"
+    Cookie: "user={{ states('sensor.kblue_user_cookie') }}; session={{ states('sensor.kblue_session_cookie') }}"
+  payload: 'command={"cmd":31,"VARIABILI":[{"ixm":0,"ixv":360,"v":1}]}'
+  timeout: 5
+
+kblue_faretto_letto_off:
+  url: http://192.168.1.54:50080/request_json
+  method: POST
+  headers:
+    Content-Type: "application/x-www-form-urlencoded; charset=UTF-8"
+    Cookie: "user={{ states('sensor.kblue_user_cookie') }}; session={{ states('sensor.kblue_session_cookie') }}"
+  payload: 'command={"cmd":31,"VARIABILI":[{"ixm":0,"ixv":360,"v":0}]}'
+  timeout: 5
+
+# --- Faretti Bagno Letto -------------------------------------
+# Tipo: switch (v: 0/1)
+# ixv: 362
+kblue_faretti_bagno_letto_on:
+  url: http://192.168.1.54:50080/request_json
+  method: POST
+  headers:
+    Content-Type: "application/x-www-form-urlencoded; charset=UTF-8"
+    Cookie: "user={{ states('sensor.kblue_user_cookie') }}; session={{ states('sensor.kblue_session_cookie') }}"
+  payload: 'command={"cmd":31,"VARIABILI":[{"ixm":0,"ixv":362,"v":1}]}'
+  timeout: 5
+
+kblue_faretti_bagno_letto_off:
+  url: http://192.168.1.54:50080/request_json
+  method: POST
+  headers:
+    Content-Type: "application/x-www-form-urlencoded; charset=UTF-8"
+    Cookie: "user={{ states('sensor.kblue_user_cookie') }}; session={{ states('sensor.kblue_session_cookie') }}"
+  payload: 'command={"cmd":31,"VARIABILI":[{"ixm":0,"ixv":362,"v":0}]}'
+  timeout: 5
+
+# --- Strip Bagno Letto ---------------------------------------
+# Tipo: switch (v: 0/1)
+# ixv: 363
+kblue_strip_bagno_letto_on:
+  url: http://192.168.1.54:50080/request_json
+  method: POST
+  headers:
+    Content-Type: "application/x-www-form-urlencoded; charset=UTF-8"
+    Cookie: "user={{ states('sensor.kblue_user_cookie') }}; session={{ states('sensor.kblue_session_cookie') }}"
+  payload: 'command={"cmd":31,"VARIABILI":[{"ixm":0,"ixv":363,"v":1}]}'
+  timeout: 5
+
+kblue_strip_bagno_letto_off:
+  url: http://192.168.1.54:50080/request_json
+  method: POST
+  headers:
+    Content-Type: "application/x-www-form-urlencoded; charset=UTF-8"
+    Cookie: "user={{ states('sensor.kblue_user_cookie') }}; session={{ states('sensor.kblue_session_cookie') }}"
+  payload: 'command={"cmd":31,"VARIABILI":[{"ixm":0,"ixv":363,"v":0}]}'
+  timeout: 5
+
+# --- Specchio Bagno Letto ------------------------------------
+# Tipo: switch (v: 0/1)
+# ixv: 364
+kblue_specchio_bagno_letto_on:
+  url: http://192.168.1.54:50080/request_json
+  method: POST
+  headers:
+    Content-Type: "application/x-www-form-urlencoded; charset=UTF-8"
+    Cookie: "user={{ states('sensor.kblue_user_cookie') }}; session={{ states('sensor.kblue_session_cookie') }}"
+  payload: 'command={"cmd":31,"VARIABILI":[{"ixm":0,"ixv":364,"v":1}]}'
+  timeout: 5
+
+kblue_specchio_bagno_letto_off:
+  url: http://192.168.1.54:50080/request_json
+  method: POST
+  headers:
+    Content-Type: "application/x-www-form-urlencoded; charset=UTF-8"
+    Cookie: "user={{ states('sensor.kblue_user_cookie') }}; session={{ states('sensor.kblue_session_cookie') }}"
+  payload: 'command={"cmd":31,"VARIABILI":[{"ixm":0,"ixv":364,"v":0}]}'
+  timeout: 5
+
+
+# ============================================================
+# ESTERNO — LUCI E PRESE
+# ixm: 0 (lavanderia, presa ext) / 1 (salone, presa tv, led pergotenda)
+# ============================================================
+
+# --- Luci Ext Salone -----------------------------------------
+# Tipo: switch (v: 0/1)
+# ixm: 1  |  ixv: 301
+kblue_luci_ext_salone_on:
+  url: http://192.168.1.54:50080/request_json
+  method: POST
+  headers:
+    Content-Type: "application/x-www-form-urlencoded; charset=UTF-8"
+    Cookie: "user={{ states('sensor.kblue_user_cookie') }}; session={{ states('sensor.kblue_session_cookie') }}"
+  payload: 'command={"cmd":31,"VARIABILI":[{"ixm":1,"ixv":301,"v":1}]}'
+  timeout: 5
+
+kblue_luci_ext_salone_off:
+  url: http://192.168.1.54:50080/request_json
+  method: POST
+  headers:
+    Content-Type: "application/x-www-form-urlencoded; charset=UTF-8"
+    Cookie: "user={{ states('sensor.kblue_user_cookie') }}; session={{ states('sensor.kblue_session_cookie') }}"
+  payload: 'command={"cmd":31,"VARIABILI":[{"ixm":1,"ixv":301,"v":0}]}'
+  timeout: 5
+
+# --- Luce Ext Lavanderia -------------------------------------
+# Tipo: switch (v: 0/1)
+# ixm: 0  |  ixv: 376
+kblue_luce_ext_lavanderia_on:
+  url: http://192.168.1.54:50080/request_json
+  method: POST
+  headers:
+    Content-Type: "application/x-www-form-urlencoded; charset=UTF-8"
+    Cookie: "user={{ states('sensor.kblue_user_cookie') }}; session={{ states('sensor.kblue_session_cookie') }}"
+  payload: 'command={"cmd":31,"VARIABILI":[{"ixm":0,"ixv":376,"v":1}]}'
+  timeout: 5
+
+kblue_luce_ext_lavanderia_off:
+  url: http://192.168.1.54:50080/request_json
+  method: POST
+  headers:
+    Content-Type: "application/x-www-form-urlencoded; charset=UTF-8"
+    Cookie: "user={{ states('sensor.kblue_user_cookie') }}; session={{ states('sensor.kblue_session_cookie') }}"
+  payload: 'command={"cmd":31,"VARIABILI":[{"ixm":0,"ixv":376,"v":0}]}'
+  timeout: 5
+
+# --- Presa Ext -----------------------------------------------
+# Tipo: switch (v: 0/1)
+# ixm: 0  |  ixv: 375
+kblue_presa_ext_on:
+  url: http://192.168.1.54:50080/request_json
+  method: POST
+  headers:
+    Content-Type: "application/x-www-form-urlencoded; charset=UTF-8"
+    Cookie: "user={{ states('sensor.kblue_user_cookie') }}; session={{ states('sensor.kblue_session_cookie') }}"
+  payload: 'command={"cmd":31,"VARIABILI":[{"ixm":0,"ixv":375,"v":1}]}'
+  timeout: 5
+
+kblue_presa_ext_off:
+  url: http://192.168.1.54:50080/request_json
+  method: POST
+  headers:
+    Content-Type: "application/x-www-form-urlencoded; charset=UTF-8"
+    Cookie: "user={{ states('sensor.kblue_user_cookie') }}; session={{ states('sensor.kblue_session_cookie') }}"
+  payload: 'command={"cmd":31,"VARIABILI":[{"ixm":0,"ixv":375,"v":0}]}'
+  timeout: 5
+
+# --- Presa TV Ext --------------------------------------------
+# Tipo: switch (v: 0/1)
+# ixm: 1  |  ixv: 300
+kblue_presa_tv_ext_on:
+  url: http://192.168.1.54:50080/request_json
+  method: POST
+  headers:
+    Content-Type: "application/x-www-form-urlencoded; charset=UTF-8"
+    Cookie: "user={{ states('sensor.kblue_user_cookie') }}; session={{ states('sensor.kblue_session_cookie') }}"
+  payload: 'command={"cmd":31,"VARIABILI":[{"ixm":1,"ixv":300,"v":1}]}'
+  timeout: 5
+
+kblue_presa_tv_ext_off:
+  url: http://192.168.1.54:50080/request_json
+  method: POST
+  headers:
+    Content-Type: "application/x-www-form-urlencoded; charset=UTF-8"
+    Cookie: "user={{ states('sensor.kblue_user_cookie') }}; session={{ states('sensor.kblue_session_cookie') }}"
+  payload: 'command={"cmd":31,"VARIABILI":[{"ixm":1,"ixv":300,"v":0}]}'
+  timeout: 5
+
+# --- LED Pergotenda Esterna ----------------------------------
+# Tipo: switch (v: 0/1) — illuminazione decorativa pergotenda principale
+# ixm: 1  |  ixv: 524
+kblue_led_pergotenda_on:
+  url: http://192.168.1.54:50080/request_json
+  method: POST
+  headers:
+    Content-Type: "application/x-www-form-urlencoded; charset=UTF-8"
+    Cookie: "user={{ states('sensor.kblue_user_cookie') }}; session={{ states('sensor.kblue_session_cookie') }}"
+  payload: 'command={"cmd":31,"VARIABILI":[{"ixm":1,"ixv":524,"v":1}]}'
+  timeout: 5
+
+kblue_led_pergotenda_off:
+  url: http://192.168.1.54:50080/request_json
+  method: POST
+  headers:
+    Content-Type: "application/x-www-form-urlencoded; charset=UTF-8"
+    Cookie: "user={{ states('sensor.kblue_user_cookie') }}; session={{ states('sensor.kblue_session_cookie') }}"
+  payload: 'command={"cmd":31,"VARIABILI":[{"ixm":1,"ixv":524,"v":0}]}'
+  timeout: 5
+
+
+# ============================================================
+# ZONA GIORNO — MOTORI (tapparelle e grate)
+# ixm: 1
+# Valori v: 2=apri (su)  |  1=chiudi (giù)  |  3=stop
+# ============================================================
+
+# --- Tapparella Salone ---------------------------------------
+# ixv: 151
+tapparella_salone_up:
+  url: "http://192.168.1.54:50080/request_json"
+  method: POST
+  headers:
+    Content-Type: "application/x-www-form-urlencoded; charset=UTF-8"
+    Cookie: "user={{ states('sensor.kblue_user_cookie') }}; session={{ states('sensor.kblue_session_cookie') }}"
+  payload: 'command={"cmd":31,"VARIABILI":[{"ixm":1,"ixv":151,"v":2}]}'
+  timeout: 5
+
+tapparella_salone_down:
+  url: "http://192.168.1.54:50080/request_json"
+  method: POST
+  headers:
+    Content-Type: "application/x-www-form-urlencoded; charset=UTF-8"
+    Cookie: "user={{ states('sensor.kblue_user_cookie') }}; session={{ states('sensor.kblue_session_cookie') }}"
+  payload: 'command={"cmd":31,"VARIABILI":[{"ixm":1,"ixv":151,"v":1}]}'
+  timeout: 5
+
+tapparella_salone_stop:
+  url: "http://192.168.1.54:50080/request_json"
+  method: POST
+  headers:
+    Content-Type: "application/x-www-form-urlencoded; charset=UTF-8"
+    Cookie: "user={{ states('sensor.kblue_user_cookie') }}; session={{ states('sensor.kblue_session_cookie') }}"
+  payload: 'command={"cmd":31,"VARIABILI":[{"ixm":1,"ixv":151,"v":3}]}'
+  timeout: 5
+
+# --- Grata Salone --------------------------------------------
+# ixv: 156
+grata_salone_up:
+  url: "http://192.168.1.54:50080/request_json"
+  method: POST
+  headers:
+    Content-Type: "application/x-www-form-urlencoded; charset=UTF-8"
+    Cookie: "user={{ states('sensor.kblue_user_cookie') }}; session={{ states('sensor.kblue_session_cookie') }}"
+  payload: 'command={"cmd":31,"VARIABILI":[{"ixm":1,"ixv":156,"v":2}]}'
+  timeout: 5
+
+grata_salone_down:
+  url: "http://192.168.1.54:50080/request_json"
+  method: POST
+  headers:
+    Content-Type: "application/x-www-form-urlencoded; charset=UTF-8"
+    Cookie: "user={{ states('sensor.kblue_user_cookie') }}; session={{ states('sensor.kblue_session_cookie') }}"
+  payload: 'command={"cmd":31,"VARIABILI":[{"ixm":1,"ixv":156,"v":1}]}'
+  timeout: 5
+
+grata_salone_stop:
+  url: "http://192.168.1.54:50080/request_json"
+  method: POST
+  headers:
+    Content-Type: "application/x-www-form-urlencoded; charset=UTF-8"
+    Cookie: "user={{ states('sensor.kblue_user_cookie') }}; session={{ states('sensor.kblue_session_cookie') }}"
+  payload: 'command={"cmd":31,"VARIABILI":[{"ixm":1,"ixv":156,"v":3}]}'
+  timeout: 5
+
+# --- Grata Cucina --------------------------------------------
+# ixv: 140
+grata_cucina_up:
+  url: "http://192.168.1.54:50080/request_json"
+  method: POST
+  headers:
+    Content-Type: "application/x-www-form-urlencoded; charset=UTF-8"
+    Cookie: "user={{ states('sensor.kblue_user_cookie') }}; session={{ states('sensor.kblue_session_cookie') }}"
+  payload: 'command={"cmd":31,"VARIABILI":[{"ixm":1,"ixv":140,"v":2}]}'
+  timeout: 5
+
+grata_cucina_down:
+  url: "http://192.168.1.54:50080/request_json"
+  method: POST
+  headers:
+    Content-Type: "application/x-www-form-urlencoded; charset=UTF-8"
+    Cookie: "user={{ states('sensor.kblue_user_cookie') }}; session={{ states('sensor.kblue_session_cookie') }}"
+  payload: 'command={"cmd":31,"VARIABILI":[{"ixm":1,"ixv":140,"v":1}]}'
+  timeout: 5
+
+grata_cucina_stop:
+  url: "http://192.168.1.54:50080/request_json"
+  method: POST
+  headers:
+    Content-Type: "application/x-www-form-urlencoded; charset=UTF-8"
+    Cookie: "user={{ states('sensor.kblue_user_cookie') }}; session={{ states('sensor.kblue_session_cookie') }}"
+  payload: 'command={"cmd":31,"VARIABILI":[{"ixm":1,"ixv":140,"v":3}]}'
+  timeout: 5
+
+
+# ============================================================
+# ZONA NOTTE — MOTORI (tapparelle e grate)
+# ixm: 0
+# Valori v: 2=apri (su)  |  1=chiudi (giù)  |  3=stop
+# ============================================================
+
+# --- Tapparella Camera Matrimoniale --------------------------
+# ixv: 167
+tapparella_camera_matrimoniale_up:
+  url: "http://192.168.1.54:50080/request_json"
+  method: POST
+  headers:
+    Content-Type: "application/x-www-form-urlencoded; charset=UTF-8"
+    Cookie: "user={{ states('sensor.kblue_user_cookie') }}; session={{ states('sensor.kblue_session_cookie') }}"
+  payload: 'command={"cmd":31,"VARIABILI":[{"ixm":0,"ixv":167,"v":2}]}'
+  timeout: 5
+
+tapparella_camera_matrimoniale_down:
+  url: "http://192.168.1.54:50080/request_json"
+  method: POST
+  headers:
+    Content-Type: "application/x-www-form-urlencoded; charset=UTF-8"
+    Cookie: "user={{ states('sensor.kblue_user_cookie') }}; session={{ states('sensor.kblue_session_cookie') }}"
+  payload: 'command={"cmd":31,"VARIABILI":[{"ixm":0,"ixv":167,"v":1}]}'
+  timeout: 5
+
+tapparella_camera_matrimoniale_stop:
+  url: "http://192.168.1.54:50080/request_json"
+  method: POST
+  headers:
+    Content-Type: "application/x-www-form-urlencoded; charset=UTF-8"
+    Cookie: "user={{ states('sensor.kblue_user_cookie') }}; session={{ states('sensor.kblue_session_cookie') }}"
+  payload: 'command={"cmd":31,"VARIABILI":[{"ixm":0,"ixv":167,"v":3}]}'
+  timeout: 5
+
+# --- Tapparella Camera Francesco -----------------------------
+# ixv: 187
+tapparella_camera_francesco_up:
+  url: "http://192.168.1.54:50080/request_json"
+  method: POST
+  headers:
+    Content-Type: "application/x-www-form-urlencoded; charset=UTF-8"
+    Cookie: "user={{ states('sensor.kblue_user_cookie') }}; session={{ states('sensor.kblue_session_cookie') }}"
+  payload: 'command={"cmd":31,"VARIABILI":[{"ixm":0,"ixv":187,"v":2}]}'
+  timeout: 5
+
+tapparella_camera_francesco_down:
+  url: "http://192.168.1.54:50080/request_json"
+  method: POST
+  headers:
+    Content-Type: "application/x-www-form-urlencoded; charset=UTF-8"
+    Cookie: "user={{ states('sensor.kblue_user_cookie') }}; session={{ states('sensor.kblue_session_cookie') }}"
+  payload: 'command={"cmd":31,"VARIABILI":[{"ixm":0,"ixv":187,"v":1}]}'
+  timeout: 5
+
+tapparella_camera_francesco_stop:
+  url: "http://192.168.1.54:50080/request_json"
+  method: POST
+  headers:
+    Content-Type: "application/x-www-form-urlencoded; charset=UTF-8"
+    Cookie: "user={{ states('sensor.kblue_user_cookie') }}; session={{ states('sensor.kblue_session_cookie') }}"
+  payload: 'command={"cmd":31,"VARIABILI":[{"ixm":0,"ixv":187,"v":3}]}'
+  timeout: 5
+
+# --- Tapparella Camera Greta ---------------------------------
+# ixv: 182
+tapparella_camera_greta_up:
+  url: "http://192.168.1.54:50080/request_json"
+  method: POST
+  headers:
+    Content-Type: "application/x-www-form-urlencoded; charset=UTF-8"
+    Cookie: "user={{ states('sensor.kblue_user_cookie') }}; session={{ states('sensor.kblue_session_cookie') }}"
+  payload: 'command={"cmd":31,"VARIABILI":[{"ixm":0,"ixv":182,"v":2}]}'
+  timeout: 5
+
+tapparella_camera_greta_down:
+  url: "http://192.168.1.54:50080/request_json"
+  method: POST
+  headers:
+    Content-Type: "application/x-www-form-urlencoded; charset=UTF-8"
+    Cookie: "user={{ states('sensor.kblue_user_cookie') }}; session={{ states('sensor.kblue_session_cookie') }}"
+  payload: 'command={"cmd":31,"VARIABILI":[{"ixm":0,"ixv":182,"v":1}]}'
+  timeout: 5
+
+tapparella_camera_greta_stop:
+  url: "http://192.168.1.54:50080/request_json"
+  method: POST
+  headers:
+    Content-Type: "application/x-www-form-urlencoded; charset=UTF-8"
+    Cookie: "user={{ states('sensor.kblue_user_cookie') }}; session={{ states('sensor.kblue_session_cookie') }}"
+  payload: 'command={"cmd":31,"VARIABILI":[{"ixm":0,"ixv":182,"v":3}]}'
+  timeout: 5
+
+# --- Grata Camera Greta --------------------------------------
+# ixv: 179
+grata_camera_greta_up:
+  url: "http://192.168.1.54:50080/request_json"
+  method: POST
+  headers:
+    Content-Type: "application/x-www-form-urlencoded; charset=UTF-8"
+    Cookie: "user={{ states('sensor.kblue_user_cookie') }}; session={{ states('sensor.kblue_session_cookie') }}"
+  payload: 'command={"cmd":31,"VARIABILI":[{"ixm":0,"ixv":179,"v":2}]}'
+  timeout: 5
+
+grata_camera_greta_down:
+  url: "http://192.168.1.54:50080/request_json"
+  method: POST
+  headers:
+    Content-Type: "application/x-www-form-urlencoded; charset=UTF-8"
+    Cookie: "user={{ states('sensor.kblue_user_cookie') }}; session={{ states('sensor.kblue_session_cookie') }}"
+  payload: 'command={"cmd":31,"VARIABILI":[{"ixm":0,"ixv":179,"v":1}]}'
+  timeout: 5
+
+grata_camera_greta_stop:
+  url: "http://192.168.1.54:50080/request_json"
+  method: POST
+  headers:
+    Content-Type: "application/x-www-form-urlencoded; charset=UTF-8"
+    Cookie: "user={{ states('sensor.kblue_user_cookie') }}; session={{ states('sensor.kblue_session_cookie') }}"
+  payload: 'command={"cmd":31,"VARIABILI":[{"ixm":0,"ixv":179,"v":3}]}'
+  timeout: 5
+
+# --- Tapparella Bagno Grande ---------------------------------
+# ixv: 173
+tapparella_bagno_grande_up:
+  url: "http://192.168.1.54:50080/request_json"
+  method: POST
+  headers:
+    Content-Type: "application/x-www-form-urlencoded; charset=UTF-8"
+    Cookie: "user={{ states('sensor.kblue_user_cookie') }}; session={{ states('sensor.kblue_session_cookie') }}"
+  payload: 'command={"cmd":31,"VARIABILI":[{"ixm":0,"ixv":173,"v":2}]}'
+  timeout: 5
+
+tapparella_bagno_grande_down:
+  url: "http://192.168.1.54:50080/request_json"
+  method: POST
+  headers:
+    Content-Type: "application/x-www-form-urlencoded; charset=UTF-8"
+    Cookie: "user={{ states('sensor.kblue_user_cookie') }}; session={{ states('sensor.kblue_session_cookie') }}"
+  payload: 'command={"cmd":31,"VARIABILI":[{"ixm":0,"ixv":173,"v":1}]}'
+  timeout: 5
+
+tapparella_bagno_grande_stop:
+  url: "http://192.168.1.54:50080/request_json"
+  method: POST
+  headers:
+    Content-Type: "application/x-www-form-urlencoded; charset=UTF-8"
+    Cookie: "user={{ states('sensor.kblue_user_cookie') }}; session={{ states('sensor.kblue_session_cookie') }}"
+  payload: 'command={"cmd":31,"VARIABILI":[{"ixm":0,"ixv":173,"v":3}]}'
+  timeout: 5
+
+# --- Pergotenda Esterna --------------------------------------
+# ixm: 1  |  ixv: 146
+# Valori v: 2=ritira (apri)  |  1=estendi (chiudi)  |  3=stop
+pergotenda_esterna_up:
+  url: http://192.168.1.54:50080/request_json
+  method: POST
+  headers:
+    Content-Type: "application/x-www-form-urlencoded; charset=UTF-8"
+    Cookie: "user={{ states('sensor.kblue_user_cookie') }}; session={{ states('sensor.kblue_session_cookie') }}"
+  payload: 'command={"cmd":31,"VARIABILI":[{"ixm":1,"ixv":146,"v":2}]}'
+  timeout: 5
+
+pergotenda_esterna_down:
+  url: http://192.168.1.54:50080/request_json
+  method: POST
+  headers:
+    Content-Type: "application/x-www-form-urlencoded; charset=UTF-8"
+    Cookie: "user={{ states('sensor.kblue_user_cookie') }}; session={{ states('sensor.kblue_session_cookie') }}"
+  payload: 'command={"cmd":31,"VARIABILI":[{"ixm":1,"ixv":146,"v":1}]}'
+  timeout: 5
+
+pergotenda_esterna_stop:
+  url: http://192.168.1.54:50080/request_json
+  method: POST
+  headers:
+    Content-Type: "application/x-www-form-urlencoded; charset=UTF-8"
+    Cookie: "user={{ states('sensor.kblue_user_cookie') }}; session={{ states('sensor.kblue_session_cookie') }}"
+  payload: 'command={"cmd":31,"VARIABILI":[{"ixm":1,"ixv":146,"v":3}]}'
+  timeout: 5
+
+
+# ============================================================
+# SUITE — LUCI E PRESE
+# ixm: 2
+# ============================================================
+
+# --- Presa Letto Suite ---------------------------------------
+# Tipo: switch (v: 0/1)
+# ixv: 263
+kblue_presa_letto_suite_on:
+  url: http://192.168.1.54:50080/request_json
+  method: POST
+  headers:
+    Content-Type: "application/x-www-form-urlencoded; charset=UTF-8"
+    Cookie: "user={{ states('sensor.kblue_user_cookie') }}; session={{ states('sensor.kblue_session_cookie') }}"
+  payload: 'command={"cmd":31,"VARIABILI":[{"ixm":2,"ixv":263,"v":1}]}'
+  timeout: 5
+
+kblue_presa_letto_suite_off:
+  url: http://192.168.1.54:50080/request_json
+  method: POST
+  headers:
+    Content-Type: "application/x-www-form-urlencoded; charset=UTF-8"
+    Cookie: "user={{ states('sensor.kblue_user_cookie') }}; session={{ states('sensor.kblue_session_cookie') }}"
+  payload: 'command={"cmd":31,"VARIABILI":[{"ixm":2,"ixv":263,"v":0}]}'
+  timeout: 5
+
+# --- Luce Letto Suite ----------------------------------------
+# Tipo: switch (v: 0/1)
+# ixv: 266
+kblue_luce_letto_suite_on:
+  url: http://192.168.1.54:50080/request_json
+  method: POST
+  headers:
+    Content-Type: "application/x-www-form-urlencoded; charset=UTF-8"
+    Cookie: "user={{ states('sensor.kblue_user_cookie') }}; session={{ states('sensor.kblue_session_cookie') }}"
+  payload: 'command={"cmd":31,"VARIABILI":[{"ixm":2,"ixv":266,"v":1}]}'
+  timeout: 5
+
+kblue_luce_letto_suite_off:
+  url: http://192.168.1.54:50080/request_json
+  method: POST
+  headers:
+    Content-Type: "application/x-www-form-urlencoded; charset=UTF-8"
+    Cookie: "user={{ states('sensor.kblue_user_cookie') }}; session={{ states('sensor.kblue_session_cookie') }}"
+  payload: 'command={"cmd":31,"VARIABILI":[{"ixm":2,"ixv":266,"v":0}]}'
+  timeout: 5
+
+# --- Luce Cucina Suite ---------------------------------------
+# Tipo: switch (v: 0/1)
+# ixv: 257
+kblue_luce_cucina_suite_on:
+  url: http://192.168.1.54:50080/request_json
+  method: POST
+  headers:
+    Content-Type: "application/x-www-form-urlencoded; charset=UTF-8"
+    Cookie: "user={{ states('sensor.kblue_user_cookie') }}; session={{ states('sensor.kblue_session_cookie') }}"
+  payload: 'command={"cmd":31,"VARIABILI":[{"ixm":2,"ixv":257,"v":1}]}'
+  timeout: 5
+
+kblue_luce_cucina_suite_off:
+  url: http://192.168.1.54:50080/request_json
+  method: POST
+  headers:
+    Content-Type: "application/x-www-form-urlencoded; charset=UTF-8"
+    Cookie: "user={{ states('sensor.kblue_user_cookie') }}; session={{ states('sensor.kblue_session_cookie') }}"
+  payload: 'command={"cmd":31,"VARIABILI":[{"ixm":2,"ixv":257,"v":0}]}'
+  timeout: 5
+
+# --- Applique Ingresso Suite ---------------------------------
+# Tipo: switch (v: 0/1)
+# ixv: 258
+kblue_applique_ingresso_suite_on:
+  url: http://192.168.1.54:50080/request_json
+  method: POST
+  headers:
+    Content-Type: "application/x-www-form-urlencoded; charset=UTF-8"
+    Cookie: "user={{ states('sensor.kblue_user_cookie') }}; session={{ states('sensor.kblue_session_cookie') }}"
+  payload: 'command={"cmd":31,"VARIABILI":[{"ixm":2,"ixv":258,"v":1}]}'
+  timeout: 5
+
+kblue_applique_ingresso_suite_off:
+  url: http://192.168.1.54:50080/request_json
+  method: POST
+  headers:
+    Content-Type: "application/x-www-form-urlencoded; charset=UTF-8"
+    Cookie: "user={{ states('sensor.kblue_user_cookie') }}; session={{ states('sensor.kblue_session_cookie') }}"
+  payload: 'command={"cmd":31,"VARIABILI":[{"ixm":2,"ixv":258,"v":0}]}'
+  timeout: 5
+
+# --- Luce WC Suite -------------------------------------------
+# Tipo: switch (v: 0/1)
+# ixv: 261
+kblue_luce_wc_suite_on:
+  url: http://192.168.1.54:50080/request_json
+  method: POST
+  headers:
+    Content-Type: "application/x-www-form-urlencoded; charset=UTF-8"
+    Cookie: "user={{ states('sensor.kblue_user_cookie') }}; session={{ states('sensor.kblue_session_cookie') }}"
+  payload: 'command={"cmd":31,"VARIABILI":[{"ixm":2,"ixv":261,"v":1}]}'
+  timeout: 5
+
+kblue_luce_wc_suite_off:
+  url: http://192.168.1.54:50080/request_json
+  method: POST
+  headers:
+    Content-Type: "application/x-www-form-urlencoded; charset=UTF-8"
+    Cookie: "user={{ states('sensor.kblue_user_cookie') }}; session={{ states('sensor.kblue_session_cookie') }}"
+  payload: 'command={"cmd":31,"VARIABILI":[{"ixm":2,"ixv":261,"v":0}]}'
+  timeout: 5
+
+# --- Luci Esterne Suite --------------------------------------
+# Tipo: switch (v: 0/1)
+# ixv: 267
+kblue_luci_esterne_suite_on:
+  url: http://192.168.1.54:50080/request_json
+  method: POST
+  headers:
+    Content-Type: "application/x-www-form-urlencoded; charset=UTF-8"
+    Cookie: "user={{ states('sensor.kblue_user_cookie') }}; session={{ states('sensor.kblue_session_cookie') }}"
+  payload: 'command={"cmd":31,"VARIABILI":[{"ixm":2,"ixv":267,"v":1}]}'
+  timeout: 5
+
+kblue_luci_esterne_suite_off:
+  url: http://192.168.1.54:50080/request_json
+  method: POST
+  headers:
+    Content-Type: "application/x-www-form-urlencoded; charset=UTF-8"
+    Cookie: "user={{ states('sensor.kblue_user_cookie') }}; session={{ states('sensor.kblue_session_cookie') }}"
+  payload: 'command={"cmd":31,"VARIABILI":[{"ixm":2,"ixv":267,"v":0}]}'
+  timeout: 5
+
+# --- Presa Esterna TV Suite ----------------------------------
+# Tipo: switch (v: 0/1)
+# ixv: 269
+kblue_presa_esterna_tv_suite_on:
+  url: http://192.168.1.54:50080/request_json
+  method: POST
+  headers:
+    Content-Type: "application/x-www-form-urlencoded; charset=UTF-8"
+    Cookie: "user={{ states('sensor.kblue_user_cookie') }}; session={{ states('sensor.kblue_session_cookie') }}"
+  payload: 'command={"cmd":31,"VARIABILI":[{"ixm":2,"ixv":269,"v":1}]}'
+  timeout: 5
+
+kblue_presa_esterna_tv_suite_off:
+  url: http://192.168.1.54:50080/request_json
+  method: POST
+  headers:
+    Content-Type: "application/x-www-form-urlencoded; charset=UTF-8"
+    Cookie: "user={{ states('sensor.kblue_user_cookie') }}; session={{ states('sensor.kblue_session_cookie') }}"
+  payload: 'command={"cmd":31,"VARIABILI":[{"ixm":2,"ixv":269,"v":0}]}'
+  timeout: 5
+
+# --- Presa Esterna Suite -------------------------------------
+# Tipo: switch (v: 0/1)
+# ixv: 268
+kblue_presa_esterna_suite_on:
+  url: http://192.168.1.54:50080/request_json
+  method: POST
+  headers:
+    Content-Type: "application/x-www-form-urlencoded; charset=UTF-8"
+    Cookie: "user={{ states('sensor.kblue_user_cookie') }}; session={{ states('sensor.kblue_session_cookie') }}"
+  payload: 'command={"cmd":31,"VARIABILI":[{"ixm":2,"ixv":268,"v":1}]}'
+  timeout: 5
+
+kblue_presa_esterna_suite_off:
+  url: http://192.168.1.54:50080/request_json
+  method: POST
+  headers:
+    Content-Type: "application/x-www-form-urlencoded; charset=UTF-8"
+    Cookie: "user={{ states('sensor.kblue_user_cookie') }}; session={{ states('sensor.kblue_session_cookie') }}"
+  payload: 'command={"cmd":31,"VARIABILI":[{"ixm":2,"ixv":268,"v":0}]}'
+  timeout: 5
+
+# --- Luce Soppalco Suite -------------------------------------
+# Tipo: switch (v: 0/1)
+# ixv: 264
+kblue_luce_soppalco_suite_on:
+  url: http://192.168.1.54:50080/request_json
+  method: POST
+  headers:
+    Content-Type: "application/x-www-form-urlencoded; charset=UTF-8"
+    Cookie: "user={{ states('sensor.kblue_user_cookie') }}; session={{ states('sensor.kblue_session_cookie') }}"
+  payload: 'command={"cmd":31,"VARIABILI":[{"ixm":2,"ixv":264,"v":1}]}'
+  timeout: 5
+
+kblue_luce_soppalco_suite_off:
+  url: http://192.168.1.54:50080/request_json
+  method: POST
+  headers:
+    Content-Type: "application/x-www-form-urlencoded; charset=UTF-8"
+    Cookie: "user={{ states('sensor.kblue_user_cookie') }}; session={{ states('sensor.kblue_session_cookie') }}"
+  payload: 'command={"cmd":31,"VARIABILI":[{"ixm":2,"ixv":264,"v":0}]}'
+  timeout: 5
+
+# --- Strip Suite ---------------------------------------------
+# Tipo: switch (v: 0/1)
+# ixv: 260
+kblue_strip_suite_on:
+  url: http://192.168.1.54:50080/request_json
+  method: POST
+  headers:
+    Content-Type: "application/x-www-form-urlencoded; charset=UTF-8"
+    Cookie: "user={{ states('sensor.kblue_user_cookie') }}; session={{ states('sensor.kblue_session_cookie') }}"
+  payload: 'command={"cmd":31,"VARIABILI":[{"ixm":2,"ixv":260,"v":1}]}'
+  timeout: 5
+
+kblue_strip_suite_off:
+  url: http://192.168.1.54:50080/request_json
+  method: POST
+  headers:
+    Content-Type: "application/x-www-form-urlencoded; charset=UTF-8"
+    Cookie: "user={{ states('sensor.kblue_user_cookie') }}; session={{ states('sensor.kblue_session_cookie') }}"
+  payload: 'command={"cmd":31,"VARIABILI":[{"ixm":2,"ixv":260,"v":0}]}'
+  timeout: 5
+
+# --- Specchio WC Suite ---------------------------------------
+# Tipo: switch (v: 0/1)
+# ixv: 262
+kblue_specchio_wc_suite_on:
+  url: http://192.168.1.54:50080/request_json
+  method: POST
+  headers:
+    Content-Type: "application/x-www-form-urlencoded; charset=UTF-8"
+    Cookie: "user={{ states('sensor.kblue_user_cookie') }}; session={{ states('sensor.kblue_session_cookie') }}"
+  payload: 'command={"cmd":31,"VARIABILI":[{"ixm":2,"ixv":262,"v":1}]}'
+  timeout: 5
+
+kblue_specchio_wc_suite_off:
+  url: http://192.168.1.54:50080/request_json
+  method: POST
+  headers:
+    Content-Type: "application/x-www-form-urlencoded; charset=UTF-8"
+    Cookie: "user={{ states('sensor.kblue_user_cookie') }}; session={{ states('sensor.kblue_session_cookie') }}"
+  payload: 'command={"cmd":31,"VARIABILI":[{"ixm":2,"ixv":262,"v":0}]}'
+  timeout: 5
+
+
+# ============================================================
+# SUITE — MOTORI (tapparelle, grate, tende)
+# ixm: 2
+# Valori v: 2=apri (su)  |  1=chiudi (giù)  |  3=stop
+# ECCEZIONE: pergotenda_suite — vedi nota dedicata in fondo
+# ============================================================
+
+# --- Tapparella Letto Suite ----------------------------------
+# ixv: 161
+tapparella_letto_suite_up:
+  url: http://192.168.1.54:50080/request_json
+  method: POST
+  headers:
+    Content-Type: "application/x-www-form-urlencoded; charset=UTF-8"
+    Cookie: "user={{ states('sensor.kblue_user_cookie') }}; session={{ states('sensor.kblue_session_cookie') }}"
+  payload: 'command={"cmd":31,"VARIABILI":[{"ixm":2,"ixv":161,"v":2}]}'
+  timeout: 5
+
+tapparella_letto_suite_down:
+  url: http://192.168.1.54:50080/request_json
+  method: POST
+  headers:
+    Content-Type: "application/x-www-form-urlencoded; charset=UTF-8"
+    Cookie: "user={{ states('sensor.kblue_user_cookie') }}; session={{ states('sensor.kblue_session_cookie') }}"
+  payload: 'command={"cmd":31,"VARIABILI":[{"ixm":2,"ixv":161,"v":1}]}'
+  timeout: 5
+
+tapparella_letto_suite_stop:
+  url: http://192.168.1.54:50080/request_json
+  method: POST
+  headers:
+    Content-Type: "application/x-www-form-urlencoded; charset=UTF-8"
+    Cookie: "user={{ states('sensor.kblue_user_cookie') }}; session={{ states('sensor.kblue_session_cookie') }}"
+  payload: 'command={"cmd":31,"VARIABILI":[{"ixm":2,"ixv":161,"v":3}]}'
+  timeout: 5
+
+# --- Tapparella WC Suite -------------------------------------
+# ixv: 158
+tapparella_wc_suite_up:
+  url: http://192.168.1.54:50080/request_json
+  method: POST
+  headers:
+    Content-Type: "application/x-www-form-urlencoded; charset=UTF-8"
+    Cookie: "user={{ states('sensor.kblue_user_cookie') }}; session={{ states('sensor.kblue_session_cookie') }}"
+  payload: 'command={"cmd":31,"VARIABILI":[{"ixm":2,"ixv":158,"v":2}]}'
+  timeout: 5
+
+tapparella_wc_suite_down:
+  url: http://192.168.1.54:50080/request_json
+  method: POST
+  headers:
+    Content-Type: "application/x-www-form-urlencoded; charset=UTF-8"
+    Cookie: "user={{ states('sensor.kblue_user_cookie') }}; session={{ states('sensor.kblue_session_cookie') }}"
+  payload: 'command={"cmd":31,"VARIABILI":[{"ixm":2,"ixv":158,"v":1}]}'
+  timeout: 5
+
+tapparella_wc_suite_stop:
+  url: http://192.168.1.54:50080/request_json
+  method: POST
+  headers:
+    Content-Type: "application/x-www-form-urlencoded; charset=UTF-8"
+    Cookie: "user={{ states('sensor.kblue_user_cookie') }}; session={{ states('sensor.kblue_session_cookie') }}"
+  payload: 'command={"cmd":31,"VARIABILI":[{"ixm":2,"ixv":158,"v":3}]}'
+  timeout: 5
+
+# --- Grata Fin Pranzo Suite ----------------------------------
+# ixv: 148
+grata_fin_pranzo_suite_up:
+  url: http://192.168.1.54:50080/request_json
+  method: POST
+  headers:
+    Content-Type: "application/x-www-form-urlencoded; charset=UTF-8"
+    Cookie: "user={{ states('sensor.kblue_user_cookie') }}; session={{ states('sensor.kblue_session_cookie') }}"
+  payload: 'command={"cmd":31,"VARIABILI":[{"ixm":2,"ixv":148,"v":2}]}'
+  timeout: 5
+
+grata_fin_pranzo_suite_down:
+  url: http://192.168.1.54:50080/request_json
+  method: POST
+  headers:
+    Content-Type: "application/x-www-form-urlencoded; charset=UTF-8"
+    Cookie: "user={{ states('sensor.kblue_user_cookie') }}; session={{ states('sensor.kblue_session_cookie') }}"
+  payload: 'command={"cmd":31,"VARIABILI":[{"ixm":2,"ixv":148,"v":1}]}'
+  timeout: 5
+
+grata_fin_pranzo_suite_stop:
+  url: http://192.168.1.54:50080/request_json
+  method: POST
+  headers:
+    Content-Type: "application/x-www-form-urlencoded; charset=UTF-8"
+    Cookie: "user={{ states('sensor.kblue_user_cookie') }}; session={{ states('sensor.kblue_session_cookie') }}"
+  payload: 'command={"cmd":31,"VARIABILI":[{"ixm":2,"ixv":148,"v":3}]}'
+  timeout: 5
+
+# --- Grata Vasistas Suite ------------------------------------
+# ixv: 142
+grata_vasistas_suite_up:
+  url: http://192.168.1.54:50080/request_json
+  method: POST
+  headers:
+    Content-Type: "application/x-www-form-urlencoded; charset=UTF-8"
+    Cookie: "user={{ states('sensor.kblue_user_cookie') }}; session={{ states('sensor.kblue_session_cookie') }}"
+  payload: 'command={"cmd":31,"VARIABILI":[{"ixm":2,"ixv":142,"v":2}]}'
+  timeout: 5
+
+grata_vasistas_suite_down:
+  url: http://192.168.1.54:50080/request_json
+  method: POST
+  headers:
+    Content-Type: "application/x-www-form-urlencoded; charset=UTF-8"
+    Cookie: "user={{ states('sensor.kblue_user_cookie') }}; session={{ states('sensor.kblue_session_cookie') }}"
+  payload: 'command={"cmd":31,"VARIABILI":[{"ixm":2,"ixv":142,"v":1}]}'
+  timeout: 5
+
+grata_vasistas_suite_stop:
+  url: http://192.168.1.54:50080/request_json
+  method: POST
+  headers:
+    Content-Type: "application/x-www-form-urlencoded; charset=UTF-8"
+    Cookie: "user={{ states('sensor.kblue_user_cookie') }}; session={{ states('sensor.kblue_session_cookie') }}"
+  payload: 'command={"cmd":31,"VARIABILI":[{"ixm":2,"ixv":142,"v":3}]}'
+  timeout: 5
+
+# --- Grata Scorr Pranzo Suite --------------------------------
+# ixv: 145
+grata_scorr_pranzo_suite_up:
+  url: http://192.168.1.54:50080/request_json
+  method: POST
+  headers:
+    Content-Type: "application/x-www-form-urlencoded; charset=UTF-8"
+    Cookie: "user={{ states('sensor.kblue_user_cookie') }}; session={{ states('sensor.kblue_session_cookie') }}"
+  payload: 'command={"cmd":31,"VARIABILI":[{"ixm":2,"ixv":145,"v":2}]}'
+  timeout: 5
+
+grata_scorr_pranzo_suite_down:
+  url: http://192.168.1.54:50080/request_json
+  method: POST
+  headers:
+    Content-Type: "application/x-www-form-urlencoded; charset=UTF-8"
+    Cookie: "user={{ states('sensor.kblue_user_cookie') }}; session={{ states('sensor.kblue_session_cookie') }}"
+  payload: 'command={"cmd":31,"VARIABILI":[{"ixm":2,"ixv":145,"v":1}]}'
+  timeout: 5
+
+grata_scorr_pranzo_suite_stop:
+  url: http://192.168.1.54:50080/request_json
+  method: POST
+  headers:
+    Content-Type: "application/x-www-form-urlencoded; charset=UTF-8"
+    Cookie: "user={{ states('sensor.kblue_user_cookie') }}; session={{ states('sensor.kblue_session_cookie') }}"
+  payload: 'command={"cmd":31,"VARIABILI":[{"ixm":2,"ixv":145,"v":3}]}'
+  timeout: 5
+
+# --- Tenda Fin Pranzo Suite ----------------------------------
+# ixv: 139
+tenda_fin_pranzo_suite_up:
+  url: http://192.168.1.54:50080/request_json
+  method: POST
+  headers:
+    Content-Type: "application/x-www-form-urlencoded; charset=UTF-8"
+    Cookie: "user={{ states('sensor.kblue_user_cookie') }}; session={{ states('sensor.kblue_session_cookie') }}"
+  payload: 'command={"cmd":31,"VARIABILI":[{"ixm":2,"ixv":139,"v":2}]}'
+  timeout: 5
+
+tenda_fin_pranzo_suite_down:
+  url: http://192.168.1.54:50080/request_json
+  method: POST
+  headers:
+    Content-Type: "application/x-www-form-urlencoded; charset=UTF-8"
+    Cookie: "user={{ states('sensor.kblue_user_cookie') }}; session={{ states('sensor.kblue_session_cookie') }}"
+  payload: 'command={"cmd":31,"VARIABILI":[{"ixm":2,"ixv":139,"v":1}]}'
+  timeout: 5
+
+tenda_fin_pranzo_suite_stop:
+  url: http://192.168.1.54:50080/request_json
+  method: POST
+  headers:
+    Content-Type: "application/x-www-form-urlencoded; charset=UTF-8"
+    Cookie: "user={{ states('sensor.kblue_user_cookie') }}; session={{ states('sensor.kblue_session_cookie') }}"
+  payload: 'command={"cmd":31,"VARIABILI":[{"ixm":2,"ixv":139,"v":3}]}'
+  timeout: 5
+
+# --- Tenda Scorr Pranzo Suite --------------------------------
+# ixv: 136
+tenda_scorr_pranzo_suite_up:
+  url: http://192.168.1.54:50080/request_json
+  method: POST
+  headers:
+    Content-Type: "application/x-www-form-urlencoded; charset=UTF-8"
+    Cookie: "user={{ states('sensor.kblue_user_cookie') }}; session={{ states('sensor.kblue_session_cookie') }}"
+  payload: 'command={"cmd":31,"VARIABILI":[{"ixm":2,"ixv":136,"v":2}]}'
+  timeout: 5
+
+tenda_scorr_pranzo_suite_down:
+  url: http://192.168.1.54:50080/request_json
+  method: POST
+  headers:
+    Content-Type: "application/x-www-form-urlencoded; charset=UTF-8"
+    Cookie: "user={{ states('sensor.kblue_user_cookie') }}; session={{ states('sensor.kblue_session_cookie') }}"
+  payload: 'command={"cmd":31,"VARIABILI":[{"ixm":2,"ixv":136,"v":1}]}'
+  timeout: 5
+
+tenda_scorr_pranzo_suite_stop:
+  url: http://192.168.1.54:50080/request_json
+  method: POST
+  headers:
+    Content-Type: "application/x-www-form-urlencoded; charset=UTF-8"
+    Cookie: "user={{ states('sensor.kblue_user_cookie') }}; session={{ states('sensor.kblue_session_cookie') }}"
+  payload: 'command={"cmd":31,"VARIABILI":[{"ixm":2,"ixv":136,"v":3}]}'
+  timeout: 5
+
+# --- Tenda Vasistas Suite ------------------------------------
+# ixv: 133
+tenda_vasistas_suite_up:
+  url: http://192.168.1.54:50080/request_json
+  method: POST
+  headers:
+    Content-Type: "application/x-www-form-urlencoded; charset=UTF-8"
+    Cookie: "user={{ states('sensor.kblue_user_cookie') }}; session={{ states('sensor.kblue_session_cookie') }}"
+  payload: 'command={"cmd":31,"VARIABILI":[{"ixm":2,"ixv":133,"v":2}]}'
+  timeout: 5
+
+tenda_vasistas_suite_down:
+  url: http://192.168.1.54:50080/request_json
+  method: POST
+  headers:
+    Content-Type: "application/x-www-form-urlencoded; charset=UTF-8"
+    Cookie: "user={{ states('sensor.kblue_user_cookie') }}; session={{ states('sensor.kblue_session_cookie') }}"
+  payload: 'command={"cmd":31,"VARIABILI":[{"ixm":2,"ixv":133,"v":1}]}'
+  timeout: 5
+
+tenda_vasistas_suite_stop:
+  url: http://192.168.1.54:50080/request_json
+  method: POST
+  headers:
+    Content-Type: "application/x-www-form-urlencoded; charset=UTF-8"
+    Cookie: "user={{ states('sensor.kblue_user_cookie') }}; session={{ states('sensor.kblue_session_cookie') }}"
+  payload: 'command={"cmd":31,"VARIABILI":[{"ixm":2,"ixv":133,"v":3}]}'
+  timeout: 5
+
+# --- Pergotenda Suite ----------------------------------------
+# ixm: 2
+#
+# ATTENZIONE — comportamento anomalo rispetto a tutti gli altri motori:
+# questo dispositivo usa due ixv DISTINTI per apertura e chiusura,
+# invece del classico schema (stesso ixv con v=2/1/3).
+#
+#   _up   → ixv:181, v=1  (ritira la tenda — apre)
+#   _down → ixv:184, v=1  (estendi la tenda — chiude)
+#   _stop → ixv:184, v=3  (stop sul canale di chiusura)
+#
+pergotenda_suite_up:
+  url: http://192.168.1.54:50080/request_json
+  method: POST
+  headers:
+    Content-Type: "application/x-www-form-urlencoded; charset=UTF-8"
+    Cookie: "user={{ states('sensor.kblue_user_cookie') }}; session={{ states('sensor.kblue_session_cookie') }}"
+  payload: 'command={"cmd":31,"VARIABILI":[{"ixm":2,"ixv":181,"v":1}]}'
+  timeout: 5
+
+pergotenda_suite_down:
+  url: http://192.168.1.54:50080/request_json
+  method: POST
+  headers:
+    Content-Type: "application/x-www-form-urlencoded; charset=UTF-8"
+    Cookie: "user={{ states('sensor.kblue_user_cookie') }}; session={{ states('sensor.kblue_session_cookie') }}"
+  payload: 'command={"cmd":31,"VARIABILI":[{"ixm":2,"ixv":184,"v":1}]}'
+  timeout: 5
+
+pergotenda_suite_stop:
+  url: http://192.168.1.54:50080/request_json
+  method: POST
+  headers:
+    Content-Type: "application/x-www-form-urlencoded; charset=UTF-8"
+    Cookie: "user={{ states('sensor.kblue_user_cookie') }}; session={{ states('sensor.kblue_session_cookie') }}"
+  payload: 'command={"cmd":31,"VARIABILI":[{"ixm":2,"ixv":184,"v":3}]}'
+  timeout: 5
+
+# Aggiunta 02/07/2026 (rif. chat Claude https://claude.ai/share/8441fb1d-6c2d-46da-921f-3d18d45f3327)
+# --- OpenWeatherMap forecast ---------------------------------
+owm_current:
+  url: "https://api.openweathermap.org/data/2.5/weather?lat={{ lat }}&lon={{ lon }}&appid=476a9a8a4dde17d34f3779e1ba3fe910&units=metric&lang=it"
+  method: GET
+
+owm_forecast:
+  url: "https://api.openweathermap.org/data/2.5/forecast?lat={{ lat }}&lon={{ lon }}&appid=476a9a8a4dde17d34f3779e1ba3fe910&units=metric&lang=it&cnt=8"
+  method: GET

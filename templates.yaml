@@ -1,0 +1,2307 @@
+# ==============================================================================
+# templates.yaml
+# Configurazione template entities per Home Assistant
+# Luci, Cover, Switch e Sensori KBlue + Sensibo
+# ==============================================================================
+
+
+# ==============================================================================
+# SENSORI TEMPERATURA E UMIDITÀ - Sensibo
+# ==============================================================================
+
+  - sensor:
+      - name: "Temperatura salone"
+        unique_id: temperatura_umidita_salone
+        unit_of_measurement: "°C"
+        state: "{{ state_attr('climate.cdz_salone', 'current_temperature') | round(1) }}"
+      - name: "Umidità salone"
+        unit_of_measurement: "%"
+        state: "{{ state_attr('climate.cdz_salone', 'current_humidity') }}"
+
+  - sensor:
+      - name: "Temperatura camera matrimoniale"
+        unique_id: temperatura_umidita_camera_matrimoniale
+        unit_of_measurement: "°C"
+        state: "{{ state_attr('climate.camera_matrimoniale', 'current_temperature') | round(1) }}"
+      - name: "Umidità camera matrimoniale"
+        unit_of_measurement: "%"
+        state: "{{ state_attr('climate.camera_matrimoniale', 'current_humidity') }}"
+
+  - sensor:
+      - name: "Temperatura cucina"
+        unique_id: temperatura_umidita_cucina
+        unit_of_measurement: "°C"
+        state: "{{ state_attr('climate.cucina', 'current_temperature') | round(1) }}"
+      - name: "Umidità cucina"
+        unit_of_measurement: "%"
+        state: "{{ state_attr('climate.cucina', 'current_humidity') }}"
+
+  - sensor:
+      - name: "Temperatura camera di Francesco"
+        unique_id: temperatura_umidita_francesco
+        unit_of_measurement: "°C"
+        state: "{{ state_attr('climate.cdz_camera_di_francesco', 'current_temperature') | round(1) }}"
+      - name: "Umidità camera di Francesco"
+        unit_of_measurement: "%"
+        state: "{{ state_attr('climate.cdz_camera_di_francesco', 'current_humidity') }}"
+
+  - sensor:
+      - name: "Temperatura camera di Greta"
+        unique_id: temperatura_umidita_greta
+        unit_of_measurement: "°C"
+        state: "{{ state_attr('climate.cdz_camera_di_greta', 'current_temperature') | round(1) }}"
+      - name: "Umidità camera di Greta"
+        unit_of_measurement: "%"
+        state: "{{ state_attr('climate.cdz_camera_di_greta', 'current_humidity') }}"
+
+# ==============================================================================
+# ALTRI SENSORI
+# ==============================================================================
+
+
+  - sensor:
+      - name: "Display Stato Riscaldamento"
+        unique_id: display_stato_riscaldamento
+        state: >
+          {% set ns = namespace(attivi=0) %}
+          {% for sensor in states.sensor %}
+            {% if 'riscaldamento_attivo_' in sensor.entity_id and sensor.state == 'on' %}
+              {% set ns.attivi = ns.attivi + 1 %}
+            {% endif %}
+          {% endfor %}
+          {% if ns.attivi > 0 %}
+            Heating on in {{ ns.attivi }} zone{{ 's' if ns.attivi > 1 else '' }}
+          {% else %}
+            Heating Idle
+          {% endif %}
+
+# ==============================================================================
+# TREND TEMPERATURA - Tutte le stanze
+# Velocità di variazione della temperatura in °C/h, ricavata dai sensori
+# statistics (change_second = °C/s) in sensors.yaml, moltiplicati per 3600.
+# Per ogni stanza la catena è identica, con sorgente il sensore KBlue
+# (indipendente dai climate):
+#   sensore KBlue -> "Temperatura Attuale" -> "Stats" (sensors.yaml) -> "Trend"
+# "Temperatura Attuale" è una copia filtrata: passa a unavailable quando il
+# KBlue restituisce 0 (fallback del REST sensor), così lo 0 non entra nelle
+# statistiche e non genera spike.
+# Soglie classificazione: |v| > 0.5 °C/h = salita/discesa, |v| > 1.5 = rapida
+# ==============================================================================
+
+  - sensor:
+      - name: "Temperatura Attuale Salone"
+        unique_id: temperatura_attuale_salone
+        unit_of_measurement: "°C"
+        state_class: measurement
+        device_class: temperature
+        availability: "{{ states('sensor.temperatura_salone_kblue') | float(0) > 0 }}"
+        state: "{{ states('sensor.temperatura_salone_kblue') | float(0) }}"
+
+      - name: "Temperatura Attuale Cucina"
+        unique_id: temperatura_attuale_cucina
+        unit_of_measurement: "°C"
+        state_class: measurement
+        device_class: temperature
+        availability: "{{ states('sensor.temperatura_cucina_kblue') | float(0) > 0 }}"
+        state: "{{ states('sensor.temperatura_cucina_kblue') | float(0) }}"
+
+      - name: "Temperatura Attuale Camera Matrimoniale"
+        unique_id: temperatura_attuale_camera_matrimoniale
+        unit_of_measurement: "°C"
+        state_class: measurement
+        device_class: temperature
+        availability: "{{ states('sensor.temperatura_letto_kblue') | float(0) > 0 }}"
+        state: "{{ states('sensor.temperatura_letto_kblue') | float(0) }}"
+
+      - name: "Temperatura Attuale Camera Francesco"
+        unique_id: temperatura_attuale_camera_francesco
+        unit_of_measurement: "°C"
+        state_class: measurement
+        device_class: temperature
+        availability: "{{ states('sensor.temperatura_camera_francesco') | float(0) > 0 }}"
+        state: "{{ states('sensor.temperatura_camera_francesco') | float(0) }}"
+
+      - name: "Temperatura Attuale Camera Greta"
+        unique_id: temperatura_attuale_camera_greta
+        unit_of_measurement: "°C"
+        state_class: measurement
+        device_class: temperature
+        availability: "{{ states('sensor.temperatura_cam_greta_kblue') | float(0) > 0 }}"
+        state: "{{ states('sensor.temperatura_cam_greta_kblue') | float(0) }}"
+
+      - name: "Temperatura Attuale Suite Letto"
+        unique_id: temperatura_attuale_suite_letto
+        unit_of_measurement: "°C"
+        state_class: measurement
+        device_class: temperature
+        availability: "{{ states('sensor.temperatura_letto_suite_kblue') | float(0) > 0 }}"
+        state: "{{ states('sensor.temperatura_letto_suite_kblue') | float(0) }}"
+
+      - name: "Temperatura Attuale Suite Salone"
+        unique_id: temperatura_attuale_suite_salone
+        unit_of_measurement: "°C"
+        state_class: measurement
+        device_class: temperature
+        availability: "{{ states('sensor.temperatura_salone_suite_kblue') | float(0) > 0 }}"
+        state: "{{ states('sensor.temperatura_salone_suite_kblue') | float(0) }}"
+
+      - name: "Temperatura Attuale WC"
+        unique_id: temperatura_attuale_wc
+        unit_of_measurement: "°C"
+        state_class: measurement
+        device_class: temperature
+        availability: "{{ states('sensor.temperatura_wc_kblue') | float(0) > 0 }}"
+        state: "{{ states('sensor.temperatura_wc_kblue') | float(0) }}"
+
+      - name: "Temperatura Attuale WC Letto"
+        unique_id: temperatura_attuale_wc_letto
+        unit_of_measurement: "°C"
+        state_class: measurement
+        device_class: temperature
+        availability: "{{ states('sensor.temperatura_wc_letto_kblue') | float(0) > 0 }}"
+        state: "{{ states('sensor.temperatura_wc_letto_kblue') | float(0) }}"
+
+      - name: "Temperatura Attuale WC Suite"
+        unique_id: temperatura_attuale_wc_suite
+        unit_of_measurement: "°C"
+        state_class: measurement
+        device_class: temperature
+        availability: "{{ states('sensor.temperatura_wc_suite_kblue') | float(0) > 0 }}"
+        state: "{{ states('sensor.temperatura_wc_suite_kblue') | float(0) }}"
+
+      - name: "Trend Temperatura Salone"
+        unique_id: trend_temperatura_salone
+        unit_of_measurement: "°C/h"
+        state_class: measurement
+        icon: >
+          {% set v = states('sensor.stats_temperatura_salone') | float(0) * 2 %}
+          {% if v > 0.5 %} mdi:thermometer-chevron-up
+          {% elif v < -0.5 %} mdi:thermometer-chevron-down
+          {% else %} mdi:thermometer
+          {% endif %}
+        state: >
+          {{ (states('sensor.stats_temperatura_salone') | float(0) * 2) | round(2) }}
+        attributes:
+          classificazione: >
+            {% set v = states('sensor.stats_temperatura_salone') | float(0) * 2 %}
+            {% if v > 1.5 %} salita_rapida
+            {% elif v > 0.5 %} salita
+            {% elif v < -1.5 %} discesa_rapida
+            {% elif v < -0.5 %} discesa
+            {% else %} stabile
+            {% endif %}
+
+      - name: "Trend Temperatura Cucina"
+        unique_id: trend_temperatura_cucina
+        unit_of_measurement: "°C/h"
+        state_class: measurement
+        icon: >
+          {% set v = states('sensor.stats_temperatura_cucina') | float(0) * 2 %}
+          {% if v > 0.5 %} mdi:thermometer-chevron-up
+          {% elif v < -0.5 %} mdi:thermometer-chevron-down
+          {% else %} mdi:thermometer
+          {% endif %}
+        state: >
+          {{ (states('sensor.stats_temperatura_cucina') | float(0) * 2) | round(2) }}
+        attributes:
+          classificazione: >
+            {% set v = states('sensor.stats_temperatura_cucina') | float(0) * 2 %}
+            {% if v > 1.5 %} salita_rapida
+            {% elif v > 0.5 %} salita
+            {% elif v < -1.5 %} discesa_rapida
+            {% elif v < -0.5 %} discesa
+            {% else %} stabile
+            {% endif %}
+
+      - name: "Trend Temperatura Camera Matrimoniale"
+        unique_id: trend_temperatura_camera_matrimoniale
+        unit_of_measurement: "°C/h"
+        state_class: measurement
+        icon: >
+          {% set v = states('sensor.stats_temperatura_camera_matrimoniale') | float(0) * 2 %}
+          {% if v > 0.5 %} mdi:thermometer-chevron-up
+          {% elif v < -0.5 %} mdi:thermometer-chevron-down
+          {% else %} mdi:thermometer
+          {% endif %}
+        state: >
+          {{ (states('sensor.stats_temperatura_camera_matrimoniale') | float(0) * 2) | round(2) }}
+        attributes:
+          classificazione: >
+            {% set v = states('sensor.stats_temperatura_camera_matrimoniale') | float(0) * 2 %}
+            {% if v > 1.5 %} salita_rapida
+            {% elif v > 0.5 %} salita
+            {% elif v < -1.5 %} discesa_rapida
+            {% elif v < -0.5 %} discesa
+            {% else %} stabile
+            {% endif %}
+
+      - name: "Trend Temperatura Camera Francesco"
+        unique_id: trend_temperatura_camera_francesco
+        unit_of_measurement: "°C/h"
+        state_class: measurement
+        icon: >
+          {% set v = states('sensor.stats_temperatura_camera_francesco') | float(0) * 2 %}
+          {% if v > 0.5 %} mdi:thermometer-chevron-up
+          {% elif v < -0.5 %} mdi:thermometer-chevron-down
+          {% else %} mdi:thermometer
+          {% endif %}
+        state: >
+          {{ (states('sensor.stats_temperatura_camera_francesco') | float(0) * 2) | round(2) }}
+        attributes:
+          classificazione: >
+            {% set v = states('sensor.stats_temperatura_camera_francesco') | float(0) * 2 %}
+            {% if v > 1.5 %} salita_rapida
+            {% elif v > 0.5 %} salita
+            {% elif v < -1.5 %} discesa_rapida
+            {% elif v < -0.5 %} discesa
+            {% else %} stabile
+            {% endif %}
+
+      - name: "Trend Temperatura Camera Greta"
+        unique_id: trend_temperatura_camera_greta
+        unit_of_measurement: "°C/h"
+        state_class: measurement
+        icon: >
+          {% set v = states('sensor.stats_temperatura_camera_greta') | float(0) * 2 %}
+          {% if v > 0.5 %} mdi:thermometer-chevron-up
+          {% elif v < -0.5 %} mdi:thermometer-chevron-down
+          {% else %} mdi:thermometer
+          {% endif %}
+        state: >
+          {{ (states('sensor.stats_temperatura_camera_greta') | float(0) * 2) | round(2) }}
+        attributes:
+          classificazione: >
+            {% set v = states('sensor.stats_temperatura_camera_greta') | float(0) * 2 %}
+            {% if v > 1.5 %} salita_rapida
+            {% elif v > 0.5 %} salita
+            {% elif v < -1.5 %} discesa_rapida
+            {% elif v < -0.5 %} discesa
+            {% else %} stabile
+            {% endif %}
+
+      - name: "Trend Temperatura Suite Letto"
+        unique_id: trend_temperatura_suite_letto
+        unit_of_measurement: "°C/h"
+        state_class: measurement
+        icon: >
+          {% set v = states('sensor.stats_temperatura_suite_letto') | float(0) * 2 %}
+          {% if v > 0.5 %} mdi:thermometer-chevron-up
+          {% elif v < -0.5 %} mdi:thermometer-chevron-down
+          {% else %} mdi:thermometer
+          {% endif %}
+        state: >
+          {{ (states('sensor.stats_temperatura_suite_letto') | float(0) * 2) | round(2) }}
+        attributes:
+          classificazione: >
+            {% set v = states('sensor.stats_temperatura_suite_letto') | float(0) * 2 %}
+            {% if v > 1.5 %} salita_rapida
+            {% elif v > 0.5 %} salita
+            {% elif v < -1.5 %} discesa_rapida
+            {% elif v < -0.5 %} discesa
+            {% else %} stabile
+            {% endif %}
+
+      - name: "Trend Temperatura Suite Salone"
+        unique_id: trend_temperatura_suite_salone
+        unit_of_measurement: "°C/h"
+        state_class: measurement
+        icon: >
+          {% set v = states('sensor.stats_temperatura_suite_salone') | float(0) * 2 %}
+          {% if v > 0.5 %} mdi:thermometer-chevron-up
+          {% elif v < -0.5 %} mdi:thermometer-chevron-down
+          {% else %} mdi:thermometer
+          {% endif %}
+        state: >
+          {{ (states('sensor.stats_temperatura_suite_salone') | float(0) * 2) | round(2) }}
+        attributes:
+          classificazione: >
+            {% set v = states('sensor.stats_temperatura_suite_salone') | float(0) * 2 %}
+            {% if v > 1.5 %} salita_rapida
+            {% elif v > 0.5 %} salita
+            {% elif v < -1.5 %} discesa_rapida
+            {% elif v < -0.5 %} discesa
+            {% else %} stabile
+            {% endif %}
+
+      - name: "Trend Temperatura WC"
+        unique_id: trend_temperatura_wc
+        unit_of_measurement: "°C/h"
+        state_class: measurement
+        icon: >
+          {% set v = states('sensor.stats_temperatura_wc') | float(0) * 2 %}
+          {% if v > 0.5 %} mdi:thermometer-chevron-up
+          {% elif v < -0.5 %} mdi:thermometer-chevron-down
+          {% else %} mdi:thermometer
+          {% endif %}
+        state: >
+          {{ (states('sensor.stats_temperatura_wc') | float(0) * 2) | round(2) }}
+        attributes:
+          classificazione: >
+            {% set v = states('sensor.stats_temperatura_wc') | float(0) * 2 %}
+            {% if v > 1.5 %} salita_rapida
+            {% elif v > 0.5 %} salita
+            {% elif v < -1.5 %} discesa_rapida
+            {% elif v < -0.5 %} discesa
+            {% else %} stabile
+            {% endif %}
+
+      - name: "Trend Temperatura WC Letto"
+        unique_id: trend_temperatura_wc_letto
+        unit_of_measurement: "°C/h"
+        state_class: measurement
+        icon: >
+          {% set v = states('sensor.stats_temperatura_wc_letto') | float(0) * 2 %}
+          {% if v > 0.5 %} mdi:thermometer-chevron-up
+          {% elif v < -0.5 %} mdi:thermometer-chevron-down
+          {% else %} mdi:thermometer
+          {% endif %}
+        state: >
+          {{ (states('sensor.stats_temperatura_wc_letto') | float(0) * 2) | round(2) }}
+        attributes:
+          classificazione: >
+            {% set v = states('sensor.stats_temperatura_wc_letto') | float(0) * 2 %}
+            {% if v > 1.5 %} salita_rapida
+            {% elif v > 0.5 %} salita
+            {% elif v < -1.5 %} discesa_rapida
+            {% elif v < -0.5 %} discesa
+            {% else %} stabile
+            {% endif %}
+
+      - name: "Trend Temperatura WC Suite"
+        unique_id: trend_temperatura_wc_suite
+        unit_of_measurement: "°C/h"
+        state_class: measurement
+        icon: >
+          {% set v = states('sensor.stats_temperatura_wc_suite') | float(0) * 2 %}
+          {% if v > 0.5 %} mdi:thermometer-chevron-up
+          {% elif v < -0.5 %} mdi:thermometer-chevron-down
+          {% else %} mdi:thermometer
+          {% endif %}
+        state: >
+          {{ (states('sensor.stats_temperatura_wc_suite') | float(0) * 2) | round(2) }}
+        attributes:
+          classificazione: >
+            {% set v = states('sensor.stats_temperatura_wc_suite') | float(0) * 2 %}
+            {% if v > 1.5 %} salita_rapida
+            {% elif v > 0.5 %} salita
+            {% elif v < -1.5 %} discesa_rapida
+            {% elif v < -0.5 %} discesa
+            {% else %} stabile
+            {% endif %}
+
+  # Sensori di bypass allarme Risco: diventa "on" se almeno uno switch
+  # con "_bypassed" nell'entity_id è attivo. Usato per mostrare la card
+  # "Sensori in bypass" nella dashboard Security.
+
+  - binary_sensor:
+    - name: Sensori in bypass
+      unique_id: sensori_in_bypass
+      icon: mdi:shield-alert
+      state: >-
+        {{ states.switch
+           | selectattr('entity_id', 'search', '_bypassed')
+           | selectattr('state', 'eq', 'on')
+           | list | count > 0 }}
+
+
+  # Visibilità card clima in dashboard
+  # La card della stagione corrente è sempre visibile (anche con impianto spento).
+  # La card dell'altra stagione compare solo se c'è qualcosa di acceso.
+  # La stagione è definita in un solo punto: "Stagione estiva".
+
+  - binary_sensor:
+
+    # ON da aprile a settembre (stagione climatizzatori), OFF da ottobre a marzo
+    # (stagione riscaldamento). Per spostare i confini modifica solo la lista dei mesi.
+    # Usato da: condizioni di visibilità delle card riscaldamento e CDZ.
+    - name: "Stagione estiva"
+      unique_id: stagione_estiva
+      state: "{{ now().month in [4, 5, 6, 7, 8, 9] }}"
+
+    # ON se almeno una zona ha il riscaldamento in funzione.
+    # Le zone sono riconosciute in automatico: basta che il sensore si chiami
+    # sensor.riscaldamento_attivo_<zona>, quindi una zona nuova non richiede modifiche qui.
+    # Usato da: card "Riscaldamento" (visibilità fuori stagione, colore e titolo).
+    - name: "Riscaldamento in funzione"
+      unique_id: riscaldamento_in_funzione
+      state: >
+        {{ states.sensor
+           | selectattr('entity_id', 'search', 'riscaldamento_attivo_')
+           | selectattr('state', 'eq', 'on')
+           | list | count > 0 }}
+
+    # ON se almeno un climatizzatore (CDZ) è acceso, in qualunque modalità
+    # (cool, heat, auto, dry, fan_only...). Gli stati off, unavailable e unknown
+    # NON contano come acceso.
+    # L'elenco dei climate è manuale: se aggiungi un CDZ va inserito qui
+    # e anche nella card CDZ della dashboard.
+    # Usato da: card "Climatizzatori" (visibilità fuori stagione, colore).
+    - name: "CDZ accesi"
+      unique_id: cdz_accesi
+      state: >
+        {% set cdz = [
+          states('climate.cdz_salone'),
+          states('climate.cucina'),
+          states('climate.cdz_camera_di_francesco'),
+          states('climate.cdz_camera_di_greta'),
+          states('climate.camera_matrimoniale')
+        ] %}
+        {{ cdz | reject('in', ['off', 'unavailable', 'unknown']) | list | count > 0 }}
+
+    # Finestra WC: replica lo stato del contatto (on/off) aggiungendo
+    # la temperatura del termostato WC come attributo, per mostrarla
+    # nella chronicle-card alla apertura/chiusura della finestra.
+    - name: "Storico finestra WC"
+      unique_id: storico_finestra_wc
+      state: "{{ states('binary_sensor.sensore_dw_wc_contact') }}"
+      attributes:
+        temperatura: >
+          {{ state_attr('climate.termostato_wc', 'current_temperature') | round(1) }}
+      availability: "{{ not is_state('binary_sensor.sensore_dw_wc_contact', 'unavailable') }}"
+
+# ==============================================================================
+# LUCI KBLUE - Zona Giorno (Salotto)
+# ==============================================================================
+
+  - light:
+    - unique_id: strip_salotto_kblue
+      name: "Strip Salotto (KBlue)"
+      state: >
+        {% set s = states('sensor.stato_strip_salotto_kblue') %}
+        {{ 'off' if s in ['unavailable', 'unknown', 'none'] else s }}
+      turn_on:
+        - action: rest_command.kblue_strip_salotto_on
+      turn_off:
+        - action: rest_command.kblue_strip_salotto_off
+      set_level:
+        - action: rest_command.kblue_strip_salotto_brightness
+          data:
+            brightness: "{{ brightness }}"
+      level: "{{ states('sensor.brightness_strip_salotto_kblue') | int(0) }}"
+
+  - light:
+    - unique_id: pendenti_salotto_kblue
+      name: "Pendenti Salotto (KBlue)"
+      state: >
+        {% set s = states('sensor.stato_pendenti_salotto_kblue') %}
+        {{ 'off' if s in ['unavailable', 'unknown', 'none'] else s }}
+      turn_on:
+        - action: rest_command.kblue_pendenti_salotto_on
+      turn_off:
+        - action: rest_command.kblue_pendenti_salotto_off
+
+  - light:
+    - unique_id: strip_ingresso_kblue
+      name: "Strip Ingresso (KBlue)"
+      state: >
+        {% set s = states('sensor.stato_strip_ingresso_kblue') %}
+        {{ 'off' if s in ['unavailable', 'unknown', 'none'] else s }}
+      turn_on:
+        - action: rest_command.kblue_strip_ingresso_on
+      turn_off:
+        - action: rest_command.kblue_strip_ingresso_off
+
+  - light:
+    - unique_id: applique_salotto_kblue
+      name: "Applique Salotto (KBlue)"
+      state: >
+        {% set s = states('sensor.stato_applique_salotto_kblue') %}
+        {{ 'off' if s in ['unavailable', 'unknown', 'none'] else s }}
+      turn_on:
+        - action: rest_command.kblue_applique_salotto_on
+      turn_off:
+        - action: rest_command.kblue_applique_salotto_off
+
+  - light:
+    - unique_id: faretti_uno_salotto_kblue
+      name: "Faretti Uno Salotto (KBlue)"
+      state: >
+        {% set s = states('sensor.stato_faretti_uno_salotto_kblue') %}
+        {{ 'off' if s in ['unavailable', 'unknown', 'none'] else s }}
+      turn_on:
+        - action: rest_command.kblue_faretti_uno_salotto_on
+      turn_off:
+        - action: rest_command.kblue_faretti_uno_salotto_off
+      set_level:
+        - action: rest_command.kblue_faretti_uno_salotto_brightness
+          data:
+            brightness: "{{ brightness }}"
+      level: "{{ states('sensor.brightness_faretti_uno_salotto_kblue') | int(0) }}"
+
+  - light:
+    - unique_id: faretti_due_salotto_kblue
+      name: "Faretti Due Salotto (KBlue)"
+      state: >
+        {% set s = states('sensor.stato_faretti_due_salotto_kblue') %}
+        {{ 'off' if s in ['unavailable', 'unknown', 'none'] else s }}
+      turn_on:
+        - action: rest_command.kblue_faretti_due_salotto_on
+      turn_off:
+        - action: rest_command.kblue_faretti_due_salotto_off
+      set_level:
+        - action: rest_command.kblue_faretti_due_salotto_brightness
+          data:
+            brightness: "{{ brightness }}"
+      level: "{{ states('sensor.brightness_faretti_due_salotto_kblue') | int(0) }}"
+
+  - light:
+    - unique_id: strip_tv_kblue
+      name: "Strip TV (KBlue)"
+      state: >
+        {% set s = states('sensor.stato_strip_tv_kblue') %}
+        {{ 'off' if s in ['unavailable', 'unknown', 'none'] else s }}
+      turn_on:
+        - action: rest_command.kblue_strip_tv_on
+      turn_off:
+        - action: rest_command.kblue_strip_tv_off
+
+
+# ==============================================================================
+# LUCI KBLUE - Camera da Letto
+# ==============================================================================
+
+  - light:
+    - unique_id: strip_letto_kblue
+      name: "Strip Letto (KBlue)"
+      turn_on:
+        - action: rest_command.kblue_strip_letto_on
+        - delay:
+            milliseconds: 500
+      turn_off:
+        - action: rest_command.kblue_strip_letto_off
+        - delay:
+            milliseconds: 500
+
+  - light:
+    - unique_id: faretti_letto_kblue
+      name: "Faretti Letto (KBlue)"
+      turn_on:
+        - action: rest_command.kblue_faretti_letto_on
+        - delay:
+            milliseconds: 500
+      turn_off:
+        - action: rest_command.kblue_faretti_letto_off
+        - delay:
+            milliseconds: 500
+
+  - light:
+    - unique_id: applique_letto_dx_kblue
+      name: "Applique Letto Dx (KBlue)"
+      state: >
+        {% set s = states('sensor.stato_applique_letto_dx_kblue') %}
+        {{ 'off' if s in ['unavailable', 'unknown', 'none'] else s }}
+      turn_on:
+        - action: rest_command.kblue_applique_letto_dx_on
+      turn_off:
+        - action: rest_command.kblue_applique_letto_dx_off
+
+  - light:
+    - unique_id: applique_letto_sx_kblue
+      name: "Applique Letto Sx (KBlue)"
+      state: >
+        {% set s = states('sensor.stato_applique_letto_sx_kblue') %}
+        {{ 'off' if s in ['unavailable', 'unknown', 'none'] else s }}
+      turn_on:
+        - action: rest_command.kblue_applique_letto_sx_on
+      turn_off:
+        - action: rest_command.kblue_applique_letto_sx_off
+
+  - light:
+    - unique_id: faretto_letto_kblue
+      name: "Faretto Letto (KBlue)"
+      state: >
+        {% set s = states('sensor.stato_faretto_letto_kblue') %}
+        {{ 'off' if s in ['unavailable', 'unknown', 'none'] else s }}
+      turn_on:
+        - action: rest_command.kblue_faretto_letto_on
+      turn_off:
+        - action: rest_command.kblue_faretto_letto_off
+
+  - light:
+    - unique_id: cabina_armadio_kblue
+      name: "Cabina Armadio (KBlue)"
+      state: >
+        {% set s = states('sensor.stato_cabina_armadio_kblue') %}
+        {{ 'off' if s in ['unavailable', 'unknown', 'none'] else s }}
+      turn_on:
+        - action: rest_command.kblue_cabina_armadio_on
+      turn_off:
+        - action: rest_command.kblue_cabina_armadio_off
+
+  - light:
+    - unique_id: faretti_bagno_letto_kblue
+      name: "Faretti Bagno Letto (KBlue)"
+      state: >
+        {% set s = states('sensor.stato_faretti_bagno_letto_kblue') %}
+        {{ 'off' if s in ['unavailable', 'unknown', 'none'] else s }}
+      turn_on:
+        - action: rest_command.kblue_faretti_bagno_letto_on
+      turn_off:
+        - action: rest_command.kblue_faretti_bagno_letto_off
+
+  - light:
+    - unique_id: strip_bagno_letto_kblue
+      name: "Strip Bagno Letto (KBlue)"
+      state: >
+        {% set s = states('sensor.stato_strip_bagno_letto_kblue') %}
+        {{ 'off' if s in ['unavailable', 'unknown', 'none'] else s }}
+      turn_on:
+        - action: rest_command.kblue_strip_bagno_letto_on
+      turn_off:
+        - action: rest_command.kblue_strip_bagno_letto_off
+
+  - light:
+    - unique_id: specchio_bagno_letto_kblue
+      name: "Specchio Bagno Letto (KBlue)"
+      turn_on:
+        - action: rest_command.kblue_specchio_bagno_letto_on
+      turn_off:
+        - action: rest_command.kblue_specchio_bagno_letto_off
+
+
+# ==============================================================================
+# LUCI KBLUE - Cucina
+# ==============================================================================
+
+  - light:
+    - unique_id: isign_cucina_kblue
+      name: "iSign Cucina (KBlue)"
+      state: >
+        {% set s = states('sensor.stato_isign_cucina_kblue') %}
+        {{ 'off' if s in ['unavailable', 'unknown', 'none'] else s }}
+      turn_on:
+        - action: rest_command.kblue_isign_cucina_on
+      turn_off:
+        - action: rest_command.kblue_isign_cucina_off
+      set_level:
+        - action: rest_command.kblue_isign_cucina_brightness
+          data:
+            brightness: "{{ brightness }}"
+      level: "{{ states('sensor.brightness_isign_cucina_kblue') | int(0) }}"
+
+  - light:
+    - unique_id: pendenti_cucina_kblue
+      name: "Pendenti Cucina (KBlue)"
+      state: >
+        {% set s = states('sensor.stato_pendenti_cucina_kblue') %}
+        {{ 'off' if s in ['unavailable', 'unknown', 'none'] else s }}
+      turn_on:
+        - action: rest_command.kblue_pendenti_cucina_on
+      turn_off:
+        - action: rest_command.kblue_pendenti_cucina_off
+
+  - light:
+    - unique_id: luce_soppalco_kblue
+      name: "Luce Soppalco (KBlue)"
+      state: >
+        {% set s = states('sensor.stato_luce_soppalco_kblue') %}
+        {{ 'off' if s in ['unavailable', 'unknown', 'none'] else s }}
+      turn_on:
+        - action: rest_command.kblue_luce_soppalco_on
+      turn_off:
+        - action: rest_command.kblue_luce_soppalco_off
+
+
+# ==============================================================================
+# LUCI KBLUE - Corridoio
+# ==============================================================================
+
+  - light:
+    - unique_id: strip_corridoio_kblue
+      name: "Strip Corridoio (KBlue)"
+      state: >
+        {% set s = states('sensor.stato_strip_corridoio_kblue') %}
+        {{ 'off' if s in ['unavailable', 'unknown', 'none'] else s }}
+      turn_on:
+        - action: rest_command.kblue_strip_corridoio_on
+      turn_off:
+        - action: rest_command.kblue_strip_corridoio_off
+
+  - light:
+    - unique_id: led_corridoio_kblue
+      name: "Led Corridoio (KBlue)"
+      state: >
+        {% set s = states('sensor.stato_led_corridoio_kblue') %}
+        {{ 'off' if s in ['unavailable', 'unknown', 'none'] else s }}
+      turn_on:
+        - action: rest_command.kblue_led_corridoio_on
+      turn_off:
+        - action: rest_command.kblue_led_corridoio_off
+
+
+# ==============================================================================
+# LUCI KBLUE - Camera Francesco
+# ==============================================================================
+
+  - light:
+    - unique_id: luce_francesco_kblue
+      name: "Luce Francesco (KBlue)"
+      state: >
+        {% set s = states('sensor.stato_luce_francesco_kblue') %}
+        {{ 'off' if s in ['unavailable', 'unknown', 'none'] else s }}
+      turn_on:
+        - action: rest_command.kblue_luce_francesco_on
+      turn_off:
+        - action: rest_command.kblue_luce_francesco_off
+
+
+# ==============================================================================
+# LUCI KBLUE - Camera Greta
+# ==============================================================================
+
+  - light:
+    - unique_id: luce_greta_kblue
+      name: "Luce Greta (KBlue)"
+      state: >
+        {% set s = states('sensor.stato_luce_greta_kblue') %}
+        {{ 'off' if s in ['unavailable', 'unknown', 'none'] else s }}
+      turn_on:
+        - action: rest_command.kblue_luce_greta_on
+      turn_off:
+        - action: rest_command.kblue_luce_greta_off
+
+  - light:
+    - unique_id: luce_ext_greta_kblue
+      name: "Luce Ext Greta (KBlue)"
+      state: >
+        {% set s = states('sensor.stato_luce_ext_greta_kblue') %}
+        {{ 'off' if s in ['unavailable', 'unknown', 'none'] else s }}
+      turn_on:
+        - action: rest_command.kblue_luce_ext_greta_on
+      turn_off:
+        - action: rest_command.kblue_luce_ext_greta_off
+
+
+# ==============================================================================
+# LUCI KBLUE - Bagno Grande
+# ==============================================================================
+
+  - light:
+    - unique_id: strip_bagno_grande_kblue
+      name: "Strip Bagno Grande (KBlue)"
+      state: >
+        {% set s = states('sensor.stato_strip_bagno_grande_kblue') %}
+        {{ 'off' if s in ['unavailable', 'unknown', 'none'] else s }}
+      turn_on:
+        - action: rest_command.kblue_strip_bagno_grande_on
+      turn_off:
+        - action: rest_command.kblue_strip_bagno_grande_off
+
+  - light:
+    - unique_id: faretti_bagno_grande_kblue
+      name: "Faretti Bagno Grande (KBlue)"
+      state: >
+        {% set s = states('sensor.stato_faretti_bagno_grande_kblue') %}
+        {{ 'off' if s in ['unavailable', 'unknown', 'none'] else s }}
+      turn_on:
+        - action: rest_command.kblue_faretti_bagno_grande_on
+      turn_off:
+        - action: rest_command.kblue_faretti_bagno_grande_off
+
+  - light:
+    - unique_id: specchio_bagno_grande_kblue
+      name: "Specchio Bagno Grande (KBlue)"
+      state: >
+        {% set s = states('sensor.stato_specchio_bagno_grande_kblue') %}
+        {{ 'off' if s in ['unavailable', 'unknown', 'none'] else s }}
+      turn_on:
+        - action: rest_command.kblue_specchio_bagno_grande_on
+      turn_off:
+        - action: rest_command.kblue_specchio_bagno_grande_off
+
+
+# ==============================================================================
+# LUCI KBLUE - Esterno
+# ==============================================================================
+
+  - light:
+    - unique_id: luci_ext_salone_kblue
+      name: "Luci Ext Salone (KBlue)"
+      state: >
+        {% set s = states('sensor.stato_luci_ext_salone_kblue') %}
+        {{ 'off' if s in ['unavailable', 'unknown', 'none'] else s }}
+      turn_on:
+        - action: rest_command.kblue_luci_ext_salone_on
+      turn_off:
+        - action: rest_command.kblue_luci_ext_salone_off
+
+  - light:
+    - unique_id: luce_ext_lavanderia_kblue
+      name: "Luce Ext Lavanderia (KBlue)"
+      state: >
+        {% set s = states('sensor.stato_luce_ext_lavanderia_kblue') %}
+        {{ 'off' if s in ['unavailable', 'unknown', 'none'] else s }}
+      turn_on:
+        - action: rest_command.kblue_luce_ext_lavanderia_on
+      turn_off:
+        - action: rest_command.kblue_luce_ext_lavanderia_off
+
+  - light:
+    - unique_id: led_pergotenda_kblue
+      name: "Led Pergotenda (KBlue)"
+      state: >
+        {% set s = states('sensor.stato_led_pergotenda_kblue') %}
+        {{ 'off' if s in ['unavailable', 'unknown', 'none'] else s }}
+      turn_on:
+        - action: rest_command.kblue_led_pergotenda_on
+      turn_off:
+        - action: rest_command.kblue_led_pergotenda_off
+
+
+# ==============================================================================
+# LUCI KBLUE - Suite (Letto / WC)
+# ==============================================================================
+
+  - light:
+    - unique_id: luce_letto_suite_kblue
+      name: "Luce Letto Suite (KBlue)"
+      state: >
+        {% set s = states('sensor.stato_luce_letto_suite_kblue') %}
+        {{ 'off' if s in ['unavailable', 'unknown', 'none'] else s }}
+      turn_on:
+        - action: rest_command.kblue_luce_letto_suite_on
+      turn_off:
+        - action: rest_command.kblue_luce_letto_suite_off
+
+  - light:
+    - unique_id: luce_cucina_suite_kblue
+      name: "Luce Cucina Suite (KBlue)"
+      state: >
+        {% set s = states('sensor.stato_luce_cucina_suite_kblue') %}
+        {{ 'off' if s in ['unavailable', 'unknown', 'none'] else s }}
+      turn_on:
+        - action: rest_command.kblue_luce_cucina_suite_on
+      turn_off:
+        - action: rest_command.kblue_luce_cucina_suite_off
+
+  - light:
+    - unique_id: applique_ingresso_suite_kblue
+      name: "Applique Ingresso Suite (KBlue)"
+      state: >
+        {% set s = states('sensor.stato_applique_ingresso_suite_kblue_2') %}
+        {{ 'off' if s in ['unavailable', 'unknown', 'none'] else s }}
+      turn_on:
+        - action: rest_command.kblue_applique_ingresso_suite_on
+      turn_off:
+        - action: rest_command.kblue_applique_ingresso_suite_off
+
+  - light:
+    - unique_id: luce_wc_suite_kblue
+      name: "Luce WC Suite (KBlue)"
+      state: >
+        {% set s = states('sensor.stato_luce_wc_suite_kblue') %}
+        {{ 'off' if s in ['unavailable', 'unknown', 'none'] else s }}
+      turn_on:
+        - action: rest_command.kblue_luce_wc_suite_on
+      turn_off:
+        - action: rest_command.kblue_luce_wc_suite_off
+
+  - light:
+    - unique_id: luci_esterne_suite_kblue
+      name: "Luci Esterne Suite (KBlue)"
+      state: >
+        {% set s = states('sensor.stato_luci_esterne_suite_kblue') %}
+        {{ 'off' if s in ['unavailable', 'unknown', 'none'] else s }}
+      turn_on:
+        - action: rest_command.kblue_luci_esterne_suite_on
+      turn_off:
+        - action: rest_command.kblue_luci_esterne_suite_off
+
+  - light:
+    - unique_id: luce_soppalco_suite_kblue
+      name: "Luce Soppalco Suite (KBlue)"
+      state: >
+        {% set s = states('sensor.stato_luce_soppalco_suite_kblue') %}
+        {{ 'off' if s in ['unavailable', 'unknown', 'none'] else s }}
+      turn_on:
+        - action: rest_command.kblue_luce_soppalco_suite_on
+      turn_off:
+        - action: rest_command.kblue_luce_soppalco_suite_off
+
+  - light:
+    - unique_id: strip_suite_kblue
+      name: "Strip Suite (KBlue)"
+      state: >
+        {% set s = states('sensor.stato_strip_suite_kblue') %}
+        {{ 'off' if s in ['unavailable', 'unknown', 'none'] else s }}
+      turn_on:
+        - action: rest_command.kblue_strip_suite_on
+      turn_off:
+        - action: rest_command.kblue_strip_suite_off
+
+  - light:
+    - unique_id: specchio_wc_suite_kblue
+      name: "Specchio WC Suite (KBlue)"
+      state: >
+        {% set s = states('sensor.stato_specchio_wc_suite_kblue') %}
+        {{ 'off' if s in ['unavailable', 'unknown', 'none'] else s }}
+      turn_on:
+        - action: rest_command.kblue_specchio_wc_suite_on
+      turn_off:
+        - action: rest_command.kblue_specchio_wc_suite_off
+
+
+# ==============================================================================
+# COVER KBLUE - Zona Giorno
+# Nuovo formato (HA 2025.12+): niente trattino "-" sotto cover:
+# open/close mandano solo l'impulso, il finecorsa ferma il motore autonomamente
+# stop_cover rimane per fermare manualmente a metà corsa
+# ==============================================================================
+
+  - cover:
+      name: Tapparella Salone
+      unique_id: tapparella_salone_cover
+      device_class: shutter
+      open_cover:
+        - action: script.tapparella_salone_up
+      close_cover:
+        - action: script.tapparella_salone_down
+      stop_cover:
+        - action: script.tapparella_salone_stop
+
+  - cover:
+      name: Grata Salone
+      unique_id: grata_salone_cover
+      device_class: shutter
+      open_cover:
+        - action: script.grata_salone_up
+      close_cover:
+        - action: script.grata_salone_down
+      stop_cover:
+        - action: script.grata_salone_stop
+
+  - cover:
+      name: Grata Cucina
+      unique_id: grata_cucina_cover
+      device_class: shutter
+      open_cover:
+        - action: script.grata_cucina_up
+      close_cover:
+        - action: script.grata_cucina_down
+      stop_cover:
+        - action: script.grata_cucina_stop
+
+
+# ==============================================================================
+# COVER KBLUE - Zona Notte
+# ==============================================================================
+
+  - cover:
+      name: Tapparella Francesco
+      unique_id: tapparella_francesco_cover
+      device_class: shutter
+      open_cover:
+        - action: script.tapparella_camera_francesco_up
+      close_cover:
+        - action: script.tapparella_camera_francesco_down
+      stop_cover:
+        - action: script.tapparella_camera_francesco_stop
+
+  - cover:
+      name: Tapparella Greta
+      unique_id: tapparella_greta_cover
+      device_class: shutter
+      open_cover:
+        - action: script.tapparella_camera_greta_up
+      close_cover:
+        - action: script.tapparella_camera_greta_down
+      stop_cover:
+        - action: script.tapparella_camera_greta_stop
+
+  - cover:
+      name: Grata Greta
+      unique_id: grata_greta_cover
+      device_class: shutter
+      open_cover:
+        - action: script.grata_camera_greta_up
+      close_cover:
+        - action: script.grata_camera_greta_down
+      stop_cover:
+        - action: script.grata_camera_greta_stop
+
+  - cover:
+      name: Tapparella Camera Matrimoniale
+      unique_id: tapparella_camera_matrimoniale_cover
+      device_class: shutter
+      open_cover:
+        - action: script.tapparella_camera_matrimoniale_up
+      close_cover:
+        - action: script.tapparella_camera_matrimoniale_down
+      stop_cover:
+        - action: script.tapparella_camera_matrimoniale_stop
+
+  - cover:
+      name: Tapparella Bagno Grande
+      unique_id: tapparella_bagno_grande_cover
+      device_class: shutter
+      open_cover:
+        - action: script.tapparella_bagno_grande_up
+      close_cover:
+        - action: script.tapparella_bagno_grande_down
+      stop_cover:
+        - action: script.tapparella_bagno_grande_stop
+
+
+# ==============================================================================
+# COVER KBLUE - Gruppi (richiamano script sequenziali)
+# ==============================================================================
+
+  - cover:
+      name: "Grate zona giorno"
+      unique_id: grate_zona_giorno_sequenziale
+      device_class: shutter
+      open_cover:
+        - action: script.apri_grate_zona_giorno_sequenziale
+      close_cover:
+        - action: script.chiudi_grate_zona_giorno_sequenziale
+      stop_cover:
+        - action: script.stop_grate_zona_giorno_sequenziale
+
+  - cover:
+      name: "Tapparelle zona notte"
+      unique_id: tapparelle_zona_notte_sequenziale
+      device_class: shutter
+      open_cover:
+        - action: script.apri_tapparelle_zona_notte_sequenziale
+      close_cover:
+        - action: script.chiudi_tapparelle_zona_notte_sequenziale
+      stop_cover:
+        - action: script.stop_tapparelle_zona_notte_sequenziale
+
+  - cover:
+      name: "Tapparelle camere"
+      unique_id: tapparelle_camere_sequenziale
+      device_class: shutter
+      open_cover:
+        - action: script.apri_tapparelle_camere_sequenziale
+      close_cover:
+        - action: script.chiudi_tapparelle_camere_sequenziale
+      stop_cover:
+        - action: script.stop_tapparelle_camere_sequenziale
+
+  - cover:
+      name: "Motori zona giorno"
+      unique_id: motori_zona_giorno
+      device_class: shutter
+      open_cover:
+        - action: script.apri_motori_zona_giorno
+      close_cover:
+        - action: script.chiudi_motori_zona_giorno
+      stop_cover:
+        - action: script.stop_motori_zona_giorno
+
+  - cover:
+      name: "Motori zona notte"
+      unique_id: motori_zona_notte
+      device_class: shutter
+      open_cover:
+        - action: script.apri_motori_zona_notte
+      close_cover:
+        - action: script.chiudi_motori_zona_notte
+      stop_cover:
+        - action: script.stop_motori_zona_notte
+
+
+# ==============================================================================
+# COVER KBLUE - Pergotenda Esterna
+# Posizione letta da sensore KBlue
+# ==============================================================================
+
+  - cover:
+      name: Pergotenda Esterna
+      unique_id: pergotenda_esterna_cover
+      device_class: awning
+      position: "{{ [states('sensor.posizione_pergotenda_esterna_kblue') | int(0), 100] | min }}"
+      open_cover:
+        - action: script.pergotenda_esterna_up
+      close_cover:
+        - action: script.pergotenda_esterna_down
+      stop_cover:
+        - action: script.pergotenda_esterna_stop
+
+
+# ==============================================================================
+# COVER KBLUE - Suite (Tapparelle, Grate, Tende)
+# Tutte con posizione letta da sensore KBlue
+# ==============================================================================
+
+  - cover:
+      name: Tapparella Letto Suite
+      unique_id: tapparella_letto_suite_cover
+      device_class: shutter
+      position: "{{ [states('sensor.posizione_tapparella_letto_suite_kblue') | int(0), 100] | min }}"
+      open_cover:
+        - action: script.tapparella_letto_suite_up
+      close_cover:
+        - action: script.tapparella_letto_suite_down
+      stop_cover:
+        - action: script.tapparella_letto_suite_stop
+
+  - cover:
+      name: Tapparella WC Suite
+      unique_id: tapparella_wc_suite_cover
+      device_class: shutter
+      position: "{{ [states('sensor.posizione_tapparella_wc_suite_kblue') | int(0), 100] | min }}"
+      open_cover:
+        - action: script.tapparella_wc_suite_up
+      close_cover:
+        - action: script.tapparella_wc_suite_down
+      stop_cover:
+        - action: script.tapparella_wc_suite_stop
+
+  - cover:
+      name: Grata Fin Pranzo Suite
+      unique_id: grata_fin_pranzo_suite_cover
+      device_class: shutter
+      position: "{{ [states('sensor.posizione_grata_fin_pranzo_suite_kblue') | int(0), 100] | min }}"
+      open_cover:
+        - action: script.grata_fin_pranzo_suite_up
+      close_cover:
+        - action: script.grata_fin_pranzo_suite_down
+      stop_cover:
+        - action: script.grata_fin_pranzo_suite_stop
+
+  - cover:
+      name: Grata Vasistas Suite
+      unique_id: grata_vasistas_suite_cover
+      device_class: shutter
+      position: "{{ [states('sensor.posizione_grata_vasistas_suite_kblue') | int(0), 100] | min }}"
+      open_cover:
+        - action: script.grata_vasistas_suite_up
+      close_cover:
+        - action: script.grata_vasistas_suite_down
+      stop_cover:
+        - action: script.grata_vasistas_suite_stop
+
+  - cover:
+      name: Grata Scorr Pranzo Suite
+      unique_id: grata_scorr_pranzo_suite_cover
+      device_class: shutter
+      position: "{{ [states('sensor.posizione_grata_scorr_pranzo_suite_kblue') | int(0), 100] | min }}"
+      open_cover:
+        - action: script.grata_scorr_pranzo_suite_up
+      close_cover:
+        - action: script.grata_scorr_pranzo_suite_down
+      stop_cover:
+        - action: script.grata_scorr_pranzo_suite_stop
+
+  - cover:
+      name: Tenda Fin Pranzo Suite
+      unique_id: tenda_fin_pranzo_suite_cover
+      device_class: blind
+      position: "{{ [states('sensor.posizione_tenda_fin_pranzo_suite_kblue') | int(0), 100] | min }}"
+      open_cover:
+        - action: script.tenda_fin_pranzo_suite_up
+      close_cover:
+        - action: script.tenda_fin_pranzo_suite_down
+      stop_cover:
+        - action: script.tenda_fin_pranzo_suite_stop
+
+  - cover:
+      name: Tenda Scorr Pranzo Suite
+      unique_id: tenda_scorr_pranzo_suite_cover
+      device_class: blind
+      position: "{{ [states('sensor.posizione_tenda_scorr_pranzo_suite_kblue') | int(0), 100] | min }}"
+      open_cover:
+        - action: script.tenda_scorr_pranzo_suite_up
+      close_cover:
+        - action: script.tenda_scorr_pranzo_suite_down
+      stop_cover:
+        - action: script.tenda_scorr_pranzo_suite_stop
+
+  - cover:
+      name: Tenda Vasistas Suite
+      unique_id: tenda_vasistas_suite_cover
+      device_class: blind
+      position: "{{ [states('sensor.posizione_tenda_vasistas_suite_kblue') | int(0), 100] | min }}"
+      open_cover:
+        - action: script.tenda_vasistas_suite_up
+      close_cover:
+        - action: script.tenda_vasistas_suite_down
+      stop_cover:
+        - action: script.tenda_vasistas_suite_stop
+
+  - cover:
+      name: Pergotenda Suite
+      unique_id: pergotenda_suite_cover
+      device_class: awning
+      open_cover:
+        - action: script.pergotenda_suite_up
+      close_cover:
+        - action: script.pergotenda_suite_down
+      stop_cover:
+        - action: script.pergotenda_suite_stop
+
+
+# ==============================================================================
+# SWITCH KBLUE - Prese Zona Giorno / Camere / Esterno
+# ==============================================================================
+
+  - switch:
+    # Presa Balconcino
+    - unique_id: presa_balconcino_kblue
+      name: "Presa Balconcino (KBlue)"
+      availability: "{{ states('sensor.stato_strip_balconcino_kblue') in ['on', 'off'] }}"
+      state: "{{ states('sensor.stato_strip_balconcino_kblue') }}"
+      turn_on:
+        - action: rest_command.kblue_strip_balconcino_on
+      turn_off:
+        - action: rest_command.kblue_strip_balconcino_off
+
+  - switch:
+    - unique_id: presa_francesco_kblue
+      name: "Presa Francesco (KBlue)"
+      availability: "{{ states('sensor.stato_presa_francesco_kblue') in ['on', 'off'] }}"
+      state: "{{ states('sensor.stato_presa_francesco_kblue') }}"
+      turn_on:
+        - action: rest_command.kblue_presa_francesco_on
+      turn_off:
+        - action: rest_command.kblue_presa_francesco_off
+
+    - unique_id: presa_greta_kblue
+      name: "Presa Greta (KBlue)"
+      availability: "{{ states('sensor.stato_presa_greta_kblue') in ['on', 'off'] }}"
+      state: "{{ states('sensor.stato_presa_greta_kblue') }}"
+      turn_on:
+        - action: rest_command.kblue_presa_greta_on
+      turn_off:
+        - action: rest_command.kblue_presa_greta_off
+
+    - unique_id: presa_tv_ext_kblue
+      name: "Presa TV Ext (KBlue)"
+      availability: "{{ states('sensor.stato_presa_tv_ext_kblue') in ['on', 'off'] }}"
+      state: "{{ states('sensor.stato_presa_tv_ext_kblue') }}"
+      turn_on:
+        - action: rest_command.kblue_presa_tv_ext_on
+      turn_off:
+        - action: rest_command.kblue_presa_tv_ext_off
+
+    - unique_id: presa_ext_kblue
+      name: "Presa Ext (KBlue)"
+      availability: "{{ states('sensor.stato_presa_ext_kblue') in ['on', 'off'] }}"
+      state: "{{ states('sensor.stato_presa_ext_kblue') }}"
+      turn_on:
+        - action: rest_command.kblue_presa_ext_on
+      turn_off:
+        - action: rest_command.kblue_presa_ext_off
+
+
+# ==============================================================================
+# SWITCH KBLUE - Prese Suite
+# ==============================================================================
+
+  - switch:
+    - unique_id: presa_letto_suite_kblue
+      name: "Presa Letto Suite (KBlue)"
+      availability: "{{ states('sensor.stato_presa_letto_suite_kblue') in ['on', 'off'] }}"
+      state: "{{ states('sensor.stato_presa_letto_suite_kblue') }}"
+      turn_on:
+        - action: rest_command.kblue_presa_letto_suite_on
+      turn_off:
+        - action: rest_command.kblue_presa_letto_suite_off
+
+    - unique_id: presa_esterna_tv_suite_kblue
+      name: "Presa Esterna TV Suite (KBlue)"
+      availability: "{{ states('sensor.stato_presa_esterna_tv_suite_kblue') in ['on', 'off'] }}"
+      state: "{{ states('sensor.stato_presa_esterna_tv_suite_kblue') }}"
+      turn_on:
+        - action: rest_command.kblue_presa_esterna_tv_suite_on
+      turn_off:
+        - action: rest_command.kblue_presa_esterna_tv_suite_off
+
+    - unique_id: presa_esterna_suite_kblue
+      name: "Presa Esterna Suite (KBlue)"
+      availability: "{{ states('sensor.stato_presa_esterna_suite_kblue') in ['on', 'off'] }}"
+      state: "{{ states('sensor.stato_presa_esterna_suite_kblue') }}"
+      turn_on:
+        - action: rest_command.kblue_presa_esterna_suite_on
+      turn_off:
+        - action: rest_command.kblue_presa_esterna_suite_off
+
+
+# ==============================================================================
+# SENSORI STATISTICI - Dashboard Consumi Elettrici
+# Aggiunto: 10/01/2026
+# ==============================================================================
+
+  - sensor:
+
+      # --- Potenza e bilanciamento fasi ---
+
+      - name: "Potenza Totale Calcolata"
+        unique_id: potenza_totale_calcolata_kblue
+        unit_of_measurement: "kW"
+        device_class: power
+        state_class: measurement
+        state: >
+          {% set l1 = states('sensor.consumo_l1') | float(0) %}
+          {% set l2 = states('sensor.consumo_l2') | float(0) %}
+          {% set l3 = states('sensor.consumo_l3') | float(0) %}
+          {{ (l1 + l2 + l3) | round(2) }}
+
+      - name: "Bilanciamento Fasi"
+        unique_id: bilanciamento_fasi_kblue
+        unit_of_measurement: "%"
+        state: >
+          {% set l1 = states('sensor.consumo_l1') | float(0) %}
+          {% set l2 = states('sensor.consumo_l2') | float(0) %}
+          {% set l3 = states('sensor.consumo_l3') | float(0) %}
+          {% set fasi = [l1, l2, l3] %}
+          {% set max_fase = fasi | max %}
+          {% set min_fase = fasi | min %}
+          {% set tot = l1 + l2 + l3 %}
+          {% if tot > 0.1 %}
+            {{ (((max_fase - min_fase) / (tot / 3)) * 100) | round(1) }}
+          {% else %}
+            0
+          {% endif %}
+        attributes:
+          stato: >
+            {% set bil = states('sensor.bilanciamento_fasi') | float(0) %}
+            {% if bil < 20 %}
+              Ottimo
+            {% elif bil < 40 %}
+              Buono
+            {% elif bil < 60 %}
+              Accettabile
+            {% else %}
+              Sbilanciato
+            {% endif %}
+          l1_percentuale: >
+            {% set l1 = states('sensor.consumo_l1') | float(0) %}
+            {% set tot = states('sensor.consumo_totale') | float(0.01) %}
+            {{ ((l1 / tot) * 100) | round(1) }}
+          l2_percentuale: >
+            {% set l2 = states('sensor.consumo_l2') | float(0) %}
+            {% set tot = states('sensor.consumo_totale') | float(0.01) %}
+            {{ ((l2 / tot) * 100) | round(1) }}
+          l3_percentuale: >
+            {% set l3 = states('sensor.consumo_l3') | float(0) %}
+            {% set tot = states('sensor.consumo_totale') | float(0.01) %}
+            {{ ((l3 / tot) * 100) | round(1) }}
+
+      - name: "Fase Più Carica"
+        unique_id: fase_piu_carica_kblue
+        state: >
+          {% set l1 = states('sensor.consumo_l1') | float(0) %}
+          {% set l2 = states('sensor.consumo_l2') | float(0) %}
+          {% set l3 = states('sensor.consumo_l3') | float(0) %}
+          {% set fasi = {'L1': l1, 'L2': l2, 'L3': l3} %}
+          {{ fasi | dictsort(by='value') | last | first }}
+        attributes:
+          valore: >
+            {% set l1 = states('sensor.consumo_l1') | float(0) %}
+            {% set l2 = states('sensor.consumo_l2') | float(0) %}
+            {% set l3 = states('sensor.consumo_l3') | float(0) %}
+            {{ [l1, l2, l3] | max | round(2) }}
+
+      # --- Costi e proiezioni (tariffa: input_number.tariffa_energia, editabile da dashboard) ---
+
+      - name: "Costo Energia Oggi"
+        unique_id: costo_energia_oggi_kblue
+        unit_of_measurement: "€"
+        state: >
+          {% set kwh = states('sensor.energia_giornaliera_totale') | float(0) %}
+          {% set tariffa = states('input_number.tariffa_energia') | float(0.1488) %}
+          {{ (kwh * tariffa) | round(2) }}
+
+      - name: "Costo Energia Mese"
+        unique_id: costo_energia_mese_kblue
+        unit_of_measurement: "€"
+        state: >
+          {% set kwh = states('sensor.energia_mensile_totale') | float(0) %}
+          {% set tariffa = states('input_number.tariffa_energia') | float(0.1488) %}
+          {{ (kwh * tariffa) | round(2) }}
+
+      - name: "Proiezione Consumo Mensile"
+        unique_id: proiezione_consumo_mensile_kblue
+        unit_of_measurement: "kWh"
+        state: >
+          {% set oggi = now().day %}
+          {% set tot_giorni = (now().replace(day=1) + timedelta(days=32)).replace(day=1) - timedelta(days=1) %}
+          {% set tot_giorni = tot_giorni.day %}
+          {% set consumo_attuale = states('sensor.energia_mensile_totale') | float(0) %}
+          {% if oggi > 0 %}
+            {{ ((consumo_attuale / oggi) * tot_giorni) | round(0) }}
+          {% else %}
+            0
+          {% endif %}
+        attributes:
+          media_giornaliera: >
+            {% set oggi = now().day %}
+            {% set consumo = states('sensor.energia_mensile_totale') | float(0) %}
+            {{ (consumo / oggi) | round(2) if oggi > 0 else 0 }}
+
+      # --- Utilizzo contratto (max 9.9kW = 3x3.3kW per fase) ---
+
+      - name: "Utilizzo Contratto"
+        unique_id: utilizzo_contratto_percentuale
+        unit_of_measurement: "%"
+        state: >
+          {% set tot = states('sensor.consumo_totale') | float(0) %}
+          {% set max_contratto = 9.9 %}
+          {{ ((tot / max_contratto) * 100) | round(1) }}
+        attributes:
+          stato: >
+            {% set perc = states('sensor.utilizzo_contratto') | float(0) %}
+            {% if perc < 50 %}
+              Normale
+            {% elif perc < 80 %}
+              Attenzione
+            {% elif perc < 95 %}
+              Critico
+            {% else %}
+              Soglia Superata
+            {% endif %}
+          margine_disponibile: >
+            {% set tot = states('sensor.consumo_totale') | float(0) %}
+            {% set max_contratto = 9.9 %}
+            {{ (max_contratto - tot) | round(2) }}
+
+      # --- Allarmi per fase (soglie: attenzione 2.5kW / allerta 3.0kW / critico 3.3kW) ---
+
+      - name: "Stato Allarme L1"
+        unique_id: stato_allarme_l1
+        state: >
+          {% set consumo = states('sensor.consumo_l1') | float(0) %}
+          {% if consumo >= 3.3 %}
+            critico
+          {% elif consumo >= 3.0 %}
+            allerta
+          {% elif consumo >= 2.5 %}
+            attenzione
+          {% else %}
+            normale
+          {% endif %}
+        icon: >
+          {% set consumo = states('sensor.consumo_l1') | float(0) %}
+          {% if consumo >= 3.3 %}
+            mdi:alert-circle
+          {% elif consumo >= 3.0 %}
+            mdi:alert
+          {% elif consumo >= 2.5 %}
+            mdi:alert-outline
+          {% else %}
+            mdi:check-circle
+          {% endif %}
+        attributes:
+          percentuale_soglia: >
+            {{ ((states('sensor.consumo_l1') | float(0) / 3.3) * 100) | round(1) }}
+
+      - name: "Stato Allarme L2"
+        unique_id: stato_allarme_l2
+        state: >
+          {% set consumo = states('sensor.consumo_l2') | float(0) %}
+          {% if consumo >= 3.3 %}
+            critico
+          {% elif consumo >= 3.0 %}
+            allerta
+          {% elif consumo >= 2.5 %}
+            attenzione
+          {% else %}
+            normale
+          {% endif %}
+        icon: >
+          {% set consumo = states('sensor.consumo_l2') | float(0) %}
+          {% if consumo >= 3.3 %}
+            mdi:alert-circle
+          {% elif consumo >= 3.0 %}
+            mdi:alert
+          {% elif consumo >= 2.5 %}
+            mdi:alert-outline
+          {% else %}
+            mdi:check-circle
+          {% endif %}
+        attributes:
+          percentuale_soglia: >
+            {{ ((states('sensor.consumo_l2') | float(0) / 3.3) * 100) | round(1) }}
+
+      - name: "Stato Allarme L3"
+        unique_id: stato_allarme_l3
+        state: >
+          {% set consumo = states('sensor.consumo_l3') | float(0) %}
+          {% if consumo >= 3.3 %}
+            critico
+          {% elif consumo >= 3.0 %}
+            allerta
+          {% elif consumo >= 2.5 %}
+            attenzione
+          {% else %}
+            normale
+          {% endif %}
+        icon: >
+          {% set consumo = states('sensor.consumo_l3') | float(0) %}
+          {% if consumo >= 3.3 %}
+            mdi:alert-circle
+          {% elif consumo >= 3.0 %}
+            mdi:alert
+          {% elif consumo >= 2.5 %}
+            mdi:alert-outline
+          {% else %}
+            mdi:check-circle
+          {% endif %}
+        attributes:
+          percentuale_soglia: >
+            {{ ((states('sensor.consumo_l3') | float(0) / 3.3) * 100) | round(1) }}
+
+      # --- Allarme consumo totale (soglie: attenzione 7.0kW / allerta 8.5kW / critico 10.0kW) ---
+
+      - name: "Stato Allarme Consumo Totale"
+        unique_id: stato_allarme_consumo_totale
+        state: >
+          {% set consumo = states('sensor.consumo_totale') | float(0) %}
+          {% if consumo >= 10.0 %}
+            critico
+          {% elif consumo >= 8.5 %}
+            allerta
+          {% elif consumo >= 7.0 %}
+            attenzione
+          {% else %}
+            normale
+          {% endif %}
+        icon: >
+          {% set consumo = states('sensor.consumo_totale') | float(0) %}
+          {% if consumo >= 10.0 %}
+            mdi:alert-octagon
+          {% elif consumo >= 8.5 %}
+            mdi:alert-circle
+          {% elif consumo >= 7.0 %}
+            mdi:alert
+          {% else %}
+            mdi:check-circle-outline
+          {% endif %}
+        attributes:
+          percentuale_contratto: >
+            {{ ((states('sensor.consumo_totale') | float(0) / 10.0) * 100) | round(1) }}
+          fasi_in_allerta: >
+            {% set fasi = namespace(count=0) %}
+            {% if states('sensor.consumo_l1') | float(0) >= 3.0 %}
+              {% set fasi.count = fasi.count + 1 %}
+            {% endif %}
+            {% if states('sensor.consumo_l2') | float(0) >= 3.0 %}
+              {% set fasi.count = fasi.count + 1 %}
+            {% endif %}
+            {% if states('sensor.consumo_l3') | float(0) >= 3.0 %}
+              {% set fasi.count = fasi.count + 1 %}
+            {% endif %}
+            {{ fasi.count }}
+
+      - name: "Ultimo Allarme Consumo"
+        unique_id: ultimo_allarme_consumo
+        state: >
+          {% set last_changed = states.sensor.consumo_totale.last_changed %}
+          {% set now_time = now() %}
+          {% set diff = (now_time - last_changed).total_seconds() %}
+          {% if diff < 60 %}
+            {{ diff | int }} secondi fa
+          {% elif diff < 3600 %}
+            {{ (diff / 60) | int }} minuti fa
+          {% else %}
+            {{ (diff / 3600) | int }} ore fa
+          {% endif %}
+        icon: mdi:clock-alert-outline
+
+      - name: "Margine Fase Critica"
+        unique_id: margine_fase_critica
+        unit_of_measurement: "kW"
+        state: >
+          {% set l1 = states('sensor.consumo_l1') | float(0) %}
+          {% set l2 = states('sensor.consumo_l2') | float(0) %}
+          {% set l3 = states('sensor.consumo_l3') | float(0) %}
+          {% set max_fase = [l1, l2, l3] | max %}
+          {{ (3.3 - max_fase) | round(2) }}
+        attributes:
+          fase: >
+            {% set l1 = states('sensor.consumo_l1') | float(0) %}
+            {% set l2 = states('sensor.consumo_l2') | float(0) %}
+            {% set l3 = states('sensor.consumo_l3') | float(0) %}
+            {% set fasi = {'L1': l1, 'L2': l2, 'L3': l3} %}
+            {{ fasi | dictsort(by='value') | last | first }}
+          percentuale_utilizzo: >
+            {% set l1 = states('sensor.consumo_l1') | float(0) %}
+            {% set l2 = states('sensor.consumo_l2') | float(0) %}
+            {% set l3 = states('sensor.consumo_l3') | float(0) %}
+            {% set max_fase = [l1, l2, l3] | max %}
+            {{ ((max_fase / 3.3) * 100) | round(1) }}
+# ==============================================================================
+# ALLARME RISCO - Stato per partizione + riepilogo (per widget iOS)
+# ==============================================================================
+
+  - sensor:
+      - name: "Stato Allarme Filippo e Chiara"
+        unique_id: stato_allarme_risco_filippo_chiara
+        state: >
+          {% set s = states('alarm_control_panel.risco_casetta_partition_0') %}
+          {{ {'disarmed':'Disinserito','armed_away':'Inserito (assente)',
+              'armed_home':'Inserito (presente)','armed_night':'Inserito (notte)',
+              'arming':'Inserimento in corso','pending':'Ritardo ingresso',
+              'triggered':'ALLARME'}.get(s, s) }}
+        icon: >
+          {% set s = states('alarm_control_panel.risco_casetta_partition_0') %}
+          {{ 'mdi:shield-off' if s == 'disarmed' else ('mdi:shield-alert' if s == 'triggered' else 'mdi:shield-lock') }}
+
+      - name: "Stato Allarme Comune"
+        unique_id: stato_allarme_risco_comune
+        state: >
+          {% set s = states('alarm_control_panel.risco_casetta_partition_1') %}
+          {{ {'disarmed':'Disinserito','armed_away':'Inserito (assente)',
+              'armed_home':'Inserito (presente)','armed_night':'Inserito (notte)',
+              'arming':'Inserimento in corso','pending':'Ritardo ingresso',
+              'triggered':'ALLARME'}.get(s, s) }}
+        icon: >
+          {% set s = states('alarm_control_panel.risco_casetta_partition_1') %}
+          {{ 'mdi:shield-off' if s == 'disarmed' else ('mdi:shield-alert' if s == 'triggered' else 'mdi:shield-lock') }}
+
+      - name: "Stato Allarme Casa Mirella"
+        unique_id: stato_allarme_risco_casa_mirella
+        state: >
+          {% set s = states('alarm_control_panel.risco_casetta_partition_2') %}
+          {{ {'disarmed':'Disinserito','armed_away':'Inserito (assente)',
+              'armed_home':'Inserito (presente)','armed_night':'Inserito (notte)',
+              'arming':'Inserimento in corso','pending':'Ritardo ingresso',
+              'triggered':'ALLARME'}.get(s, s) }}
+        icon: >
+          {% set s = states('alarm_control_panel.risco_casetta_partition_2') %}
+          {{ 'mdi:shield-off' if s == 'disarmed' else ('mdi:shield-alert' if s == 'triggered' else 'mdi:shield-lock') }}
+
+      - name: "Stato Allarme Riepilogo"
+        unique_id: stato_allarme_risco_riepilogo
+        state: >
+          {% set p = [states('alarm_control_panel.risco_casetta_partition_0'),
+                      states('alarm_control_panel.risco_casetta_partition_1'),
+                      states('alarm_control_panel.risco_casetta_partition_2')] %}
+          {% set dis = p | select('eq', 'disarmed') | list | count %}
+          {% if 'triggered' in p %}ALLARME
+          {% elif 'arming' in p or 'pending' in p %}In transizione
+          {% elif dis == 3 %}Tutto disinserito
+          {% elif dis == 0 %}Tutto inserito
+          {% else %}Parziale
+          {% endif %}
+        icon: >
+          {% set p = [states('alarm_control_panel.risco_casetta_partition_0'),
+                      states('alarm_control_panel.risco_casetta_partition_1'),
+                      states('alarm_control_panel.risco_casetta_partition_2')] %}
+          {% set dis = p | select('eq', 'disarmed') | list | count %}
+          {{ 'mdi:shield-alert' if 'triggered' in p else ('mdi:shield-off' if dis == 3 else 'mdi:shield-lock') }}
+
+  # ==============================================================================
+  # RISCALDAMENTO - Log eventi + min/max esterna (per report serale)
+  # ==============================================================================
+
+  - trigger:
+      - platform: state
+        entity_id:
+          - binary_sensor.riscaldamento_in_funzione
+          - sensor.riscaldamento_attivo_salone_kblue
+          - sensor.riscaldamento_attivo_cucina_kblue
+          - sensor.riscaldamento_attivo_camera_francesco
+          - sensor.riscaldamento_attivo_cam_greta_kblue
+          - sensor.riscaldamento_attivo_letto_kblue
+          - sensor.riscaldamento_attivo_wc_kblue
+          - sensor.riscaldamento_attivo_wc_letto_kblue
+          - sensor.riscaldamento_attivo_salone_suite_kblue
+          - sensor.riscaldamento_attivo_letto_suite_kblue
+          - sensor.riscaldamento_attivo_wc_suite_kblue
+      - platform: time
+        at: "00:00:00"
+    condition:
+      - condition: template
+        value_template: >
+          {{ trigger.platform == 'time'
+             or (trigger.from_state is not none
+                 and trigger.from_state.state in ['on', 'off']
+                 and trigger.to_state.state in ['on', 'off']) }}
+    sensor:
+      - name: Riscaldamento log eventi
+        unique_id: riscaldamento_log_eventi
+        state: "{{ now().isoformat() }}"
+        attributes:
+          eventi: >
+            {% set nomi = {
+              'salone_kblue': 'Soggiorno',
+              'cucina_kblue': 'Cucina',
+              'camera_francesco': 'Camera Francesco',
+              'cam_greta_kblue': 'Camera Greta',
+              'letto_kblue': 'Camera Matrimoniale',
+              'wc_kblue': 'Bagno',
+              'wc_letto_kblue': 'Bagno privato',
+              'salone_suite_kblue': 'Suite Soggiorno',
+              'letto_suite_kblue': 'Suite Camera',
+              'wc_suite_kblue': 'Suite Bagno'
+            } %}
+            {% set ext = states('sensor.stazione_meteo_modulo_meteo_esterno_temperature') %}
+            {% if trigger.platform == 'time' %}
+              {% set ns = namespace(r=[]) %}
+              {% if is_state('binary_sensor.riscaldamento_in_funzione', 'on') %}
+                {% set ns.r = ns.r + [{'ora': '00:00', 'zona': 'IMPIANTO',
+                  'stato': 'on', 'esterna': ext, 'nota': 'già acceso a mezzanotte'}] %}
+              {% endif %}
+              {% for s in states.sensor
+                 if 'riscaldamento_attivo_' in s.entity_id and s.state == 'on' %}
+                {% set k = s.entity_id.split('riscaldamento_attivo_')[1] %}
+                {% set ns.r = ns.r + [{'ora': '00:00', 'zona': nomi.get(k, k),
+                  'stato': 'on', 'esterna': ext, 'nota': 'già accesa a mezzanotte'}] %}
+              {% endfor %}
+              {{ ns.r }}
+            {% else %}
+              {% set old = this.attributes.eventi | default([], true) %}
+              {% set e = trigger.entity_id %}
+              {% set zona = 'IMPIANTO' if e == 'binary_sensor.riscaldamento_in_funzione'
+                 else nomi.get(e.split('riscaldamento_attivo_')[1], e) %}
+              {% set ev = {'ora': now().strftime('%H:%M'), 'zona': zona,
+                 'stato': trigger.to_state.state, 'esterna': ext} %}
+              {{ (old + [ev])[-120:] }}
+            {% endif %}
+
+  - trigger:
+      - platform: state
+        entity_id: sensor.stazione_meteo_modulo_meteo_esterno_temperature
+      - platform: time
+        at: "00:00:00"
+      - platform: homeassistant
+        event: start
+    sensor:
+      - name: Esterna minima oggi
+        unique_id: esterna_minima_oggi
+        unit_of_measurement: "°C"
+        device_class: temperature
+        state_class: measurement
+        state: >
+          {% set ext = states('sensor.stazione_meteo_modulo_meteo_esterno_temperature') | float(none) %}
+          {% set old = this.state | float(none) %}
+          {% if ext is none %}{{ old }}
+          {% elif trigger.platform == 'time' or old is none %}{{ ext }}
+          {% else %}{{ [old, ext] | min }}{% endif %}
+      - name: Esterna massima oggi
+        unique_id: esterna_massima_oggi
+        unit_of_measurement: "°C"
+        device_class: temperature
+        state_class: measurement
+        state: >
+          {% set ext = states('sensor.stazione_meteo_modulo_meteo_esterno_temperature') | float(none) %}
+          {% set old = this.state | float(none) %}
+          {% if ext is none %}{{ old }}
+          {% elif trigger.platform == 'time' or old is none %}{{ ext }}
+          {% else %}{{ [old, ext] | max }}{% endif %}
+
+  # ==============================================================================
+  # POMPA DI CALORE ELCO - Stima della potenza (per report serale)
+  # Potenza stimata = 3 x la fase meno carica (kW). Le utenze di casa si
+  # distribuiscono sulle tre fasi, la pompa e' trifase e le carica in modo uguale:
+  # il minimo delle tre isola (circa) la quota della pompa.
+  # E' una stima, tendenzialmente per eccesso: nel minimo e' inclusa anche la
+  # fase con meno altri carichi, contata tre volte.
+  # Vale 0 se la pompa risulta esplicitamente spenta (se Remocon-Net e' non
+  # disponibile la stima conta comunque).
+  # L'energia si ricava da UI: helper Integrale (Riemann) su questo sensore +
+  # Contatore di utilita' giornaliero "Pompa Elco energia stimata oggi".
+  # ==============================================================================
+
+  - sensor:
+      - name: Pompa Elco potenza stimata
+        unique_id: pompa_elco_potenza_stimata
+        unit_of_measurement: kW
+        device_class: power
+        state_class: measurement
+        availability: >
+          {{ states('sensor.consumo_l1') | is_number
+             and states('sensor.consumo_l2') | is_number
+             and states('sensor.consumo_l3') | is_number }}
+        state: >
+          {% if is_state('binary_sensor.remocon_net_heat_pump_running', 'off') %}
+            0
+          {% else %}
+            {{ (3 * ([states('sensor.consumo_l1') | float(0),
+                      states('sensor.consumo_l2') | float(0),
+                      states('sensor.consumo_l3') | float(0)] | min)) | round(3) }}
+          {% endif %}
+
+# ==============================================================================
+# SENSORI "STABILI" KBlue - ignorano zeri e letture non valide
+# Il KBlue ogni tanto risponde con valori a 0 oppure la chiamata REST fallisce
+# (sensori unavailable): in quel caso questi sensori mantengono l'ultimo valore
+# buono, cosi' target, modalita' e stato dei climate non saltano a 0 / Off.
+# Sono sensori con trigger (aggiornati a ogni cambio dei sensori grezzi e comunque
+# una volta al minuto): this.state e' l'ultimo valore buono, e viene ripristinato
+# anche dopo un riavvio. I climate (climate.yaml) leggono da qui.
+# ==============================================================================
+
+  - trigger:
+      - platform: state
+        entity_id:
+          - sensor.temperatura_salone_kblue
+          - sensor.target_temperatura_salone_kblue
+          - sensor.stato_termostato_salone_kblue
+          - sensor.riscaldamento_attivo_salone_kblue
+      - platform: time_pattern
+        minutes: "/1"
+      - platform: homeassistant
+        event: start
+    sensor:
+      - name: "Temperatura Stabile Salone"
+        unique_id: temperatura_stabile_salone
+        unit_of_measurement: "°C"
+        device_class: temperature
+        state_class: measurement
+        state: >
+          {% set raw = states('sensor.temperatura_salone_kblue') | float(0) %}
+          {% set prec = this.state | float(0) %}
+          {{ raw if raw > 0 else prec }}
+      - name: "Target Stabile Salone"
+        unique_id: target_stabile_salone
+        unit_of_measurement: "°C"
+        device_class: temperature
+        state: >
+          {% set raw = states('sensor.target_temperatura_salone_kblue') | float(0) %}
+          {% set prec = this.state | float(0) %}
+          {{ raw if raw > 0 else prec }}
+      - name: "Stato Stabile Salone"
+        unique_id: stato_stabile_salone
+        state: >
+          {% set raw = states('sensor.stato_termostato_salone_kblue') %}
+          {% set t = states('sensor.temperatura_salone_kblue') | float(0) %}
+          {% set g = states('sensor.target_temperatura_salone_kblue') | float(0) %}
+          {% if raw in ['on','off'] and t > 0 and g > 0 %}{{ raw }}
+          {% elif this.state in ['on','off'] %}{{ this.state }}
+          {% else %}{{ raw if raw in ['on','off'] else 'off' }}{% endif %}
+      - name: "Riscaldamento Stabile Salone"
+        unique_id: riscaldamento_stabile_salone
+        state: >
+          {% set raw = states('sensor.riscaldamento_attivo_salone_kblue') %}
+          {% set t = states('sensor.temperatura_salone_kblue') | float(0) %}
+          {% set g = states('sensor.target_temperatura_salone_kblue') | float(0) %}
+          {% if raw in ['on','off'] and t > 0 and g > 0 %}{{ raw }}
+          {% elif this.state in ['on','off'] %}{{ this.state }}
+          {% else %}{{ raw if raw in ['on','off'] else 'off' }}{% endif %}
+
+  - trigger:
+      - platform: state
+        entity_id:
+          - sensor.temperatura_cucina_kblue
+          - sensor.target_temperatura_cucina_kblue
+          - sensor.stato_termostato_cucina_kblue
+          - sensor.riscaldamento_attivo_cucina_kblue
+      - platform: time_pattern
+        minutes: "/1"
+      - platform: homeassistant
+        event: start
+    sensor:
+      - name: "Temperatura Stabile Cucina"
+        unique_id: temperatura_stabile_cucina
+        unit_of_measurement: "°C"
+        device_class: temperature
+        state_class: measurement
+        state: >
+          {% set raw = states('sensor.temperatura_cucina_kblue') | float(0) %}
+          {% set prec = this.state | float(0) %}
+          {{ raw if raw > 0 else prec }}
+      - name: "Target Stabile Cucina"
+        unique_id: target_stabile_cucina
+        unit_of_measurement: "°C"
+        device_class: temperature
+        state: >
+          {% set raw = states('sensor.target_temperatura_cucina_kblue') | float(0) %}
+          {% set prec = this.state | float(0) %}
+          {{ raw if raw > 0 else prec }}
+      - name: "Stato Stabile Cucina"
+        unique_id: stato_stabile_cucina
+        state: >
+          {% set raw = states('sensor.stato_termostato_cucina_kblue') %}
+          {% set t = states('sensor.temperatura_cucina_kblue') | float(0) %}
+          {% set g = states('sensor.target_temperatura_cucina_kblue') | float(0) %}
+          {% if raw in ['on','off'] and t > 0 and g > 0 %}{{ raw }}
+          {% elif this.state in ['on','off'] %}{{ this.state }}
+          {% else %}{{ raw if raw in ['on','off'] else 'off' }}{% endif %}
+      - name: "Riscaldamento Stabile Cucina"
+        unique_id: riscaldamento_stabile_cucina
+        state: >
+          {% set raw = states('sensor.riscaldamento_attivo_cucina_kblue') %}
+          {% set t = states('sensor.temperatura_cucina_kblue') | float(0) %}
+          {% set g = states('sensor.target_temperatura_cucina_kblue') | float(0) %}
+          {% if raw in ['on','off'] and t > 0 and g > 0 %}{{ raw }}
+          {% elif this.state in ['on','off'] %}{{ this.state }}
+          {% else %}{{ raw if raw in ['on','off'] else 'off' }}{% endif %}
+
+  - trigger:
+      - platform: state
+        entity_id:
+          - sensor.temperatura_letto_kblue
+          - sensor.target_temperatura_letto_kblue
+          - sensor.stato_termostato_letto_kblue
+          - sensor.riscaldamento_attivo_letto_kblue
+      - platform: time_pattern
+        minutes: "/1"
+      - platform: homeassistant
+        event: start
+    sensor:
+      - name: "Temperatura Stabile Camera Matrimoniale"
+        unique_id: temperatura_stabile_camera_matrimoniale
+        unit_of_measurement: "°C"
+        device_class: temperature
+        state_class: measurement
+        state: >
+          {% set raw = states('sensor.temperatura_letto_kblue') | float(0) %}
+          {% set prec = this.state | float(0) %}
+          {{ raw if raw > 0 else prec }}
+      - name: "Target Stabile Camera Matrimoniale"
+        unique_id: target_stabile_camera_matrimoniale
+        unit_of_measurement: "°C"
+        device_class: temperature
+        state: >
+          {% set raw = states('sensor.target_temperatura_letto_kblue') | float(0) %}
+          {% set prec = this.state | float(0) %}
+          {{ raw if raw > 0 else prec }}
+      - name: "Stato Stabile Camera Matrimoniale"
+        unique_id: stato_stabile_camera_matrimoniale
+        state: >
+          {% set raw = states('sensor.stato_termostato_letto_kblue') %}
+          {% set t = states('sensor.temperatura_letto_kblue') | float(0) %}
+          {% set g = states('sensor.target_temperatura_letto_kblue') | float(0) %}
+          {% if raw in ['on','off'] and t > 0 and g > 0 %}{{ raw }}
+          {% elif this.state in ['on','off'] %}{{ this.state }}
+          {% else %}{{ raw if raw in ['on','off'] else 'off' }}{% endif %}
+      - name: "Riscaldamento Stabile Camera Matrimoniale"
+        unique_id: riscaldamento_stabile_camera_matrimoniale
+        state: >
+          {% set raw = states('sensor.riscaldamento_attivo_letto_kblue') %}
+          {% set t = states('sensor.temperatura_letto_kblue') | float(0) %}
+          {% set g = states('sensor.target_temperatura_letto_kblue') | float(0) %}
+          {% if raw in ['on','off'] and t > 0 and g > 0 %}{{ raw }}
+          {% elif this.state in ['on','off'] %}{{ this.state }}
+          {% else %}{{ raw if raw in ['on','off'] else 'off' }}{% endif %}
+
+  - trigger:
+      - platform: state
+        entity_id:
+          - sensor.temperatura_camera_francesco
+          - sensor.target_temperatura_camera_francesco
+          - sensor.stato_termostato_camera_francesco
+          - sensor.riscaldamento_attivo_camera_francesco
+      - platform: time_pattern
+        minutes: "/1"
+      - platform: homeassistant
+        event: start
+    sensor:
+      - name: "Temperatura Stabile Cam Francesco"
+        unique_id: temperatura_stabile_cam_francesco
+        unit_of_measurement: "°C"
+        device_class: temperature
+        state_class: measurement
+        state: >
+          {% set raw = states('sensor.temperatura_camera_francesco') | float(0) %}
+          {% set prec = this.state | float(0) %}
+          {{ raw if raw > 0 else prec }}
+      - name: "Target Stabile Cam Francesco"
+        unique_id: target_stabile_cam_francesco
+        unit_of_measurement: "°C"
+        device_class: temperature
+        state: >
+          {% set raw = states('sensor.target_temperatura_camera_francesco') | float(0) %}
+          {% set prec = this.state | float(0) %}
+          {{ raw if raw > 0 else prec }}
+      - name: "Stato Stabile Cam Francesco"
+        unique_id: stato_stabile_cam_francesco
+        state: >
+          {% set raw = states('sensor.stato_termostato_camera_francesco') %}
+          {% set t = states('sensor.temperatura_camera_francesco') | float(0) %}
+          {% set g = states('sensor.target_temperatura_camera_francesco') | float(0) %}
+          {% if raw in ['on','off'] and t > 0 and g > 0 %}{{ raw }}
+          {% elif this.state in ['on','off'] %}{{ this.state }}
+          {% else %}{{ raw if raw in ['on','off'] else 'off' }}{% endif %}
+      - name: "Riscaldamento Stabile Cam Francesco"
+        unique_id: riscaldamento_stabile_cam_francesco
+        state: >
+          {% set raw = states('sensor.riscaldamento_attivo_camera_francesco') %}
+          {% set t = states('sensor.temperatura_camera_francesco') | float(0) %}
+          {% set g = states('sensor.target_temperatura_camera_francesco') | float(0) %}
+          {% if raw in ['on','off'] and t > 0 and g > 0 %}{{ raw }}
+          {% elif this.state in ['on','off'] %}{{ this.state }}
+          {% else %}{{ raw if raw in ['on','off'] else 'off' }}{% endif %}
+
+  - trigger:
+      - platform: state
+        entity_id:
+          - sensor.temperatura_cam_greta_kblue
+          - sensor.target_temperatura_cam_greta_kblue
+          - sensor.stato_termostato_cam_greta_kblue
+          - sensor.riscaldamento_attivo_cam_greta_kblue
+      - platform: time_pattern
+        minutes: "/1"
+      - platform: homeassistant
+        event: start
+    sensor:
+      - name: "Temperatura Stabile Cam Greta"
+        unique_id: temperatura_stabile_cam_greta
+        unit_of_measurement: "°C"
+        device_class: temperature
+        state_class: measurement
+        state: >
+          {% set raw = states('sensor.temperatura_cam_greta_kblue') | float(0) %}
+          {% set prec = this.state | float(0) %}
+          {{ raw if raw > 0 else prec }}
+      - name: "Target Stabile Cam Greta"
+        unique_id: target_stabile_cam_greta
+        unit_of_measurement: "°C"
+        device_class: temperature
+        state: >
+          {% set raw = states('sensor.target_temperatura_cam_greta_kblue') | float(0) %}
+          {% set prec = this.state | float(0) %}
+          {{ raw if raw > 0 else prec }}
+      - name: "Stato Stabile Cam Greta"
+        unique_id: stato_stabile_cam_greta
+        state: >
+          {% set raw = states('sensor.stato_termostato_cam_greta_kblue') %}
+          {% set t = states('sensor.temperatura_cam_greta_kblue') | float(0) %}
+          {% set g = states('sensor.target_temperatura_cam_greta_kblue') | float(0) %}
+          {% if raw in ['on','off'] and t > 0 and g > 0 %}{{ raw }}
+          {% elif this.state in ['on','off'] %}{{ this.state }}
+          {% else %}{{ raw if raw in ['on','off'] else 'off' }}{% endif %}
+      - name: "Riscaldamento Stabile Cam Greta"
+        unique_id: riscaldamento_stabile_cam_greta
+        state: >
+          {% set raw = states('sensor.riscaldamento_attivo_cam_greta_kblue') %}
+          {% set t = states('sensor.temperatura_cam_greta_kblue') | float(0) %}
+          {% set g = states('sensor.target_temperatura_cam_greta_kblue') | float(0) %}
+          {% if raw in ['on','off'] and t > 0 and g > 0 %}{{ raw }}
+          {% elif this.state in ['on','off'] %}{{ this.state }}
+          {% else %}{{ raw if raw in ['on','off'] else 'off' }}{% endif %}
+
+  - trigger:
+      - platform: state
+        entity_id:
+          - sensor.temperatura_letto_suite_kblue
+          - sensor.target_temperatura_letto_suite_kblue
+          - sensor.stato_termostato_letto_suite_kblue
+          - sensor.riscaldamento_attivo_letto_suite_kblue
+      - platform: time_pattern
+        minutes: "/1"
+      - platform: homeassistant
+        event: start
+    sensor:
+      - name: "Temperatura Stabile Suite Letto"
+        unique_id: temperatura_stabile_suite_letto
+        unit_of_measurement: "°C"
+        device_class: temperature
+        state_class: measurement
+        state: >
+          {% set raw = states('sensor.temperatura_letto_suite_kblue') | float(0) %}
+          {% set prec = this.state | float(0) %}
+          {{ raw if raw > 0 else prec }}
+      - name: "Target Stabile Suite Letto"
+        unique_id: target_stabile_suite_letto
+        unit_of_measurement: "°C"
+        device_class: temperature
+        state: >
+          {% set raw = states('sensor.target_temperatura_letto_suite_kblue') | float(0) %}
+          {% set prec = this.state | float(0) %}
+          {{ raw if raw > 0 else prec }}
+      - name: "Stato Stabile Suite Letto"
+        unique_id: stato_stabile_suite_letto
+        state: >
+          {% set raw = states('sensor.stato_termostato_letto_suite_kblue') %}
+          {% set t = states('sensor.temperatura_letto_suite_kblue') | float(0) %}
+          {% set g = states('sensor.target_temperatura_letto_suite_kblue') | float(0) %}
+          {% if raw in ['on','off'] and t > 0 and g > 0 %}{{ raw }}
+          {% elif this.state in ['on','off'] %}{{ this.state }}
+          {% else %}{{ raw if raw in ['on','off'] else 'off' }}{% endif %}
+      - name: "Riscaldamento Stabile Suite Letto"
+        unique_id: riscaldamento_stabile_suite_letto
+        state: >
+          {% set raw = states('sensor.riscaldamento_attivo_letto_suite_kblue') %}
+          {% set t = states('sensor.temperatura_letto_suite_kblue') | float(0) %}
+          {% set g = states('sensor.target_temperatura_letto_suite_kblue') | float(0) %}
+          {% if raw in ['on','off'] and t > 0 and g > 0 %}{{ raw }}
+          {% elif this.state in ['on','off'] %}{{ this.state }}
+          {% else %}{{ raw if raw in ['on','off'] else 'off' }}{% endif %}
+
+  - trigger:
+      - platform: state
+        entity_id:
+          - sensor.temperatura_salone_suite_kblue
+          - sensor.target_temperatura_salone_suite_kblue
+          - sensor.stato_termostato_salone_suite_kblue
+          - sensor.riscaldamento_attivo_salone_suite_kblue
+      - platform: time_pattern
+        minutes: "/1"
+      - platform: homeassistant
+        event: start
+    sensor:
+      - name: "Temperatura Stabile Suite Salone"
+        unique_id: temperatura_stabile_suite_salone
+        unit_of_measurement: "°C"
+        device_class: temperature
+        state_class: measurement
+        state: >
+          {% set raw = states('sensor.temperatura_salone_suite_kblue') | float(0) %}
+          {% set prec = this.state | float(0) %}
+          {{ raw if raw > 0 else prec }}
+      - name: "Target Stabile Suite Salone"
+        unique_id: target_stabile_suite_salone
+        unit_of_measurement: "°C"
+        device_class: temperature
+        state: >
+          {% set raw = states('sensor.target_temperatura_salone_suite_kblue') | float(0) %}
+          {% set prec = this.state | float(0) %}
+          {{ raw if raw > 0 else prec }}
+      - name: "Stato Stabile Suite Salone"
+        unique_id: stato_stabile_suite_salone
+        state: >
+          {% set raw = states('sensor.stato_termostato_salone_suite_kblue') %}
+          {% set t = states('sensor.temperatura_salone_suite_kblue') | float(0) %}
+          {% set g = states('sensor.target_temperatura_salone_suite_kblue') | float(0) %}
+          {% if raw in ['on','off'] and t > 0 and g > 0 %}{{ raw }}
+          {% elif this.state in ['on','off'] %}{{ this.state }}
+          {% else %}{{ raw if raw in ['on','off'] else 'off' }}{% endif %}
+      - name: "Riscaldamento Stabile Suite Salone"
+        unique_id: riscaldamento_stabile_suite_salone
+        state: >
+          {% set raw = states('sensor.riscaldamento_attivo_salone_suite_kblue') %}
+          {% set t = states('sensor.temperatura_salone_suite_kblue') | float(0) %}
+          {% set g = states('sensor.target_temperatura_salone_suite_kblue') | float(0) %}
+          {% if raw in ['on','off'] and t > 0 and g > 0 %}{{ raw }}
+          {% elif this.state in ['on','off'] %}{{ this.state }}
+          {% else %}{{ raw if raw in ['on','off'] else 'off' }}{% endif %}
+
+  - trigger:
+      - platform: state
+        entity_id:
+          - sensor.temperatura_wc_kblue
+          - sensor.target_temperatura_wc_kblue
+          - sensor.stato_termostato_wc_kblue
+          - sensor.riscaldamento_attivo_wc_kblue
+      - platform: time_pattern
+        minutes: "/1"
+      - platform: homeassistant
+        event: start
+    sensor:
+      - name: "Temperatura Stabile Wc"
+        unique_id: temperatura_stabile_wc
+        unit_of_measurement: "°C"
+        device_class: temperature
+        state_class: measurement
+        state: >
+          {% set raw = states('sensor.temperatura_wc_kblue') | float(0) %}
+          {% set prec = this.state | float(0) %}
+          {{ raw if raw > 0 else prec }}
+      - name: "Target Stabile Wc"
+        unique_id: target_stabile_wc
+        unit_of_measurement: "°C"
+        device_class: temperature
+        state: >
+          {% set raw = states('sensor.target_temperatura_wc_kblue') | float(0) %}
+          {% set prec = this.state | float(0) %}
+          {{ raw if raw > 0 else prec }}
+      - name: "Stato Stabile Wc"
+        unique_id: stato_stabile_wc
+        state: >
+          {% set raw = states('sensor.stato_termostato_wc_kblue') %}
+          {% set t = states('sensor.temperatura_wc_kblue') | float(0) %}
+          {% set g = states('sensor.target_temperatura_wc_kblue') | float(0) %}
+          {% if raw in ['on','off'] and t > 0 and g > 0 %}{{ raw }}
+          {% elif this.state in ['on','off'] %}{{ this.state }}
+          {% else %}{{ raw if raw in ['on','off'] else 'off' }}{% endif %}
+      - name: "Riscaldamento Stabile Wc"
+        unique_id: riscaldamento_stabile_wc
+        state: >
+          {% set raw = states('sensor.riscaldamento_attivo_wc_kblue') %}
+          {% set t = states('sensor.temperatura_wc_kblue') | float(0) %}
+          {% set g = states('sensor.target_temperatura_wc_kblue') | float(0) %}
+          {% if raw in ['on','off'] and t > 0 and g > 0 %}{{ raw }}
+          {% elif this.state in ['on','off'] %}{{ this.state }}
+          {% else %}{{ raw if raw in ['on','off'] else 'off' }}{% endif %}
+
+  - trigger:
+      - platform: state
+        entity_id:
+          - sensor.temperatura_wc_letto_kblue
+          - sensor.target_temperatura_wc_letto_kblue
+          - sensor.stato_termostato_wc_letto_kblue
+          - sensor.riscaldamento_attivo_wc_letto_kblue
+      - platform: time_pattern
+        minutes: "/1"
+      - platform: homeassistant
+        event: start
+    sensor:
+      - name: "Temperatura Stabile Wc Letto"
+        unique_id: temperatura_stabile_wc_letto
+        unit_of_measurement: "°C"
+        device_class: temperature
+        state_class: measurement
+        state: >
+          {% set raw = states('sensor.temperatura_wc_letto_kblue') | float(0) %}
+          {% set prec = this.state | float(0) %}
+          {{ raw if raw > 0 else prec }}
+      - name: "Target Stabile Wc Letto"
+        unique_id: target_stabile_wc_letto
+        unit_of_measurement: "°C"
+        device_class: temperature
+        state: >
+          {% set raw = states('sensor.target_temperatura_wc_letto_kblue') | float(0) %}
+          {% set prec = this.state | float(0) %}
+          {{ raw if raw > 0 else prec }}
+      - name: "Stato Stabile Wc Letto"
+        unique_id: stato_stabile_wc_letto
+        state: >
+          {% set raw = states('sensor.stato_termostato_wc_letto_kblue') %}
+          {% set t = states('sensor.temperatura_wc_letto_kblue') | float(0) %}
+          {% set g = states('sensor.target_temperatura_wc_letto_kblue') | float(0) %}
+          {% if raw in ['on','off'] and t > 0 and g > 0 %}{{ raw }}
+          {% elif this.state in ['on','off'] %}{{ this.state }}
+          {% else %}{{ raw if raw in ['on','off'] else 'off' }}{% endif %}
+      - name: "Riscaldamento Stabile Wc Letto"
+        unique_id: riscaldamento_stabile_wc_letto
+        state: >
+          {% set raw = states('sensor.riscaldamento_attivo_wc_letto_kblue') %}
+          {% set t = states('sensor.temperatura_wc_letto_kblue') | float(0) %}
+          {% set g = states('sensor.target_temperatura_wc_letto_kblue') | float(0) %}
+          {% if raw in ['on','off'] and t > 0 and g > 0 %}{{ raw }}
+          {% elif this.state in ['on','off'] %}{{ this.state }}
+          {% else %}{{ raw if raw in ['on','off'] else 'off' }}{% endif %}
+
+  - trigger:
+      - platform: state
+        entity_id:
+          - sensor.temperatura_wc_suite_kblue
+          - sensor.target_temperatura_wc_suite_kblue
+          - sensor.stato_termostato_wc_suite_kblue
+          - sensor.riscaldamento_attivo_wc_suite_kblue
+      - platform: time_pattern
+        minutes: "/1"
+      - platform: homeassistant
+        event: start
+    sensor:
+      - name: "Temperatura Stabile Wc Suite"
+        unique_id: temperatura_stabile_wc_suite
+        unit_of_measurement: "°C"
+        device_class: temperature
+        state_class: measurement
+        state: >
+          {% set raw = states('sensor.temperatura_wc_suite_kblue') | float(0) %}
+          {% set prec = this.state | float(0) %}
+          {{ raw if raw > 0 else prec }}
+      - name: "Target Stabile Wc Suite"
+        unique_id: target_stabile_wc_suite
+        unit_of_measurement: "°C"
+        device_class: temperature
+        state: >
+          {% set raw = states('sensor.target_temperatura_wc_suite_kblue') | float(0) %}
+          {% set prec = this.state | float(0) %}
+          {{ raw if raw > 0 else prec }}
+      - name: "Stato Stabile Wc Suite"
+        unique_id: stato_stabile_wc_suite
+        state: >
+          {% set raw = states('sensor.stato_termostato_wc_suite_kblue') %}
+          {% set t = states('sensor.temperatura_wc_suite_kblue') | float(0) %}
+          {% set g = states('sensor.target_temperatura_wc_suite_kblue') | float(0) %}
+          {% if raw in ['on','off'] and t > 0 and g > 0 %}{{ raw }}
+          {% elif this.state in ['on','off'] %}{{ this.state }}
+          {% else %}{{ raw if raw in ['on','off'] else 'off' }}{% endif %}
+      - name: "Riscaldamento Stabile Wc Suite"
+        unique_id: riscaldamento_stabile_wc_suite
+        state: >
+          {% set raw = states('sensor.riscaldamento_attivo_wc_suite_kblue') %}
+          {% set t = states('sensor.temperatura_wc_suite_kblue') | float(0) %}
+          {% set g = states('sensor.target_temperatura_wc_suite_kblue') | float(0) %}
+          {% if raw in ['on','off'] and t > 0 and g > 0 %}{{ raw }}
+          {% elif this.state in ['on','off'] %}{{ this.state }}
+          {% else %}{{ raw if raw in ['on','off'] else 'off' }}{% endif %}

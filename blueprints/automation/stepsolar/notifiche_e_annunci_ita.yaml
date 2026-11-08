@@ -1,0 +1,1117 @@
+blueprint:
+  name: "\U0001F4E2 Notifiche & Annunci V.2025.12(3)"
+  description: "# \U0001F4E2 Notifiche & Annunci con Telegram e WhatsApp.\n    \n**Version:
+    2025.12(3)**\n\nDichiara il tuo trigger e diffondi la notizia \U0001F4AC\U0001F509\n<details>
+    <summary><b>Il processo di automazione:</b> - Clicca qui per espandere</summary>\n
+    \ \n  \n  - **Opzioni di attivazione:**\n    \n    - Specifica il cambio di stato
+    di una o più entità che avvieranno l'automazione da un elenco a discesa. Puoi
+    anche specificare un tuo stato personalizzato se non è disponibile nell'elenco
+    a discesa.\n    - Opzioni di modifica dello stato: le modifiche dello stato disponibili
+    includono:\n        - **Stati generali:** Pulsante o qualsiasi stato, ON, OFF,
+    Non disponibile o Sconosciuto\n        - **Stati basati sulla posizione:** A casa
+    o non a casa\n  \n  - **Opzioni di notifica:**\n    \n    - Scegli di inviare
+    messaggi a uno o più dispositivi. Compatibile con dispositivi Apple iOS e Android.\n
+    \   - Scegli di inviare messaggi Vocali a uno o più dispositivi.\n    - Scegli
+    di inviare messaggi tramine WhatApp\n    - Scegli di inviare messaggi tramine
+    Telegram\n    - Scegli di visualizzare le notifiche direttamente nell'interfaccia
+    utente (UI) di Home Assistant.\n    - Scegli di inviare annunci di testo in voce
+    ai lettori multimediali selezionati.\n    - Scegli di utilizzare un'azione personalizzata.\n
+    \ \n  - **Automazione basata sul tempo e ripetizione:**\n    \n    - Attivare
+    o meno il servizio di ripetizione su una o più notifiche, inserendo il ritardo
+    su ogni notifica e il numero di ripetizione.\n    - Specificare orari di inizio
+    e fine precisi insieme alle selezioni dei giorni feriali per definire quando l'automazione
+    può essere eseguita.\n  \n  - **Condizioni globali:**\n    \n    - Inserisci eventuali
+    condizioni personalizzate per personalizzare ulteriormente il processo di automazione.\n\n</details>\n\nHai
+    bisogno di aiuto? Consulta le nostre FAQ: [Clicca Qui](https://community.home-assistant.io/t/notifications-announcements-ita/957398)\nFateci
+    sapere cosa ne pensate di questo progetto e per il supporto della comunità, inclusi
+    gli aggiornamenti: [Clicca Qui](https://community.home-assistant.io/t/notifications-announcements-ita/957398)\n\nNecessario
+    = *\n"
+  domain: automation
+  input:
+    trigger_settings:
+      name: Avvio Automazione *
+      icon: mdi:cog-outline
+      collapsed: true
+      input:
+        trigger_state:
+          name: Trigger - State *
+          description: "Seleziona lo stato desiderato per il trigger. Se la tua opzione
+            non è presente nel menu a discesa, digita semplicemente lo stato che desideri
+            utilizzare e clicca sul pulsante Salva.\n1 - ON \n2 - OFF\n3 - Non disponibile\n4
+            - Sconosciuto\n5 - Collegato\n6 - Non Collegato\n7 - In Ricarica\n8 -
+            Non in Ricarica\n\nÈ stato implementato un sistema di numerazione per
+            facilitare la navigazione all'interno delle selezioni a discesa. Ogni
+            numero corrisponde a una configurazione specifica, aiutando gli utenti
+            a identificare e modificare le impostazioni utilizzate in ciascuna selezione.
+            \n"
+          selector:
+            select:
+              custom_value: true
+              mode: dropdown
+              options:
+              - label: 1 - ON
+                value: 'on'
+              - label: 2 - OFF
+                value: 'off'
+              - label: 3 - Non disponibile
+                value: unavailable
+              - label: 4 - Sconosciuto
+                value: unknown
+              - label: 5 - Collegato
+                value: connected
+              - label: 6 - Non Collegato
+                value: not_connected
+              - label: 7 - In Ricarica
+                value: charging
+              - label: 8 - Non in Ricarica
+                value: charging_finished
+              multiple: false
+              sort: false
+        trigger_state_entity:
+          name: Entità *
+          description: '**Utilizzato nelle opzioni 1, 2, 3, 4, 5, 6, 7 e 8**. Inserisci
+            le entità che attiveranno l''automazione in caso di modifica dello stato.
+
+            '
+          default: []
+          selector:
+            entity:
+              multiple: true
+              reorder: false
+        time_delay_state:
+          name: Ritardo Avvio Iniziale
+          description: '**Utilizzato nelle opzioni 1, 2, 3, 4** Specifica per quanto
+            tempo il trigger deve mantenere il suo stato prima che l''automazione
+            venga eseguita. L''automazione procederà solo se la condizione del trigger
+            viene soddisfatta in modo continuativo per l''intero intervallo di tempo.
+
+            '
+          default:
+            hours: 0
+            minutes: 0
+            seconds: 0
+          selector:
+            duration: {}
+        include_notify_repeat:
+          name: Utilizza l'opzione di Notifica Ripetitiva (facoltativo)
+          description: 'Abilitando questa opzione verranno inviate notifiche ripetitive
+            ad alcuni dispositivi selezionati di seguito.
+
+            '
+          default: disable_repeat_notify
+          selector:
+            select:
+              options:
+              - label: Abilita le opzioni di notifica ripetitiva
+                value: enable_repeat_notify
+              - label: Disabilita le opzioni di notifica ripetiitva
+                value: disable_repeat_notify
+              multiple: false
+              sort: false
+              custom_value: false
+        time_repeat_state:
+          name: Ritardo di Ripetizione
+          description: '**Utilizzato nelle opzioni 1, 2, 3, 4** Specifica per quanto
+            tempo il trigger deve mantenere il suo stato prima che l''automazione
+            venga ripetuta. L''automazione procederà solo se la condizione del trigger
+            viene soddisfatta in modo continuativo per l''intero intervallo di tempo.
+
+            '
+          default:
+            hours: 0
+            minutes: 0
+            seconds: 0
+          selector:
+            duration: {}
+        max_alerts:
+          name: Max ripetizione di Notifica
+          description: '**Utilizzato nelle opzioni 1, 2, 3, 4** Specifica per quale
+            frequenza il trigger deve repetere l''automazione prima che venga terminata.
+            L''automazione procederà solo se la condizione del trigger viene soddisfatta
+            per il numero di frequenza selezionato.
+
+            '
+          default: 5
+          selector:
+            number:
+              min: 0.0
+              max: 100.0
+              unit_of_measurement: ripeti
+              step: 1.0
+              mode: slider
+    device_notify_settings:
+      name: Notifica App Mobile
+      icon: mdi:devices
+      collapsed: true
+      input:
+        include_notify:
+          name: Utilizzare l'opzione di notifica dell'app mobile (facoltativo)
+          description: 'Abilitando questa opzione verranno inviate notifiche ai dispositivi
+            selezionati di seguito.
+
+            '
+          default: disable_mobile_app_notify
+          selector:
+            select:
+              options:
+              - label: Abilita le opzioni di notifica dell'app mobile
+                value: enable_mobile_app_notify
+              - label: Disabilita le opzioni di notifica dell'app mobile
+                value: disable_mobile_app_notify
+              multiple: false
+              sort: false
+              custom_value: false
+        notify_device:
+          name: Dispositivi
+          description: 'Seleziona i dispositivi da avvisare quando viene attivata
+            l''automazione.
+
+            '
+          default: []
+          selector:
+            device:
+              filter:
+              - integration: mobile_app
+              multiple: true
+        notify_title:
+          name: Titolo
+          description: 'Inserisci il titolo della tua notifica.
+
+            '
+          default: "\U0001F4E2 Inserisci qui il titolo della notifica"
+          selector:
+            text:
+              multiple: false
+              multiline: false
+        notify_message:
+          name: Messaggio
+          description: 'Inserisci il messaggio della tua notifica.
+
+            '
+          default: "Inserisci qui il messaggio di notifica \U0001F642"
+          selector:
+            text:
+              multiple: false
+              multiline: false
+        notify_tag:
+          name: Etichetta di notifica
+          description: 'Utilizza un tag per organizzare le tue notifiche. Quando viene
+            inviata una nuova notifica con lo stesso tag, questa sostituisce quella
+            precedente, evitando così di creare duplicati. Se questo campo viene lasciato
+            vuoto, non verrà applicato alcun tag e ogni notifica verrà trattata separatamente.
+            Per risultati ottimali, utilizza tag brevi e univoci per ogni automazione,
+            ad esempio: "pronto per la cena", "ora di andare a letto", "suona il campanello
+            della porta", ecc.
+
+            '
+          default: []
+          selector:
+            text:
+              multiple: false
+              multiline: false
+        notify_interruption_level:
+          name: Livello di interruzione - Solo iOS
+          description: 'Sui dispositivi con iOS 15 e versioni successive, puoi configurare
+            il livello di interruzione delle notifiche per assicurarti che vengano
+            recapitate in base alle tue preferenze. Scegli il livello di interruzione
+            desiderato dall''elenco a discesa. Le notifiche critiche e urgenti devono
+            essere attivate nell''app Home Assistant e le notifiche urgenti devono
+            essere consentite nelle impostazioni di Focus. Per ulteriori informazioni
+            sui livelli di interruzione [Click Here](https://community.home-assistant.io/t/728100/13)
+
+            '
+          default: active
+          selector:
+            select:
+              mode: dropdown
+              options:
+              - label: Predefinito
+                value: active
+              - label: Notifiche Critiche
+                value: critical
+              - label: Notifiche sensibili al tempo
+                value: time-sensitive
+              - label: Notifiche silenziose senza riattivazione dello schermo
+                value: passive
+              multiple: false
+              sort: false
+              custom_value: false
+        notify_sound:
+          name: Suono di notifica - Solo iOS
+          description: 'L''app Home Assistant per iOS include suoni di notifica integrati
+            ed è possibile importare suoni dal proprio dispositivo iOS nell''app.
+            È inoltre possibile aggiungere suoni personalizzati tramite iTunes o dal
+            cloud. Quando si inserisce un suono, assicurarsi di utilizzare il nome
+            completo del file, inclusa l''estensione. Per ulteriori informazioni sull''utilizzo
+            dei suoni nell''app Home Assistant, [Click Here](https://community.home-assistant.io/t/728100/13)
+
+            '
+          default: []
+          selector:
+            text:
+              multiple: false
+              multiline: false
+        notify_data:
+          name: Opzioni solo Android (facoltativo)
+          description: 'Le notifiche **Alta Priorità** ti assicurano di ricevere immediatamente
+            gli avvisi importanti. Queste notifiche aggirano i normali ritardi di
+            recapito e vengono recapitate istantaneamente al tuo dispositivo. Le **Notifiche
+            Permanenti** assicurano che gli avvisi importanti non vengano ignorati
+            quando vengono selezionati. Rimangono nella schermata delle notifiche
+            finché non li cancelli o li scorri via, garantendo che le informazioni
+            importanti rimangano visibili finché non vengono gestite. I **Canali di
+            Notifica** ti consentono di organizzare facilmente diverse impostazioni
+            di notifica, inclusi suoni di notifica, vibrazioni e altre funzionalità
+            specifiche del dispositivo. Se scegli questa opzione, inserisci il nome
+            del canale desiderato qui sotto. Gli **Icona** ti consentono di sostituire
+            l''icona predefinita di Home Assistant con una a tua scelta. Se selezionata,
+            scegli l''icona preferita utilizzando l''opzione **Icona - Solo Android**
+            qui sotto e imposta il colore dell''icona utilizzando **Colore Icona -
+            Solo Android**.
+
+            '
+          default: []
+          selector:
+            select:
+              multiple: true
+              options:
+              - label: Alta Priorità
+                value: high_priority
+              - label: Notifica Fissa
+                value: sticky
+              - label: Canale di notifica
+                value: channel
+              - label: Icone
+                value: icon
+              sort: false
+              custom_value: false
+        notify_channel:
+          name: Canale di notifica - Solo Android
+          description: 'Se hai scelto di utilizzare un canale di notifica, inserisci
+            semplicemente il nome di un canale esistente per applicarne le impostazioni
+            preconfigurate. Se non hai ancora un canale, puoi crearne uno nuovo inserendo
+            un nome qui. Quando l''automazione invia la prima notifica, creerà il
+            canale sul tuo dispositivo. Dopo aver creato il canale, puoi personalizzarne
+            le impostazioni di notifica in base alle tue preferenze direttamente sul
+            tuo dispositivo. Per maggiori informazioni sui canali di notifica [clicca
+            qui](https://community.home-assistant.io/t/728100/13)
+
+            '
+          default: []
+          selector:
+            text:
+              multiple: false
+              multiline: false
+        notify_icon:
+          name: Icona solo Android
+          description: 'Seleziona un''icona personalizzata per sostituire l''icona
+            predefinita di Home Assistant nella notifica. Questa impostazione si applica
+            solo se l''opzione **Icona** è selezionata nelle **Opzioni solo Android**
+            qui sopra.
+
+            '
+          default: mdi:emoticon-happy-outline
+          selector:
+            icon: {}
+        notify_icon_colour:
+          name: Colore icona - Solo Android
+          description: 'Scegli un colore per l''icona di notifica personalizzata.
+            Questa impostazione si applica solo se l''opzione **Icona** è selezionata
+            nelle **Opzioni solo Android** qui sopra.
+
+            '
+          default:
+          - 0
+          - 200
+          - 83
+          selector:
+            color_rgb: {}
+        include_notify_zone:
+          name: Utilizzare l'opzione Zona di notifica (facoltativo)
+          description: 'Home Assistant può tracciare la posizione dei tuoi dispositivi,
+            come i telefoni cellulari, all''interno di zone designate utilizzando
+            l''integrazione del localizzatore di dispositivi dell''app mobile. Per
+            utilizzare questa funzione, devi impostare delle zone in Home Assistant,
+            come Casa, Lavoro o Palestra, e assicurarti che i tuoi dispositivi siano
+            configurati per il tracciamento della posizione tramite l''app mobile
+            Home Assistant. Quando questa opzione è abilitata, le notifiche verranno
+            inviate solo ai dispositivi che si trovano attualmente all''interno della
+            zona selezionata.
+
+            '
+          default: zone_disabled
+          selector:
+            select:
+              options:
+              - label: Abilita l'opzione zona
+                value: zone_enabled
+              - label: Disabilitare l'opzione zona
+                value: zone_disabled
+              multiple: false
+              sort: false
+              custom_value: false
+        notify_zone:
+          name: Zona di notifica
+          description: 'Scegli la zona di notifica per le tue notifiche.
+
+            '
+          default: []
+          selector:
+            entity:
+              filter:
+              - domain:
+                - zone
+              multiple: false
+              reorder: false
+        notify_repeat_device:
+          name: Attiva Ripetizione Notifica
+          description: 'Attivando il servizio la notifica verrà ripetuta più volte
+
+            '
+          default: disable
+          selector:
+            select:
+              options:
+              - label: Attivato
+                value: active
+              - label: Disattivato
+                value: disable
+              multiple: false
+              sort: false
+              custom_value: false
+    device_notify_settings_tts:
+      name: Notifica Vocale App Mobile
+      icon: mdi:devices
+      collapsed: true
+      input:
+        include_notify_tts:
+          name: Utilizzare l'opzione Vocale di notifica dell'app mobile (facoltativo)
+          description: 'Abilitando questa opzione verranno inviate notifiche ai dispositivi
+            selezionati di seguito.
+
+            '
+          default: disable_mobile_app_notify_tts
+          selector:
+            select:
+              options:
+              - label: Abilita le opzioni di notifica Vocale dell'app mobile
+                value: enable_mobile_app_notify_tts
+              - label: Disabilita le opzioni di notifica Vocale dell'app mobile
+                value: disable_mobile_app_notify_tts
+              multiple: false
+              sort: false
+              custom_value: false
+        notify_device_tts:
+          name: Dispositivi
+          description: 'Seleziona i dispositivi da avvisare quando viene attivata
+            l''automazione.
+
+            '
+          default: []
+          selector:
+            device:
+              filter:
+              - integration: mobile_app
+              multiple: true
+        notify_message_tts:
+          name: Messaggio
+          description: 'Inserisci il messaggio Vocale
+
+            '
+          default: "Inserisci qui il messaggio di notifica \U0001F642"
+          selector:
+            text:
+              multiple: false
+              multiline: false
+        notify_data_tts:
+          name: Volume Notifica solo Android (obbligatorio)
+          description: "Seleziona il Volume per le tue notifine **Volume Normale**
+            o **Volume Max** \n"
+          default: normal_volume
+          selector:
+            select:
+              options:
+              - label: Volume Max
+                value: max_volume
+              - label: Volume Normale
+                value: normal_volume
+              multiple: false
+              sort: false
+              custom_value: false
+        notify_repeat_tts:
+          name: Attiva Ripetizione Notifica
+          description: 'Attivando il servizio la notifica verrà ripetuta più volte
+
+            '
+          default: disable
+          selector:
+            select:
+              options:
+              - label: Attivato
+                value: active
+              - label: Disattivato
+                value: disable
+              multiple: false
+              sort: false
+              custom_value: false
+    whatsapp_notify_settings:
+      name: Notifica WhatsApp
+      icon: mdi:whatsapp
+      collapsed: true
+      input:
+        include_notify_whatsapp:
+          name: Utilizzare l'opzione notifica di WhatsApp (facoltativo)
+          description: 'Abilitando questa opzione verranno inviate notifiche ai Numeri
+            o Gruppi WhatsApp
+
+            '
+          default: disable_whatsapp_notify
+          selector:
+            select:
+              options:
+              - label: Abilita le opzioni di notifica WhatsApp
+                value: enable_whatsapp_notify
+              - label: Disabilita le opzioni di notifica WhatsApp
+                value: disable_whatsapp_notify
+              multiple: false
+              sort: false
+              custom_value: false
+        notify_whatsapp_chat_id:
+          name: WhatsApp Chat ID
+          description: 'Inserisci la Chat ID corrispondente al numero telefonico o
+            al gruppo.
+
+            Ess. Gruppo: 123333333333333333@g.us
+
+            Ess. Numero: 393201234567@c.us
+
+            '
+          default: "\U0001F4E2 Inserisci qui la char id"
+          selector:
+            text:
+              multiple: false
+              multiline: false
+        notify_whatsapp_message:
+          name: Messaggio
+          description: 'Inserisci il messaggio della tua notifica.
+
+            '
+          default: "Inserisci qui il messaggio di notifica \U0001F642"
+          selector:
+            text:
+              multiple: false
+              multiline: false
+        notify_whatsapp_repeat:
+          name: Attiva Ripetizione Notifica
+          description: 'Attivando il servizio la notifica verrà ripetuta più volte
+
+            '
+          default: disable
+          selector:
+            select:
+              options:
+              - label: Attivato
+                value: active
+              - label: Disattivato
+                value: disable
+              multiple: false
+              sort: false
+              custom_value: false
+    telegram_notify_settings:
+      name: Notifica Telegram
+      icon: phu:telegram
+      collapsed: true
+      input:
+        include_notify_telegram:
+          name: Utilizzare l'opzione Telegram di notifica (facoltativo)
+          description: 'Abilitando questa opzione verranno inviate notifiche ai dispositivi
+            Telegram
+
+            '
+          default: disable_telegram_notify
+          selector:
+            select:
+              options:
+              - label: Abilita le opzioni di notifica Telegram
+                value: enable_telegram_notify
+              - label: Disabilita le opzioni di notifica Telegram
+                value: disable_telegram_notify
+              multiple: false
+              sort: false
+              custom_value: false
+        notify_device_telegram:
+          name: ID voce di configurazione
+          description: 'Seleziona la voce di configurazione che rappresenta il bot
+            Telegram a cui inviare il messaggio.
+
+            '
+          default: []
+          selector:
+            entity:
+              filter:
+              - integration: telegram_bot
+              multiple: true
+              reorder: false
+        notify_telegram_title:
+          name: Titolo
+          description: 'Inserisci il titolo della tua notifica.
+
+            '
+          default: "\U0001F4E2 Inserisci qui il titolo della notifica"
+          selector:
+            text:
+              multiple: false
+              multiline: false
+        notify_telegram_message:
+          name: Messaggio
+          description: 'Inserisci il messaggio della tua notifica.
+
+            '
+          default: "Inserisci qui il messaggio di notifica \U0001F642"
+          selector:
+            text:
+              multiple: false
+              multiline: false
+        notify_telegram_repeat:
+          name: Attiva Ripetizione Notifica
+          description: 'Attivando il servizio la notifica verrà ripetuta più volte
+
+            '
+          default: disable
+          selector:
+            select:
+              options:
+              - label: Attivato
+                value: active
+              - label: Disattivato
+                value: disable
+              multiple: false
+              sort: false
+              custom_value: false
+    persistent_notify_settings:
+      name: Notifiche
+      icon: mdi:bell-outline
+      collapsed: true
+      input:
+        include_persistent_notification:
+          name: Utilizzare l'opzione di notifica dell'interfaccia utente (facoltativo)
+          description: 'Abilitando questa opzione le notifiche verranno visualizzate
+            direttamente nell''interfaccia utente (UI) di Home Assistant.
+
+            '
+          default: disabled_persistent_notification
+          selector:
+            select:
+              options:
+              - label: Abilita notifiche UI
+                value: enable_persistent_notification
+              - label: Disabilita le notifiche UI
+                value: disabled_persistent_notification
+              multiple: false
+              sort: false
+              custom_value: false
+        persistent_title:
+          name: Titolo
+          description: 'Inserisci il titolo della notifica dell''interfaccia utente.
+
+            '
+          default: "\U0001F4E2 Inserisci qui il titolo dell'interfaccia utente"
+          selector:
+            text:
+              multiple: false
+              multiline: false
+        persistent_message:
+          name: Messaggio
+          description: 'Inserisci il messaggio della notifica dell''interfaccia utente.
+
+            '
+          default: "Inserisci qui il messaggio dell'interfaccia utente \U0001F642"
+          selector:
+            text:
+              multiple: false
+              multiline: false
+        persistent_id:
+          name: ID di Notifica
+          description: 'Utilizza un **ID Notifica** per organizzare le tue notifiche.
+            Quando viene inviata una nuova notifica con lo stesso **ID Notifica**,
+            questa sostituisce quella precedente, evitando così di creare duplicati.
+            Se questo campo viene lasciato vuoto, non verrà applicato alcun **ID Notifica**
+            e ogni notifica verrà trattata separatamente. Per risultati ottimali,
+            utilizza un **ID Notifica** breve e univoco per ogni automazione, ad esempio:
+            `cena pronta`, `ora di andare a letto`, `suona il campanello`, ecc.
+
+            '
+          default: []
+          selector:
+            text:
+              multiple: false
+              multiline: false
+    tts_notify_settings:
+      name: Annuncia il Testo in Voce
+      icon: mdi:bullhorn-outline
+      collapsed: true
+      input:
+        include_tts_announcement:
+          name: Utilizzare l'opzione di annuncio vocale (facoltativo)
+          description: 'Abilitando questa opzione verrà inviata una notifica di sintesi
+            vocale ai lettori multimediali selezionati di seguito.
+
+            '
+          default: disable_tts_announcement
+          selector:
+            select:
+              options:
+              - label: Abilita annunci di sintesi vocale
+                value: enable_tts_announcement
+              - label: Disattiva gli annunci di sintesi vocale
+                value: disable_tts_announcement
+              multiple: false
+              sort: false
+              custom_value: false
+        text_to_speech_engine:
+          name: Fornitore di servizi di sintesi vocale
+          description: 'Selezionare il fornitore del servizio Text-to-Speech.
+
+            '
+          default: []
+          selector:
+            entity:
+              filter:
+              - domain:
+                - tts
+              multiple: false
+              reorder: false
+        media_player:
+          name: Media Player
+          description: 'Seleziona il/i lettore/i multimediale/i che riprodurranno
+            il messaggio di annuncio Text-to-Speech.
+
+            '
+          default: []
+          selector:
+            entity:
+              filter:
+              - domain:
+                - media_player
+              multiple: true
+              reorder: false
+        notify_tts_message:
+          name: Messaggio
+          description: 'Inserisci il messaggio del tuo annuncio Text-to-Speech.
+
+            '
+          default: Inserisci qui il messaggio TTS
+          selector:
+            text:
+              multiline: true
+              multiple: false
+    custom_actions_settings:
+      name: Azioni personalizzate
+      icon: mdi:code-tags
+      collapsed: true
+      input:
+        include_custom_actions:
+          name: Utilizzare le opzioni di azione personalizzate (facoltativo)
+          description: 'Personalizza la tua automazione con qualsiasi azione desideri.
+            È comunemente utilizzata per riprodurre annunci su The Voice (HA), Google,
+            Alexa, ecc. Inoltre, può essere utilizzata per altri servizi di notifica
+            o per qualsiasi altra azione tu voglia eseguire.
+
+            '
+          default: disable_custom_actions
+          selector:
+            select:
+              options:
+              - label: Abilita azioni personalizzate
+                value: enable_custom_actions
+              - label: Disabilita le azioni personalizzate
+                value: disable_custom_actions
+              multiple: false
+              sort: false
+              custom_value: false
+        custom_actions:
+          name: Azioni personalizzate
+          description: 'Inserisci le azioni personalizzate che desideri eseguire.
+
+            '
+          default: []
+          selector:
+            action: {}
+    time_settings:
+      name: Tempo
+      icon: mdi:clock-outline
+      collapsed: true
+      input:
+        include_time:
+          name: Utilizzare le opzioni di tempo (facoltativo)
+          description: 'Utilizza i valori "Ora di inizio", **Ora di fine** e **Giorni
+            feriali** per eseguire l''automazione solo tra i periodi di tempo indicati.
+            Questa opzione consente di disattivare l''automazione durante le ore di
+            sonno per evitare di disturbare nessuno. Un altro esempio è impostare
+            l''orario tra le 17:00 e le 21:00 per la chiamata "La cena è pronta".
+            In questo modo, se si attiva accidentalmente il trigger al di fuori di
+            questi orari, l''automazione non verrà eseguita.
+
+            '
+          default: time_disabled
+          selector:
+            select:
+              options:
+              - label: Abilita le opzioni di tempo
+                value: time_enabled
+              - label: Disabilitare le opzioni di tempo
+                value: time_disabled
+              multiple: false
+              sort: false
+              custom_value: false
+        after_time:
+          name: Ora di inizio
+          description: 'Set the start time.
+
+            '
+          default: 00:00:00
+          selector:
+            time: {}
+        before_time:
+          name: Ora di fine
+          description: 'Set the end time.
+
+            '
+          default: 00:00:00
+          selector:
+            time: {}
+        weekday_options:
+          name: Giorni feriali
+          description: 'Seleziona i giorni della settimana in cui desideri che l''automazione
+            venga eseguita. Per far funzionare le selezioni dei giorni feriali, devi
+            selezionare "Abilita le opzioni orarie" qui sopra.
+
+            '
+          default:
+          - mon
+          - tue
+          - wed
+          - thu
+          - fri
+          - sat
+          - sun
+          selector:
+            select:
+              multiple: true
+              mode: list
+              options:
+              - label: Lunedì
+                value: mon
+              - label: Martedì
+                value: tue
+              - label: Mercoledì
+                value: wed
+              - label: Giovedì
+                value: thu
+              - label: Venerdì
+                value: fri
+              - label: Sabato
+                value: sat
+              - label: Domenica
+                value: sun
+              sort: false
+              custom_value: false
+    global_conditions_settings:
+      name: Condizioni Globali
+      icon: mdi:earth
+      collapsed: true
+      input:
+        global_conditions:
+          name: Condizioni Globali
+          description: 'Inserisci le condizioni globali che desideri applicare all''automazione.
+
+            '
+          default: []
+          selector:
+            condition: {}
+  source_url: https://gist.github.com/stepsolar/5470d41eadea1d131591449b69287f99
+mode: single
+max_exceeded: silent
+variables:
+  trigger_state: !input trigger_state
+  trigger_state_entity: !input trigger_state_entity
+  time_delay_state: !input time_delay_state
+  time_repeat_state: !input time_repeat_state
+  notify_repeat_tts: !input notify_repeat_tts
+  notify_repeat_device: !input notify_repeat_device
+  notify_whatsapp_repeat: !input notify_whatsapp_repeat
+  notify_telegram_repeat: !input notify_telegram_repeat
+  max_alerts: !input max_alerts
+  include_notify: !input include_notify
+  include_notify_tts: !input include_notify_tts
+  notify_data_tts: !input notify_data_tts
+  include_notify_whatsapp: !input include_notify_whatsapp
+  include_notify_telegram: !input include_notify_telegram
+  include_notify_repeat: !input include_notify_repeat
+  notify_device: !input notify_device
+  notify_device_tts: !input notify_device_tts
+  notify_device_telegram: !input notify_device_telegram
+  notify_title: !input notify_title
+  notify_message: !input notify_message
+  notify_message_tts: !input notify_message_tts
+  notify_whatsapp_chat_id: !input notify_whatsapp_chat_id
+  notify_whatsapp_message: !input notify_whatsapp_message
+  notify_telegram_title: !input notify_telegram_title
+  notify_telegram_message: !input notify_telegram_message
+  notify_tag: !input notify_tag
+  notify_interruption_level: !input notify_interruption_level
+  notify_sound: !input notify_sound
+  notify_data: !input notify_data
+  notify_channel: !input notify_channel
+  notify_icon: !input notify_icon
+  notify_icon_colour: !input notify_icon_colour
+  include_notify_zone: !input include_notify_zone
+  notify_zone: !input notify_zone
+  include_persistent_notification: !input include_persistent_notification
+  persistent_title: !input persistent_title
+  persistent_message: !input persistent_message
+  persistent_id: !input persistent_id
+  include_tts_announcement: !input include_tts_announcement
+  text_to_speech_engine: !input text_to_speech_engine
+  media_player: !input media_player
+  notify_tts_message: !input notify_tts_message
+  include_custom_actions: !input include_custom_actions
+  custom_actions: !input custom_actions
+  include_time: !input include_time
+  after_time: !input after_time
+  before_time: !input before_time
+  weekday_options: !input weekday_options
+  global_conditions: !input global_conditions
+  device_message_data: "{% set message = namespace(data={}) %} {% set push = namespace(data={})
+    %} {% if notify_interruption_level in ['active', 'critical', 'time-sensitive',
+    'passive'] %}\n  {% set push.data = dict(push.data, **{ 'interruption-level':
+    notify_interruption_level }) %}\n{% endif %} {% if notify_sound != [] %}\n  {%
+    set push.data = dict(push.data, **{ 'sound': notify_sound }) %}\n{% endif %} {%
+    if push.data %}\n  {% set message.data = dict(message.data, **{ 'push': push.data
+    }) %}\n{% endif %} {% if 'high_priority' in notify_data %}\n  {% set message.data
+    = dict(message.data, **{ 'ttl': 0, 'priority': 'high' }) %}\n{% endif %} {% if
+    'channel' in notify_data %}\n  {% set message.data = dict(message.data, **{ 'channel':
+    notify_channel }) %}\n{% endif %} {% if 'sticky' in notify_data %}\n  {% set message.data
+    = dict(message.data, **{ 'sticky': \"true\" }) %}\n{% endif %} {% if 'icon' in
+    notify_data %}\n  {% set message.data = dict(message.data, **{ 'notification_icon':
+    notify_icon }) %}\n  {% if notify_icon_colour | length == 3 %}\n    {% set icon_colour
+    = '#%02x%02x%02x' | format(notify_icon_colour[0], notify_icon_colour[1], notify_icon_colour[2])
+    %}\n    {% set message.data = dict(message.data, **{ 'color': icon_colour }) %}\n
+    \ {% endif %}\n{% endif %} {% if notify_tag != [] %}\n  {% set message.data =
+    dict(message.data, **{ 'tag': notify_tag }) %}\n{% endif %} {{ message.data }}"
+  device_tts_data: "{% set tts = namespace(data={}) %} {% if 'max_volume' in notify_data_tts
+    %}\n  {% set tts.data = dict(tts.data, **{ 'ttl': 0, 'priority': 'high', 'media_stream':
+    'alarm_stream_max', 'tts_text': notify_message_tts }) %}\n{% endif %} {% if 'normal_volume'
+    in notify_data_tts %}\n  {% set tts.data = dict(tts.data, **{ 'ttl': 0, 'priority':
+    'high', 'media_stream': 'alarm_stream', 'tts_text': notify_message_tts }) %}\n{%
+    endif %} {{ tts.data }}"
+  ui_message_data: "{% set message = namespace(data={}) %} {% if persistent_title
+    != [] %}\n  {% set message.data = dict(message.data, **{ 'title': persistent_title
+    }) %}\n{% endif %} {% if persistent_message != [] %}\n  {% set message.data =
+    dict(message.data, **{ 'message': persistent_message }) %}\n{% endif %} {% if
+    persistent_id != [] %}\n  {% set message.data = dict(message.data, **{ 'notification_id':
+    persistent_id }) %}\n{% endif %} {{ message.data }}"
+  filtered_devices: "{% if include_notify_zone == 'zone_enabled' %}\n  {% set zone_name
+    = notify_zone.split('.')[1] %}\n  {% set device_trackers = notify_device | map('device_entities')
+    | list %}\n  {% set devices_in_zone = expand(device_trackers)\n    | selectattr('state',
+    'eq', zone_name)\n    | map(attribute='entity_id')\n    | list %}\n  {{ devices_in_zone
+    }}\n{% else %}\n  {{ notify_device }}\n{% endif %}\n"
+triggers:
+- trigger: state
+  id: t0
+  entity_id: !input trigger_state_entity
+  for: !input time_delay_state
+- trigger: state
+  id: t1
+  entity_id: !input trigger_state_entity
+  to: !input trigger_state
+  for: !input time_delay_state
+condition:
+- condition: or
+  conditions:
+  - condition: and
+    conditions:
+    - condition: trigger
+      id: t0
+    - '{{ trigger_state == ''button_any_state'' }}'
+  - condition: and
+    conditions:
+    - condition: trigger
+      id: t1
+    - '{{ (trigger_state != ''button_any_state'') or (trigger_state != ''numeric_state_above'')
+      or (trigger_state != ''numeric_state_below'') or (trigger_state != ''numeric_state_above_below'')
+      }}'
+  - condition: and
+    conditions:
+    - condition: trigger
+      id: t2
+    - '{{ (trigger_state == ''numeric_state_above'') or (trigger_state == ''numeric_state_above_below'')
+      }}'
+  - condition: and
+    conditions:
+    - condition: trigger
+      id: t3
+    - '{{ (trigger_state == ''numeric_state_below'') or (trigger_state == ''numeric_state_above_below'')
+      }}'
+- condition: or
+  conditions:
+  - '{{ include_time == ''time_disabled'' }}'
+  - condition: and
+    conditions:
+    - condition: time
+      after: !input after_time
+      before: !input before_time
+      weekday: !input weekday_options
+    - '{{ include_time == ''time_enabled'' }}'
+- condition: and
+  conditions: !input global_conditions
+action:
+- choose:
+  - alias: Controlla se la notifica è abilitata
+    conditions:
+    - '{{ include_notify == ''enable_mobile_app_notify'' }}'
+    - '{{ filtered_devices | length > 0 }}'
+    sequence:
+    - alias: Invia una notifica a ciascun dispositivo
+      repeat:
+        for_each: '{{ filtered_devices }}'
+        sequence:
+        - action: notify.mobile_app_{{ device_attr(repeat.item, 'name') | slugify
+            }}
+          data:
+            title: !input notify_title
+            message: !input notify_message
+            data: '{{ device_message_data }}'
+          continue_on_error: true
+- choose:
+  - alias: Controlla se la notifica è abilitata
+    conditions:
+    - condition: template
+      value_template: '{{ include_notify_tts == ''enable_mobile_app_notify_tts'' }}'
+    sequence:
+    - alias: Invia una notifica a ciascun dispositivo
+      repeat:
+        for_each: !input notify_device_tts
+        sequence:
+        - service: notify.mobile_app_{{ device_attr(repeat.item, 'name') | slugify
+            }}
+          metadata: {}
+          data:
+            message: TTS
+            data: '{{ device_tts_data }}'
+- choose:
+  - alias: Controlla se la notifica WhatsApp è abilitata
+    conditions:
+    - condition: template
+      value_template: '{{ include_notify_whatsapp == ''enable_whatsapp_notify'' }}'
+    sequence:
+    - action: rest_command.whatsapp_send_text_message
+      alias: Notifica WhatsApp
+      data:
+        chat_id: !input notify_whatsapp_chat_id
+        message: '{{ notify_whatsapp_message }}'
+- choose:
+  - alias: Controlla se la notifica Telegram è abilitata
+    conditions:
+    - condition: template
+      value_template: '{{ include_notify_telegram == ''enable_telegram_notify'' }}'
+    sequence:
+    - alias: Invia una notifica a ciascun dispositivo Telegram
+      action: notify.send_message
+      metadata: {}
+      target:
+        entity_id: '{{ notify_device_telegram }}'
+      data:
+        title: !input notify_telegram_title
+        message: !input notify_telegram_message
+- choose:
+  - alias: L'utilizzo della notifica persistente è abilitato
+    conditions:
+    - condition: template
+      value_template: '{{ include_persistent_notification == ''enable_mobile_app_notify_tts''
+        }}'
+    sequence:
+    - action: persistent_notification.create
+      data: '{{ ui_message_data }}'
+- choose:
+  - alias: Controlla se l'annuncio tts è abilitato
+    conditions:
+    - '{{ include_tts_announcement == ''enable_tts_announcement'' }}'
+    sequence:
+    - action: tts.speak
+      target:
+        entity_id: !input text_to_speech_engine
+      data:
+        media_player_entity_id: !input media_player
+        message: !input notify_tts_message
+- choose:
+  - alias: Esegui l'azione personalizzata
+    conditions:
+    - condition: template
+      value_template: '{{ ''enable_custom_actions'' in include_custom_actions }}'
+    sequence: !input custom_actions
+- repeat:
+    count: !input max_alerts
+    sequence:
+    - choose:
+      - alias: Controlla se l'opzione Ripetizione Notifica è abilitata
+        conditions:
+        - condition: template
+          value_template: '{{ include_notify_repeat == ''enable_repeat_notify'' }}'
+        sequence:
+        - variables:
+            repeat_count: '{{ repeat.index }}'
+        - choose:
+          - alias: Notifice Ripetitive
+            conditions:
+            - condition: template
+              value_template: '{{ include_notify == ''enable_mobile_app_notify'' }}'
+            - condition: template
+              value_template: '{{ filtered_devices | length > 0 }}'
+            - condition: template
+              value_template: '{{ notify_repeat_device == ''active'' }}'
+            sequence:
+            - alias: Invia una notifica a ciascun dispositivo
+              repeat:
+                for_each: '{{ filtered_devices }}'
+                sequence:
+                - action: notify.mobile_app_{{ device_attr(repeat.item, 'name') |
+                    slugify }}
+                  data:
+                    title: !input notify_title
+                    message: !input notify_message
+                    data: '{{ device_message_data }}'
+                  continue_on_error: true
+        - choose:
+          - conditions:
+            - condition: template
+              value_template: '{{ include_notify_telegram == ''enable_telegram_notify''
+                }}'
+            - condition: template
+              value_template: '{{ notify_telegram_repeat == ''active'' }}'
+            sequence:
+            - alias: Invia una notifica a ciascun dispositivo Telegram
+              action: notify.send_message
+              metadata: {}
+              target:
+                entity_id: '{{ notify_device_telegram }}'
+              data:
+                title: !input notify_telegram_title
+                message: !input notify_telegram_message
+        - choose:
+          - conditions:
+            - condition: template
+              value_template: '{{ include_notify_whatsapp == ''enable_whatsapp_notify''
+                }}'
+            - condition: template
+              value_template: '{{ notify_whatsapp_repeat == ''active'' }}'
+            sequence:
+            - action: rest_command.whatsapp_send_text_message
+              alias: Notifica WhatsApp
+              data:
+                chat_id: !input notify_whatsapp_chat_id
+                message: '{{ notify_whatsapp_message }}'
+        - wait_for_trigger:
+          - platform: template
+            value_template: '{{ not is_state(trigger_state_entity, trigger_state)}}'
+          timeout: !input time_repeat_state

@@ -1,0 +1,690 @@
+blueprint:
+  domain: automation
+  name: Alert
+  description: '# Create a dismissible repeating alert based on an entity''s state
+
+
+    #### Version: 1.6
+
+
+    ## Requirements
+
+    - **Home Assistant Minimum Version**: 2024.6.0
+
+    - **Home Assistant [Companion App](https://companion.home-assistant.io/)**
+
+
+    ## What''s New
+
+    - **Snooze Notification Action**: Snooze alerts for a customizable duration via
+    a notification action.
+
+    - **Optimizations**: Alerts are delivered immediately after the start of a notification
+    time window or a tracker entering a zone rather than a possible delay of up to
+    15 minutes.
+
+
+    ## Features
+
+    - **Repeating Alerts**: Notifications repeat at user-defined intervals until the
+    condition resolves or the alert is dismissed (long-press on iOS to dismiss)
+
+    - **Snooze Notification Action**: Snooze alerts for a customizable duration via
+    a notification action
+
+    - **Idle Notification**: Option to send a notification when the alert changes
+    to idle
+
+    - **Alert and Clear Actions**: Set custom actions to be executed when the alert
+    triggers or clears
+
+    - **Auto-Recovery**: Alerts automatically resume after Home Assistant restarts
+    or automations reload (30-second delay ensures all entities are ready)
+
+    - **Smart Cleanup**: Notifications are automatically dismissed when the alert
+    condition clears (If not using idle notifications)
+
+    - **Critical Notifications**: Support for iOS and Android critical alerts that
+    bypass Do Not Disturb
+
+    - **Location-Based Alerts**: Only receive notifications when you''re at specific
+    locations (e.g., home, away)
+
+    - **Time Windows**: Restrict notifications to specific hours of the day
+
+    - **Visual Indicators**: Pair with the Alert Light blueprint to control colored
+    lights based on severity
+
+    - **Ask Assist to Read Active Alerts**: Pair with the Voice Alert Summary blueprint
+    to read out active alerts
+
+
+    ## Related Blueprints
+
+    - Alert Light - Change a light color and brightness based on alert severity level
+
+    [![Open your Home Assistant instance and show the blueprint import dialog with
+    a specific blueprint pre-filled.](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fgist.github.com%2FMakingNate%2Fd7101e6add95656cd6004039e3f5ad54)
+
+    - Voice Alert Summary - Read active alerts via voice using local TTS or AI-generated
+    summaries
+
+    [![Open your Home Assistant instance and show the blueprint import dialog with
+    a specific blueprint pre-filled.](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fgist.github.com%2FMakingNate%2F85ea1a5c3c2c74e8ec14054a8c4bcffd)
+
+
+    ## Change Log
+
+    | Version | Date | Notes |
+
+    |--|--|--|
+
+    | 1.1 | 11/04/2025 | **Critical Notifications for Android**: Added the option
+    to select a critical notification profile for android using the Alarm Stream.
+    |
+
+    | 1.2 | 11/09/2025 | **Bug Fix**: Fixed an issue where alert severity counter
+    could be decremented prematurely. This required reworking the sequence of the
+    automation. The new sequence is much cleaner. |
+
+    | 1.3 | 11/09/2025 | **Bug Fix**: Fixed an issue where alerts would not clear
+    if the entity transitioned through intermediate states (e.g., alert → unknown
+    → idle) instead of directly from alert to idle state. |
+
+    | 1.4 | 11/10/2025 | **Bug Fix**: Fixed an issue where the initial delay was not
+    being honored on restart recovery. |
+
+    | 1.5 | 11/14/2025 | **Alert and Clear Actions**: Set custom actions to be executed
+    when the alert triggers or clears. |
+
+    ||| **Idle Notification**: Option to send a notification when the alert changes
+    to idle. |
+
+    ||| **Recover from Automation Reload**: Alerts can now recover from automation
+    reloads. |
+
+    ||| **Recovery Options**: Recovery from Home Assistant restart and automation
+    reloads are now optional. (Default: Enabled) Additionally, set how alert automations
+    behave on recovery. |
+
+    | 1.6 | 11/23/2025 | **Snooze Notification Action**: Snooze alerts for a customizable
+    duration via a notification action. |
+
+    ||| **Optimizations**: Alerts are delivered immediately after the start of a notification
+    time window or a tracker entering a zone rather than a possible delay of up to
+    15 minutes. |
+
+    '
+  author: Making Nate
+  homeassistant:
+    min_version: 2024.6.0
+  input:
+    trigger_section:
+      name: Trigger
+      description: 'Configure when the alert should be triggered
+
+
+        Not sure what state to use? Check the state developer tools:
+
+
+        [![Open your Home Assistant instance and show your state developer tools.](https://my.home-assistant.io/badges/developer_states.svg)](https://my.home-assistant.io/redirect/developer_states/)
+
+        '
+      input:
+        alert_entity:
+          name: Alert Entity
+          description: Select the entity that will trigger the alert when it changes
+            state
+          selector:
+            entity:
+              reorder: false
+              multiple: false
+        alert_state:
+          name: Alert State
+          description: The state that triggers the alert. (e.g., 'on', 'unlocked',
+            'home')
+        idle_state:
+          name: Idle State
+          description: (Optional) The state that clears the alert. Leave blank for
+            any state. (e.g., 'off', 'locked', 'away')
+          default:
+        initial_delay:
+          name: Initial Delay
+          description: How long the entity must be in the alert state before triggering
+          default:
+            hours: 0
+            minutes: 0
+            seconds: 0
+          selector:
+            duration: {}
+    notification_section:
+      name: Notification
+      description: Configure the notification settings
+      input:
+        notification_device:
+          name: Notification Device
+          description: Select the [mobile device](https://companion.home-assistant.io/)
+            to receive notifications
+          selector:
+            device:
+              filter:
+              - integration: mobile_app
+              multiple: false
+        notification_title:
+          name: Alert Notification Title
+          description: The title that appears on the notification
+          selector:
+            text:
+              multiple: false
+              multiline: false
+        notification_message:
+          name: Alert Notification Message
+          description: The message content of the notification
+          selector:
+            text:
+              multiline: true
+              multiple: false
+        notification_unique_id:
+          name: Unique Action ID
+          description: A unique identifier for this alert's notifications and actions
+          selector:
+            text:
+              multiple: false
+              multiline: false
+        repeat_delay:
+          name: Repeat Delay
+          description: How long to wait before sending the notification again if the
+            alert persists
+          default:
+            hours: 1
+            minutes: 0
+            seconds: 0
+          selector:
+            duration: {}
+        snooze_duration:
+          name: Snooze Duration
+          description: How long to snooze notifications when the snooze action is
+            used
+          default:
+            hours: 24
+            minutes: 0
+            seconds: 0
+          selector:
+            duration: {}
+        send_idle_notification:
+          name: Send Idle Notification
+          description: Send a notification when the alert returns to idle state
+          default: false
+          selector:
+            boolean: {}
+        idle_notification_title:
+          name: Idle Notification Title
+          description: The title that appears on the idle notification
+          default: Alert Idle
+          selector:
+            text:
+              multiple: false
+              multiline: false
+        idle_notification_message:
+          name: Idle Notification Message
+          description: The message content of the idle notification
+          default: The alert is idle
+          selector:
+            text:
+              multiline: true
+              multiple: false
+    notification_options_section:
+      name: Notification Options
+      description: Customize notification behavior, location and timing
+      collapsed: true
+      input:
+        notification_critical:
+          name: Critical Notification Profile
+          description: Enable critical notifications to bypass Do Not Disturb mode
+          selector:
+            select:
+              options:
+              - label: Critical (iPhone)
+                value: '1'
+              - label: Alarm Stream (Android)
+                value: '2'
+              - label: 'Off'
+                value: '0'
+              custom_value: false
+              sort: false
+              multiple: false
+          default: '0'
+        notification_volume:
+          name: Volume
+          description: Set the notification sound volume (iPhone Only)
+          selector:
+            number:
+              max: 1.0
+              min: 0.0
+              step: 0.1
+              mode: slider
+          default: 0.5
+        notification_device_tracker:
+          name: Person or Device Tracker
+          description: (Optional) [Person](https://www.home-assistant.io/integrations/person/)
+            or [device tracker](https://www.home-assistant.io/integrations/device_tracker/)
+            to use for location based notifications
+          default: []
+          selector:
+            entity:
+              filter:
+              - domain:
+                - person
+                - device_tracker
+              reorder: false
+              multiple: false
+        notification_zone:
+          name: Zone
+          description: (Optional) Notifications will only be sent if the person or
+            device tracker is in the selected [zone](https://www.home-assistant.io/integrations/zone/)
+          default: []
+          selector:
+            entity:
+              filter:
+              - domain:
+                - zone
+              reorder: false
+              multiple: false
+        notification_window_start:
+          name: Notification Window Start Time
+          description: Notifications will only be sent after this time (set both to
+            00:00:00 to disable)
+          default: 00:00:00
+          selector:
+            time: {}
+        notification_window_end:
+          name: Notification Window End Time
+          description: Notifications will only be sent before this time (set both
+            to 00:00:00 to disable)
+          default: 00:00:00
+          selector:
+            time: {}
+    alert_actions_section:
+      name: Actions
+      description: "Configure actions to run when the alert triggers or clears. \n\n**Important**:
+        \n- Keep actions short in duration as they execute sequentially and can delay
+        notifications. Avoid loops and actions that have long wait times.\n- Running
+        the 'stop' action will cause the alert automation to exit prematurely.\n-
+        Only one set of clearing actions will run: either Dismiss Actions (if manually
+        dismissed) OR Idle Actions (if naturally cleared), whichever occurs first.\n"
+      collapsed: true
+      input:
+        alert_actions:
+          name: Alert Actions
+          description: (Optional) Actions to run when the alert state is triggered
+          default: []
+          selector:
+            action: {}
+        alert_actions_conditions:
+          name: Alert Actions Run Conditions
+          description: (Optional) Additional conditions that must be met for Alert
+            Actions to run
+          default: []
+          selector:
+            condition: {}
+        idle_actions:
+          name: Idle Actions
+          description: (Optional) Actions to run when the alert returns to idle state
+          default: []
+          selector:
+            action: {}
+        idle_actions_conditions:
+          name: Idle Actions Run Conditions
+          description: (Optional) Additional conditions that must be met for Idle
+            Actions to run
+          default: []
+          selector:
+            condition: {}
+        dismiss_actions:
+          name: Dismiss Actions
+          description: (Optional) Actions to run when the alert is manually dismissed
+            via notification action
+          default: []
+          selector:
+            action: {}
+        dismiss_actions_conditions:
+          name: Dismiss Actions Run Conditions
+          description: (Optional) Additional conditions that must be met for Dismiss
+            Actions to run
+          default: []
+          selector:
+            condition: {}
+    alert_light_section:
+      name: Severity Level
+      description: 'Add a severity level counter for use with the Alert Light Automation
+        Blueprint:
+
+
+        [![Open your Home Assistant instance and show the blueprint import dialog
+        with a specific blueprint pre-filled.](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fgist.github.com%2FMakingNate%2Fd7101e6add95656cd6004039e3f5ad54)
+
+        '
+      collapsed: true
+      input:
+        alert_level_counter:
+          name: Severity Level Counter
+          description: '(Optional) Select a [counter](https://www.home-assistant.io/integrations/counter/)
+            to increment when the alert is active and decrement when the alert is
+            idle
+
+            '
+          default: []
+          selector:
+            entity:
+              filter:
+              - domain:
+                - counter
+              reorder: false
+              multiple: false
+    recovery_options_section:
+      name: Recovery Options
+      description: Configure how the alert automation behaves after Home Assistant
+        restarts or automations are reloaded
+      collapsed: true
+      input:
+        enable_recovery_after_restart:
+          name: Enable Recovery After Restart
+          description: When enabled, the alert will automatically resume after Home
+            Assistant restarts if the entity is still in the alert state
+          default: true
+          selector:
+            boolean: {}
+        enable_recovery_after_reload:
+          name: Enable Recovery After Automation Reload
+          description: When enabled, the alert will automatically resume after automations
+            are reloaded if the entity is still in the alert state
+          default: true
+          selector:
+            boolean: {}
+        run_alert_actions_after_recovery:
+          name: Run Alert Actions After Recovery
+          description: When enabled, Alert Actions will run again after a successful
+            recovery from restart or reload
+          default: false
+          selector:
+            boolean: {}
+        ignore_initial_delay_on_recovery:
+          name: Ignore Initial Delay on Recovery
+          description: When enabled, the alert will resume immediately after recovery
+            if the entity is in the alert state, bypassing the initial delay (after
+            the default 30-second stabilization period)
+          default: false
+          selector:
+            boolean: {}
+  source_url: https://gist.github.com/MakingNate/9c5515a64bf5a173ecbaa7a4538653b6
+variables:
+  alert_entity: !input alert_entity
+  alert_state: !input alert_state
+  idle_state: !input idle_state
+  notification_unique_id: !input notification_unique_id
+  wait_delay: !input repeat_delay
+  is_snoozed: false
+  snooze_duration: !input snooze_duration
+  notification_critical: !input notification_critical
+  notification_critical_int: '{{ notification_critical | int }}'
+  notification_volume: !input notification_volume
+  notification_zone: !input notification_zone
+  notification_device_tracker: !input notification_device_tracker
+  run_alert_actions_after_recovery: !input run_alert_actions_after_recovery
+  ignore_initial_delay_on_recovery: !input ignore_initial_delay_on_recovery
+  send_idle_notification: !input send_idle_notification
+  notification_data_base:
+    tag: '{{ notification_unique_id }}'
+    actions:
+    - action: '{{ notification_unique_id }}_dismiss'
+      title: Dismiss
+    - action: '{{ notification_unique_id }}_snooze'
+      title: Snooze - {{ [snooze_duration.hours ~ 'h' if snooze_duration.hours > 0,
+        snooze_duration.minutes ~ 'm' if snooze_duration.minutes > 0, snooze_duration.seconds
+        ~ 's' if snooze_duration.seconds > 0] | select | join(' ') }}
+  notification_data_profiles_by_index:
+  - {}
+  - push:
+      sound:
+        name: default
+        critical: 1
+        volume: '{{ notification_volume }}'
+  - ttl: 0
+    priority: high
+    channel: alarm_stream
+  notification_final: '{{ notification_data_base | combine(notification_data_profiles_by_index[notification_critical_int])
+    }}'
+triggers:
+- trigger: state
+  entity_id: !input alert_entity
+  to: !input alert_state
+  for: !input initial_delay
+  id: alert
+- trigger: homeassistant
+  event: start
+  id: restart
+  enabled: !input enable_recovery_after_restart
+- trigger: event
+  event_type: automation_reloaded
+  id: reload
+  enabled: !input enable_recovery_after_reload
+conditions: []
+actions:
+- if:
+  - condition: trigger
+    id:
+    - restart
+    - reload
+  then:
+  - delay:
+      hours: 0
+      minutes: 0
+      seconds: 30
+      milliseconds: 0
+  - if:
+    - condition: state
+      entity_id: !input alert_entity
+      state: !input alert_state
+    then:
+    - if:
+      - condition: template
+        value_template: '{{ not ignore_initial_delay_on_recovery }}'
+      then:
+      - wait_for_trigger:
+        - trigger: template
+          value_template: "{% if idle_state is not none %}\n  {{ is_state(alert_entity,
+            idle_state) }}\n{% else %}\n  {{ not is_state(alert_entity, alert_state)
+            }}\n{% endif %}"
+          id: restart_idle
+        timeout: !input initial_delay
+      - if:
+        - condition: template
+          value_template: '{{ wait.trigger.id == ''restart_idle'' }}'
+        then:
+        - stop: Idle state reached before initial delay
+    else:
+    - stop: Alert state is not true
+- if:
+  - condition: trigger
+    id:
+    - alert
+    - restart
+  then:
+  - action: counter.increment
+    metadata: {}
+    data: {}
+    target:
+      entity_id: !input alert_level_counter
+- if:
+  - condition: or
+    conditions:
+    - condition: trigger
+      id:
+      - alert
+    - condition: and
+      conditions:
+      - condition: trigger
+        id:
+        - restart
+        - reload
+      - condition: template
+        value_template: '{{ run_alert_actions_after_recovery }}'
+  then:
+  - if: !input alert_actions_conditions
+    then:
+    - alias: Run Alert Actions
+      sequence: !input alert_actions
+- repeat:
+    while:
+    - condition: template
+      value_template: "{% if idle_state is not none %}\n  {{ not is_state(alert_entity,
+        idle_state) }}\n{% else %}\n  {{ is_state(alert_entity, alert_state) }}\n{%
+        endif %}"
+    sequence:
+    - choose:
+      - conditions:
+        - condition: template
+          value_template: '{{ is_snoozed }}'
+        sequence:
+        - variables:
+            wait_for_zone_or_time: false
+      - conditions:
+        - condition: time
+          after: !input notification_window_start
+          before: !input notification_window_end
+        - condition: or
+          conditions:
+          - condition: template
+            value_template: '{{ notification_zone == [] }}'
+          - condition: template
+            value_template: '{{ notification_device_tracker == [] }}'
+          - condition: zone
+            entity_id: !input notification_device_tracker
+            zone: !input notification_zone
+        sequence:
+        - alias: Send notification
+          domain: mobile_app
+          type: notify
+          device_id: !input notification_device
+          title: !input notification_title
+          message: !input notification_message
+          data: '{{ notification_final }}'
+        - variables:
+            wait_for_zone_or_time: false
+      default:
+      - variables:
+          wait_for_zone_or_time: true
+    - alias: Select a wait loop
+      if:
+      - condition: template
+        value_template: '{{ wait_for_zone_or_time }}'
+      then:
+      - wait_for_trigger:
+        - trigger: time
+          at: !input notification_window_start
+        - trigger: state
+          entity_id: !input notification_device_tracker
+          to:
+        - trigger: event
+          event_type: mobile_app_notification_action
+          event_data:
+            action: '{{ notification_unique_id }}_dismiss'
+          id: dismiss
+        - trigger: event
+          event_type: mobile_app_notification_action
+          event_data:
+            action: '{{ notification_unique_id }}_snooze'
+          id: snooze
+        - trigger: template
+          value_template: "{% if idle_state is not none %}\n  {{ is_state(alert_entity,
+            idle_state) }}\n{% else %}\n  {{ not is_state(alert_entity, alert_state)
+            }}\n{% endif %}"
+          id: idle
+        timeout:
+          hours: 6
+      else:
+      - wait_for_trigger:
+        - trigger: event
+          event_type: mobile_app_notification_action
+          event_data:
+            action: '{{ notification_unique_id }}_dismiss'
+          id: dismiss
+        - trigger: event
+          event_type: mobile_app_notification_action
+          event_data:
+            action: '{{ notification_unique_id }}_snooze'
+          id: snooze
+        - trigger: template
+          value_template: "{% if idle_state is not none %}\n  {{ is_state(alert_entity,
+            idle_state) }}\n{% else %}\n  {{ not is_state(alert_entity, alert_state)
+            }}\n{% endif %}"
+          id: idle
+        timeout: '{{ wait_delay }}'
+    - choose:
+      - conditions:
+        - condition: template
+          value_template: '{{ wait.trigger.id == ''snooze'' }}'
+        sequence:
+        - variables:
+            wait_delay: !input snooze_duration
+            is_snoozed: true
+      - conditions:
+        - condition: template
+          value_template: '{{ wait.trigger.id == ''dismiss'' }}'
+        sequence:
+        - action: counter.decrement
+          metadata: {}
+          data: {}
+          target:
+            entity_id: !input alert_level_counter
+        - if: !input dismiss_actions_conditions
+          then:
+          - alias: Run Dismiss Actions
+            sequence: !input dismiss_actions
+        - stop: The alert was dismissed
+      default:
+      - variables:
+          wait_delay: !input repeat_delay
+          is_snoozed: false
+- action: counter.decrement
+  metadata: {}
+  data: {}
+  target:
+    entity_id: !input alert_level_counter
+- if:
+  - condition: template
+    value_template: '{{ send_idle_notification }}'
+  - condition: time
+    after: !input notification_window_start
+    before: !input notification_window_end
+  - condition: or
+    conditions:
+    - condition: template
+      value_template: '{{ notification_zone == [] }}'
+    - condition: template
+      value_template: '{{ notification_device_tracker == [] }}'
+    - condition: zone
+      entity_id: !input notification_device_tracker
+      zone: !input notification_zone
+  then:
+  - alias: Send idle notification
+    domain: mobile_app
+    type: notify
+    device_id: !input notification_device
+    title: !input idle_notification_title
+    message: !input idle_notification_message
+    data:
+      tag: !input notification_unique_id
+  else:
+  - alias: Clear alert notification
+    domain: mobile_app
+    type: notify
+    device_id: !input notification_device
+    message: clear_notification
+    data:
+      tag: !input notification_unique_id
+- if: !input idle_actions_conditions
+  then:
+  - alias: Run Idle Actions if exiting via while loop
+    sequence: !input idle_actions
+mode: single

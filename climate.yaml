@@ -1,0 +1,685 @@
+# climate.yaml
+# Integrazione termostati KBlue via climate_template (HACS)
+#
+# PRINCIPIO: il KBlue e' l'unica fonte di verita'.
+#   Temperatura, target, stato e riscaldamento si leggono dai sensori "stabili" (templates.yaml),
+#   che ignorano zeri e letture non valide e mantengono l'ultimo valore buono.
+#   Se un sensore stabile non e' disponibile (unknown/unavailable) si usa il sensore grezzo
+#   KBlue corrispondente: il climate non mostra mai 0 / Off solo perche' manca il sensore stabile.
+#   - target / modo / stato si leggono SEMPRE dai sensori REST (aggiornati ogni 10 s),
+#     quindi le modifiche fatte dal pannello a muro o dall'app KBlue compaiono in HA
+#     senza che HA scriva nulla indietro (nessun input_number, nessuna automazione di sync).
+#   - HA scrive sul KBlue solo quando e' l'utente a chiederlo da HA
+#     (set_temperature / set_hvac_mode), tramite script.kblue_termostato_comando.
+#   - Temperatura misurata al decimo di grado (precision 0.1), setpoint a passi di 0.5 (temp_step 0.5).
+#
+# MODELLO:
+#   hvac_mode    : auto = acceso (programma orario o manuale) | off = spento
+#   hvac_action  : heating = riscaldamento realmente in funzione (V[7] == 1) | idle | off
+#   Modo MANUALE : non e' un modo HVAC. Si entra cambiando il setpoint (da HA, pannello o app) e si
+#                  esce con "Auto". Lo stato si legge da sensor.modo_manuale_<zona>_kblue (V[12] != 0),
+#                  da usare nelle dashboard (es. icona della gauge).
+#
+# Scrittura attiva su TUTTE le zone. Per auto/on/off lo script legge da solo, dalla voce del
+# termostato nel KBlue, l'ixm e gli ixv (S[0] = on/off, S[12] = flag manuale): l'ixm cambia da
+# zona a zona (Salone = 1, Cam Francesco = 0), quindi non vanno scritti a mano.
+
+# === TERMOSTATO SALONE (controllo scrittura) ===
+- platform: climate_template
+  name: "Termostato Salone"
+  unique_id: climate_salone
+  current_temperature_template: "{{ (states('sensor.temperatura_stabile_salone') if has_value('sensor.temperatura_stabile_salone') else states('sensor.temperatura_salone_kblue')) | float(0) }}"
+  target_temperature_template: "{{ (states('sensor.target_stabile_salone') if has_value('sensor.target_stabile_salone') else states('sensor.target_temperatura_salone_kblue')) | float(0) }}"
+  min_temp: 16
+  max_temp: 24
+  precision: 0.1
+  temp_step: 0.5
+  modes:
+    - "auto"
+    - "off"
+  hvac_mode_template: >
+    {% set stato = (states('sensor.stato_stabile_salone') if has_value('sensor.stato_stabile_salone') else states('sensor.stato_termostato_salone_kblue')) | lower | trim %}
+    {% if stato != 'on' %}
+      off
+    {% else %}
+      auto
+    {% endif %}
+  hvac_action_template: >
+    {% if (states('sensor.stato_stabile_salone') if has_value('sensor.stato_stabile_salone') else states('sensor.stato_termostato_salone_kblue')) | lower | trim != 'on' %}
+      off
+    {% elif (states('sensor.riscaldamento_stabile_salone') if has_value('sensor.riscaldamento_stabile_salone') else states('sensor.riscaldamento_attivo_salone_kblue')) | lower | trim == 'on' %}
+      heating
+    {% else %}
+      idle
+    {% endif %}
+  set_temperature:
+    - service: script.kblue_termostato_comando
+      data:
+        ixogm: "0000008100000642"
+        azione: "{{ ((temperature | float(0)) * 2) | round(0) / 2 }}"
+        refresh: sensor.temperatura_salone_kblue
+        verifica: sensor.target_temperatura_salone_kblue
+  set_hvac_mode:
+    - choose:
+        # AUTO: accende solo se e' spento, rimette il programma solo se e' in manuale
+        - conditions:
+            - condition: template
+              value_template: "{{ hvac_mode == 'auto' }}"
+          sequence:
+            - if:
+                - condition: template
+                  value_template: "{{ (states('sensor.stato_stabile_salone') if has_value('sensor.stato_stabile_salone') else states('sensor.stato_termostato_salone_kblue')) != 'on' }}"
+              then:
+                - service: script.kblue_termostato_comando
+                  data: {ixogm: "0000008100000642", azione: "on", refresh: sensor.temperatura_salone_kblue, stato: sensor.stato_termostato_salone_kblue, manuale: sensor.modo_manuale_salone_kblue}
+            - if:
+                - condition: template
+                  value_template: "{{ states('sensor.modo_manuale_salone_kblue') != '0' }}"
+              then:
+                - service: script.kblue_termostato_comando
+                  data: {ixogm: "0000008100000642", azione: "auto", refresh: sensor.temperatura_salone_kblue, stato: sensor.stato_termostato_salone_kblue, manuale: sensor.modo_manuale_salone_kblue}
+        # OFF: spegne solo se e' acceso
+        - conditions:
+            - condition: template
+              value_template: "{{ hvac_mode == 'off' }}"
+          sequence:
+            - if:
+                - condition: template
+                  value_template: "{{ (states('sensor.stato_stabile_salone') if has_value('sensor.stato_stabile_salone') else states('sensor.stato_termostato_salone_kblue')) == 'on' }}"
+              then:
+                - service: script.kblue_termostato_comando
+                  data: {ixogm: "0000008100000642", azione: "off", refresh: sensor.temperatura_salone_kblue, stato: sensor.stato_termostato_salone_kblue, manuale: sensor.modo_manuale_salone_kblue}
+
+# === TERMOSTATO CUCINA (controllo scrittura) ===
+- platform: climate_template
+  name: "Termostato Cucina"
+  unique_id: climate_cucina
+  current_temperature_template: "{{ (states('sensor.temperatura_stabile_cucina') if has_value('sensor.temperatura_stabile_cucina') else states('sensor.temperatura_cucina_kblue')) | float(0) }}"
+  target_temperature_template: "{{ (states('sensor.target_stabile_cucina') if has_value('sensor.target_stabile_cucina') else states('sensor.target_temperatura_cucina_kblue')) | float(0) }}"
+  min_temp: 16
+  max_temp: 24
+  precision: 0.1
+  temp_step: 0.5
+  modes:
+    - "auto"
+    - "off"
+  hvac_mode_template: >
+    {% set stato = (states('sensor.stato_stabile_cucina') if has_value('sensor.stato_stabile_cucina') else states('sensor.stato_termostato_cucina_kblue')) | lower | trim %}
+    {% if stato != 'on' %}
+      off
+    {% else %}
+      auto
+    {% endif %}
+  hvac_action_template: >
+    {% if (states('sensor.stato_stabile_cucina') if has_value('sensor.stato_stabile_cucina') else states('sensor.stato_termostato_cucina_kblue')) | lower | trim != 'on' %}
+      off
+    {% elif (states('sensor.riscaldamento_stabile_cucina') if has_value('sensor.riscaldamento_stabile_cucina') else states('sensor.riscaldamento_attivo_cucina_kblue')) | lower | trim == 'on' %}
+      heating
+    {% else %}
+      idle
+    {% endif %}
+  set_temperature:
+    - service: script.kblue_termostato_comando
+      data:
+        ixogm: "000000810000062D"
+        azione: "{{ ((temperature | float(0)) * 2) | round(0) / 2 }}"
+        refresh: sensor.temperatura_cucina_kblue
+        verifica: sensor.target_temperatura_cucina_kblue
+  set_hvac_mode:
+    - choose:
+        # AUTO: accende solo se e' spento, rimette il programma solo se e' in manuale
+        - conditions:
+            - condition: template
+              value_template: "{{ hvac_mode == 'auto' }}"
+          sequence:
+            - if:
+                - condition: template
+                  value_template: "{{ (states('sensor.stato_stabile_cucina') if has_value('sensor.stato_stabile_cucina') else states('sensor.stato_termostato_cucina_kblue')) != 'on' }}"
+              then:
+                - service: script.kblue_termostato_comando
+                  data: {ixogm: "000000810000062D", azione: "on", refresh: sensor.temperatura_cucina_kblue, stato: sensor.stato_termostato_cucina_kblue, manuale: sensor.modo_manuale_cucina_kblue}
+            - if:
+                - condition: template
+                  value_template: "{{ states('sensor.modo_manuale_cucina_kblue') != '0' }}"
+              then:
+                - service: script.kblue_termostato_comando
+                  data: {ixogm: "000000810000062D", azione: "auto", refresh: sensor.temperatura_cucina_kblue, stato: sensor.stato_termostato_cucina_kblue, manuale: sensor.modo_manuale_cucina_kblue}
+        # OFF: spegne solo se e' acceso
+        - conditions:
+            - condition: template
+              value_template: "{{ hvac_mode == 'off' }}"
+          sequence:
+            - if:
+                - condition: template
+                  value_template: "{{ (states('sensor.stato_stabile_cucina') if has_value('sensor.stato_stabile_cucina') else states('sensor.stato_termostato_cucina_kblue')) == 'on' }}"
+              then:
+                - service: script.kblue_termostato_comando
+                  data: {ixogm: "000000810000062D", azione: "off", refresh: sensor.temperatura_cucina_kblue, stato: sensor.stato_termostato_cucina_kblue, manuale: sensor.modo_manuale_cucina_kblue}
+
+# === TERMOSTATO CAMERA MATRIMONIALE (controllo scrittura) ===
+- platform: climate_template
+  name: "Termostato Camera Matrimoniale"
+  unique_id: climate_camera_matrimoniale
+  current_temperature_template: "{{ (states('sensor.temperatura_stabile_camera_matrimoniale') if has_value('sensor.temperatura_stabile_camera_matrimoniale') else states('sensor.temperatura_letto_kblue')) | float(0) }}"
+  target_temperature_template: "{{ (states('sensor.target_stabile_camera_matrimoniale') if has_value('sensor.target_stabile_camera_matrimoniale') else states('sensor.target_temperatura_letto_kblue')) | float(0) }}"
+  min_temp: 16
+  max_temp: 24
+  precision: 0.1
+  temp_step: 0.5
+  modes:
+    - "auto"
+    - "off"
+  hvac_mode_template: >
+    {% set stato = (states('sensor.stato_stabile_camera_matrimoniale') if has_value('sensor.stato_stabile_camera_matrimoniale') else states('sensor.stato_termostato_letto_kblue')) | lower | trim %}
+    {% if stato != 'on' %}
+      off
+    {% else %}
+      auto
+    {% endif %}
+  hvac_action_template: >
+    {% if (states('sensor.stato_stabile_camera_matrimoniale') if has_value('sensor.stato_stabile_camera_matrimoniale') else states('sensor.stato_termostato_letto_kblue')) | lower | trim != 'on' %}
+      off
+    {% elif (states('sensor.riscaldamento_stabile_camera_matrimoniale') if has_value('sensor.riscaldamento_stabile_camera_matrimoniale') else states('sensor.riscaldamento_attivo_letto_kblue')) | lower | trim == 'on' %}
+      heating
+    {% else %}
+      idle
+    {% endif %}
+  set_temperature:
+    - service: script.kblue_termostato_comando
+      data:
+        ixogm: "00000081000005EE"
+        azione: "{{ ((temperature | float(0)) * 2) | round(0) / 2 }}"
+        refresh: sensor.temperatura_letto_kblue
+        verifica: sensor.target_temperatura_letto_kblue
+  set_hvac_mode:
+    - choose:
+        # AUTO: accende solo se e' spento, rimette il programma solo se e' in manuale
+        - conditions:
+            - condition: template
+              value_template: "{{ hvac_mode == 'auto' }}"
+          sequence:
+            - if:
+                - condition: template
+                  value_template: "{{ (states('sensor.stato_stabile_camera_matrimoniale') if has_value('sensor.stato_stabile_camera_matrimoniale') else states('sensor.stato_termostato_letto_kblue')) != 'on' }}"
+              then:
+                - service: script.kblue_termostato_comando
+                  data: {ixogm: "00000081000005EE", azione: "on", refresh: sensor.temperatura_letto_kblue, stato: sensor.stato_termostato_letto_kblue, manuale: sensor.modo_manuale_letto_kblue}
+            - if:
+                - condition: template
+                  value_template: "{{ states('sensor.modo_manuale_letto_kblue') != '0' }}"
+              then:
+                - service: script.kblue_termostato_comando
+                  data: {ixogm: "00000081000005EE", azione: "auto", refresh: sensor.temperatura_letto_kblue, stato: sensor.stato_termostato_letto_kblue, manuale: sensor.modo_manuale_letto_kblue}
+        # OFF: spegne solo se e' acceso
+        - conditions:
+            - condition: template
+              value_template: "{{ hvac_mode == 'off' }}"
+          sequence:
+            - if:
+                - condition: template
+                  value_template: "{{ (states('sensor.stato_stabile_camera_matrimoniale') if has_value('sensor.stato_stabile_camera_matrimoniale') else states('sensor.stato_termostato_letto_kblue')) == 'on' }}"
+              then:
+                - service: script.kblue_termostato_comando
+                  data: {ixogm: "00000081000005EE", azione: "off", refresh: sensor.temperatura_letto_kblue, stato: sensor.stato_termostato_letto_kblue, manuale: sensor.modo_manuale_letto_kblue}
+
+# === TERMOSTATO CAMERA FRANCESCO (controllo scrittura) ===
+- platform: climate_template
+  name: "Termostato Camera Francesco"
+  unique_id: climate_cam_francesco
+  current_temperature_template: "{{ (states('sensor.temperatura_stabile_cam_francesco') if has_value('sensor.temperatura_stabile_cam_francesco') else states('sensor.temperatura_camera_francesco')) | float(0) }}"
+  target_temperature_template: "{{ (states('sensor.target_stabile_cam_francesco') if has_value('sensor.target_stabile_cam_francesco') else states('sensor.target_temperatura_camera_francesco')) | float(0) }}"
+  min_temp: 16
+  max_temp: 24
+  precision: 0.1
+  temp_step: 0.5
+  modes:
+    - "auto"
+    - "off"
+  hvac_mode_template: >
+    {% set stato = (states('sensor.stato_stabile_cam_francesco') if has_value('sensor.stato_stabile_cam_francesco') else states('sensor.stato_termostato_camera_francesco')) | lower | trim %}
+    {% if stato != 'on' %}
+      off
+    {% else %}
+      auto
+    {% endif %}
+  hvac_action_template: >
+    {% if (states('sensor.stato_stabile_cam_francesco') if has_value('sensor.stato_stabile_cam_francesco') else states('sensor.stato_termostato_camera_francesco')) | lower | trim != 'on' %}
+      off
+    {% elif (states('sensor.riscaldamento_stabile_cam_francesco') if has_value('sensor.riscaldamento_stabile_cam_francesco') else states('sensor.riscaldamento_attivo_camera_francesco')) | lower | trim == 'on' %}
+      heating
+    {% else %}
+      idle
+    {% endif %}
+  set_temperature:
+    - service: script.kblue_termostato_comando
+      data:
+        ixogm: "0000008100000618"
+        azione: "{{ ((temperature | float(0)) * 2) | round(0) / 2 }}"
+        refresh: sensor.temperatura_camera_francesco
+        verifica: sensor.target_temperatura_camera_francesco
+  set_hvac_mode:
+    - choose:
+        # AUTO: accende solo se e' spento, rimette il programma solo se e' in manuale
+        - conditions:
+            - condition: template
+              value_template: "{{ hvac_mode == 'auto' }}"
+          sequence:
+            - if:
+                - condition: template
+                  value_template: "{{ (states('sensor.stato_stabile_cam_francesco') if has_value('sensor.stato_stabile_cam_francesco') else states('sensor.stato_termostato_camera_francesco')) != 'on' }}"
+              then:
+                - service: script.kblue_termostato_comando
+                  data: {ixogm: "0000008100000618", azione: "on", refresh: sensor.temperatura_camera_francesco, stato: sensor.stato_termostato_camera_francesco, manuale: sensor.modo_manuale_camera_francesco_kblue}
+            - if:
+                - condition: template
+                  value_template: "{{ states('sensor.modo_manuale_camera_francesco_kblue') != '0' }}"
+              then:
+                - service: script.kblue_termostato_comando
+                  data: {ixogm: "0000008100000618", azione: "auto", refresh: sensor.temperatura_camera_francesco, stato: sensor.stato_termostato_camera_francesco, manuale: sensor.modo_manuale_camera_francesco_kblue}
+        # OFF: spegne solo se e' acceso
+        - conditions:
+            - condition: template
+              value_template: "{{ hvac_mode == 'off' }}"
+          sequence:
+            - if:
+                - condition: template
+                  value_template: "{{ (states('sensor.stato_stabile_cam_francesco') if has_value('sensor.stato_stabile_cam_francesco') else states('sensor.stato_termostato_camera_francesco')) == 'on' }}"
+              then:
+                - service: script.kblue_termostato_comando
+                  data: {ixogm: "0000008100000618", azione: "off", refresh: sensor.temperatura_camera_francesco, stato: sensor.stato_termostato_camera_francesco, manuale: sensor.modo_manuale_camera_francesco_kblue}
+
+# === TERMOSTATO CAMERA GRETA (controllo scrittura) ===
+- platform: climate_template
+  name: "Termostato Camera Greta"
+  unique_id: climate_cam_greta
+  current_temperature_template: "{{ (states('sensor.temperatura_stabile_cam_greta') if has_value('sensor.temperatura_stabile_cam_greta') else states('sensor.temperatura_cam_greta_kblue')) | float(0) }}"
+  target_temperature_template: "{{ (states('sensor.target_stabile_cam_greta') if has_value('sensor.target_stabile_cam_greta') else states('sensor.target_temperatura_cam_greta_kblue')) | float(0) }}"
+  min_temp: 16
+  max_temp: 24
+  precision: 0.1
+  temp_step: 0.5
+  modes:
+    - "auto"
+    - "off"
+  hvac_mode_template: >
+    {% set stato = (states('sensor.stato_stabile_cam_greta') if has_value('sensor.stato_stabile_cam_greta') else states('sensor.stato_termostato_cam_greta_kblue')) | lower | trim %}
+    {% if stato != 'on' %}
+      off
+    {% else %}
+      auto
+    {% endif %}
+  hvac_action_template: >
+    {% if (states('sensor.stato_stabile_cam_greta') if has_value('sensor.stato_stabile_cam_greta') else states('sensor.stato_termostato_cam_greta_kblue')) | lower | trim != 'on' %}
+      off
+    {% elif (states('sensor.riscaldamento_stabile_cam_greta') if has_value('sensor.riscaldamento_stabile_cam_greta') else states('sensor.riscaldamento_attivo_cam_greta_kblue')) | lower | trim == 'on' %}
+      heating
+    {% else %}
+      idle
+    {% endif %}
+  set_temperature:
+    - service: script.kblue_termostato_comando
+      data:
+        ixogm: "0000008100000603"
+        azione: "{{ ((temperature | float(0)) * 2) | round(0) / 2 }}"
+        refresh: sensor.temperatura_cam_greta_kblue
+        verifica: sensor.target_temperatura_cam_greta_kblue
+  set_hvac_mode:
+    - choose:
+        # AUTO: accende solo se e' spento, rimette il programma solo se e' in manuale
+        - conditions:
+            - condition: template
+              value_template: "{{ hvac_mode == 'auto' }}"
+          sequence:
+            - if:
+                - condition: template
+                  value_template: "{{ (states('sensor.stato_stabile_cam_greta') if has_value('sensor.stato_stabile_cam_greta') else states('sensor.stato_termostato_cam_greta_kblue')) != 'on' }}"
+              then:
+                - service: script.kblue_termostato_comando
+                  data: {ixogm: "0000008100000603", azione: "on", refresh: sensor.temperatura_cam_greta_kblue, stato: sensor.stato_termostato_cam_greta_kblue, manuale: sensor.modo_manuale_cam_greta_kblue}
+            - if:
+                - condition: template
+                  value_template: "{{ states('sensor.modo_manuale_cam_greta_kblue') != '0' }}"
+              then:
+                - service: script.kblue_termostato_comando
+                  data: {ixogm: "0000008100000603", azione: "auto", refresh: sensor.temperatura_cam_greta_kblue, stato: sensor.stato_termostato_cam_greta_kblue, manuale: sensor.modo_manuale_cam_greta_kblue}
+        # OFF: spegne solo se e' acceso
+        - conditions:
+            - condition: template
+              value_template: "{{ hvac_mode == 'off' }}"
+          sequence:
+            - if:
+                - condition: template
+                  value_template: "{{ (states('sensor.stato_stabile_cam_greta') if has_value('sensor.stato_stabile_cam_greta') else states('sensor.stato_termostato_cam_greta_kblue')) == 'on' }}"
+              then:
+                - service: script.kblue_termostato_comando
+                  data: {ixogm: "0000008100000603", azione: "off", refresh: sensor.temperatura_cam_greta_kblue, stato: sensor.stato_termostato_cam_greta_kblue, manuale: sensor.modo_manuale_cam_greta_kblue}
+
+# === TERMOSTATO SUITE LETTO (controllo scrittura) ===
+- platform: climate_template
+  name: "Termostato Suite Letto"
+  unique_id: climate_suite_letto
+  current_temperature_template: "{{ (states('sensor.temperatura_stabile_suite_letto') if has_value('sensor.temperatura_stabile_suite_letto') else states('sensor.temperatura_letto_suite_kblue')) | float(0) }}"
+  target_temperature_template: "{{ (states('sensor.target_stabile_suite_letto') if has_value('sensor.target_stabile_suite_letto') else states('sensor.target_temperatura_letto_suite_kblue')) | float(0) }}"
+  min_temp: 16
+  max_temp: 24
+  precision: 0.1
+  temp_step: 0.5
+  modes:
+    - "auto"
+    - "off"
+  hvac_mode_template: >
+    {% set stato = (states('sensor.stato_stabile_suite_letto') if has_value('sensor.stato_stabile_suite_letto') else states('sensor.stato_termostato_letto_suite_kblue')) | lower | trim %}
+    {% if stato != 'on' %}
+      off
+    {% else %}
+      auto
+    {% endif %}
+  hvac_action_template: >
+    {% if (states('sensor.stato_stabile_suite_letto') if has_value('sensor.stato_stabile_suite_letto') else states('sensor.stato_termostato_letto_suite_kblue')) | lower | trim != 'on' %}
+      off
+    {% elif (states('sensor.riscaldamento_stabile_suite_letto') if has_value('sensor.riscaldamento_stabile_suite_letto') else states('sensor.riscaldamento_attivo_letto_suite_kblue')) | lower | trim == 'on' %}
+      heating
+    {% else %}
+      idle
+    {% endif %}
+  set_temperature:
+    - service: script.kblue_termostato_comando
+      data:
+        ixogm: "000000810000071C"
+        azione: "{{ ((temperature | float(0)) * 2) | round(0) / 2 }}"
+        refresh: sensor.temperatura_letto_suite_kblue
+        verifica: sensor.target_temperatura_letto_suite_kblue
+  set_hvac_mode:
+    - choose:
+        # AUTO: accende solo se e' spento, rimette il programma solo se e' in manuale
+        - conditions:
+            - condition: template
+              value_template: "{{ hvac_mode == 'auto' }}"
+          sequence:
+            - if:
+                - condition: template
+                  value_template: "{{ (states('sensor.stato_stabile_suite_letto') if has_value('sensor.stato_stabile_suite_letto') else states('sensor.stato_termostato_letto_suite_kblue')) != 'on' }}"
+              then:
+                - service: script.kblue_termostato_comando
+                  data: {ixogm: "000000810000071C", azione: "on", refresh: sensor.temperatura_letto_suite_kblue, stato: sensor.stato_termostato_letto_suite_kblue, manuale: sensor.modo_manuale_letto_suite_kblue}
+            - if:
+                - condition: template
+                  value_template: "{{ states('sensor.modo_manuale_letto_suite_kblue') != '0' }}"
+              then:
+                - service: script.kblue_termostato_comando
+                  data: {ixogm: "000000810000071C", azione: "auto", refresh: sensor.temperatura_letto_suite_kblue, stato: sensor.stato_termostato_letto_suite_kblue, manuale: sensor.modo_manuale_letto_suite_kblue}
+        # OFF: spegne solo se e' acceso
+        - conditions:
+            - condition: template
+              value_template: "{{ hvac_mode == 'off' }}"
+          sequence:
+            - if:
+                - condition: template
+                  value_template: "{{ (states('sensor.stato_stabile_suite_letto') if has_value('sensor.stato_stabile_suite_letto') else states('sensor.stato_termostato_letto_suite_kblue')) == 'on' }}"
+              then:
+                - service: script.kblue_termostato_comando
+                  data: {ixogm: "000000810000071C", azione: "off", refresh: sensor.temperatura_letto_suite_kblue, stato: sensor.stato_termostato_letto_suite_kblue, manuale: sensor.modo_manuale_letto_suite_kblue}
+
+# === TERMOSTATO SUITE SALONE (controllo scrittura) ===
+- platform: climate_template
+  name: "Termostato Suite Salone"
+  unique_id: climate_suite_salone
+  current_temperature_template: "{{ (states('sensor.temperatura_stabile_suite_salone') if has_value('sensor.temperatura_stabile_suite_salone') else states('sensor.temperatura_salone_suite_kblue')) | float(0) }}"
+  target_temperature_template: "{{ (states('sensor.target_stabile_suite_salone') if has_value('sensor.target_stabile_suite_salone') else states('sensor.target_temperatura_salone_suite_kblue')) | float(0) }}"
+  min_temp: 16
+  max_temp: 24
+  precision: 0.1
+  temp_step: 0.5
+  modes:
+    - "auto"
+    - "off"
+  hvac_mode_template: >
+    {% set stato = (states('sensor.stato_stabile_suite_salone') if has_value('sensor.stato_stabile_suite_salone') else states('sensor.stato_termostato_salone_suite_kblue')) | lower | trim %}
+    {% if stato != 'on' %}
+      off
+    {% else %}
+      auto
+    {% endif %}
+  hvac_action_template: >
+    {% if (states('sensor.stato_stabile_suite_salone') if has_value('sensor.stato_stabile_suite_salone') else states('sensor.stato_termostato_salone_suite_kblue')) | lower | trim != 'on' %}
+      off
+    {% elif (states('sensor.riscaldamento_stabile_suite_salone') if has_value('sensor.riscaldamento_stabile_suite_salone') else states('sensor.riscaldamento_attivo_salone_suite_kblue')) | lower | trim == 'on' %}
+      heating
+    {% else %}
+      idle
+    {% endif %}
+  set_temperature:
+    - service: script.kblue_termostato_comando
+      data:
+        ixogm: "0000008100000700"
+        azione: "{{ ((temperature | float(0)) * 2) | round(0) / 2 }}"
+        refresh: sensor.temperatura_salone_suite_kblue
+        verifica: sensor.target_temperatura_salone_suite_kblue
+  set_hvac_mode:
+    - choose:
+        # AUTO: accende solo se e' spento, rimette il programma solo se e' in manuale
+        - conditions:
+            - condition: template
+              value_template: "{{ hvac_mode == 'auto' }}"
+          sequence:
+            - if:
+                - condition: template
+                  value_template: "{{ (states('sensor.stato_stabile_suite_salone') if has_value('sensor.stato_stabile_suite_salone') else states('sensor.stato_termostato_salone_suite_kblue')) != 'on' }}"
+              then:
+                - service: script.kblue_termostato_comando
+                  data: {ixogm: "0000008100000700", azione: "on", refresh: sensor.temperatura_salone_suite_kblue, stato: sensor.stato_termostato_salone_suite_kblue, manuale: sensor.modo_manuale_salone_suite_kblue}
+            - if:
+                - condition: template
+                  value_template: "{{ states('sensor.modo_manuale_salone_suite_kblue') != '0' }}"
+              then:
+                - service: script.kblue_termostato_comando
+                  data: {ixogm: "0000008100000700", azione: "auto", refresh: sensor.temperatura_salone_suite_kblue, stato: sensor.stato_termostato_salone_suite_kblue, manuale: sensor.modo_manuale_salone_suite_kblue}
+        # OFF: spegne solo se e' acceso
+        - conditions:
+            - condition: template
+              value_template: "{{ hvac_mode == 'off' }}"
+          sequence:
+            - if:
+                - condition: template
+                  value_template: "{{ (states('sensor.stato_stabile_suite_salone') if has_value('sensor.stato_stabile_suite_salone') else states('sensor.stato_termostato_salone_suite_kblue')) == 'on' }}"
+              then:
+                - service: script.kblue_termostato_comando
+                  data: {ixogm: "0000008100000700", azione: "off", refresh: sensor.temperatura_salone_suite_kblue, stato: sensor.stato_termostato_salone_suite_kblue, manuale: sensor.modo_manuale_salone_suite_kblue}
+
+# === TERMOSTATO WC (controllo scrittura) ===
+- platform: climate_template
+  name: "Termostato WC"
+  unique_id: climate_wc
+  current_temperature_template: "{{ (states('sensor.temperatura_stabile_wc') if has_value('sensor.temperatura_stabile_wc') else states('sensor.temperatura_wc_kblue')) | float(0) }}"
+  target_temperature_template: "{{ (states('sensor.target_stabile_wc') if has_value('sensor.target_stabile_wc') else states('sensor.target_temperatura_wc_kblue')) | float(0) }}"
+  min_temp: 16
+  max_temp: 24
+  precision: 0.1
+  temp_step: 0.5
+  modes:
+    - "auto"
+    - "off"
+  hvac_mode_template: >
+    {% set stato = (states('sensor.stato_stabile_wc') if has_value('sensor.stato_stabile_wc') else states('sensor.stato_termostato_wc_kblue')) | lower | trim %}
+    {% if stato != 'on' %}
+      off
+    {% else %}
+      auto
+    {% endif %}
+  hvac_action_template: >
+    {% if (states('sensor.stato_stabile_wc') if has_value('sensor.stato_stabile_wc') else states('sensor.stato_termostato_wc_kblue')) | lower | trim != 'on' %}
+      off
+    {% elif (states('sensor.riscaldamento_stabile_wc') if has_value('sensor.riscaldamento_stabile_wc') else states('sensor.riscaldamento_attivo_wc_kblue')) | lower | trim == 'on' %}
+      heating
+    {% else %}
+      idle
+    {% endif %}
+  set_temperature:
+    - service: script.kblue_termostato_comando
+      data:
+        ixogm: "000000810000067A"
+        azione: "{{ ((temperature | float(0)) * 2) | round(0) / 2 }}"
+        refresh: sensor.temperatura_wc_kblue
+        verifica: sensor.target_temperatura_wc_kblue
+  set_hvac_mode:
+    - choose:
+        # AUTO: accende solo se e' spento, rimette il programma solo se e' in manuale
+        - conditions:
+            - condition: template
+              value_template: "{{ hvac_mode == 'auto' }}"
+          sequence:
+            - if:
+                - condition: template
+                  value_template: "{{ (states('sensor.stato_stabile_wc') if has_value('sensor.stato_stabile_wc') else states('sensor.stato_termostato_wc_kblue')) != 'on' }}"
+              then:
+                - service: script.kblue_termostato_comando
+                  data: {ixogm: "000000810000067A", azione: "on", refresh: sensor.temperatura_wc_kblue, stato: sensor.stato_termostato_wc_kblue, manuale: sensor.modo_manuale_wc_kblue}
+            - if:
+                - condition: template
+                  value_template: "{{ states('sensor.modo_manuale_wc_kblue') != '0' }}"
+              then:
+                - service: script.kblue_termostato_comando
+                  data: {ixogm: "000000810000067A", azione: "auto", refresh: sensor.temperatura_wc_kblue, stato: sensor.stato_termostato_wc_kblue, manuale: sensor.modo_manuale_wc_kblue}
+        # OFF: spegne solo se e' acceso
+        - conditions:
+            - condition: template
+              value_template: "{{ hvac_mode == 'off' }}"
+          sequence:
+            - if:
+                - condition: template
+                  value_template: "{{ (states('sensor.stato_stabile_wc') if has_value('sensor.stato_stabile_wc') else states('sensor.stato_termostato_wc_kblue')) == 'on' }}"
+              then:
+                - service: script.kblue_termostato_comando
+                  data: {ixogm: "000000810000067A", azione: "off", refresh: sensor.temperatura_wc_kblue, stato: sensor.stato_termostato_wc_kblue, manuale: sensor.modo_manuale_wc_kblue}
+
+# === TERMOSTATO WC LETTO (controllo scrittura) ===
+- platform: climate_template
+  name: "Termostato WC Letto"
+  unique_id: climate_wc_letto
+  current_temperature_template: "{{ (states('sensor.temperatura_stabile_wc_letto') if has_value('sensor.temperatura_stabile_wc_letto') else states('sensor.temperatura_wc_letto_kblue')) | float(0) }}"
+  target_temperature_template: "{{ (states('sensor.target_stabile_wc_letto') if has_value('sensor.target_stabile_wc_letto') else states('sensor.target_temperatura_wc_letto_kblue')) | float(0) }}"
+  min_temp: 16
+  max_temp: 24
+  precision: 0.1
+  temp_step: 0.5
+  modes:
+    - "auto"
+    - "off"
+  hvac_mode_template: >
+    {% set stato = (states('sensor.stato_stabile_wc_letto') if has_value('sensor.stato_stabile_wc_letto') else states('sensor.stato_termostato_wc_letto_kblue')) | lower | trim %}
+    {% if stato != 'on' %}
+      off
+    {% else %}
+      auto
+    {% endif %}
+  hvac_action_template: >
+    {% if (states('sensor.stato_stabile_wc_letto') if has_value('sensor.stato_stabile_wc_letto') else states('sensor.stato_termostato_wc_letto_kblue')) | lower | trim != 'on' %}
+      off
+    {% elif (states('sensor.riscaldamento_stabile_wc_letto') if has_value('sensor.riscaldamento_stabile_wc_letto') else states('sensor.riscaldamento_attivo_wc_letto_kblue')) | lower | trim == 'on' %}
+      heating
+    {% else %}
+      idle
+    {% endif %}
+  set_temperature:
+    - service: script.kblue_termostato_comando
+      data:
+        ixogm: "00000081000005D9"
+        azione: "{{ ((temperature | float(0)) * 2) | round(0) / 2 }}"
+        refresh: sensor.temperatura_wc_letto_kblue
+        verifica: sensor.target_temperatura_wc_letto_kblue
+  set_hvac_mode:
+    - choose:
+        # AUTO: accende solo se e' spento, rimette il programma solo se e' in manuale
+        - conditions:
+            - condition: template
+              value_template: "{{ hvac_mode == 'auto' }}"
+          sequence:
+            - if:
+                - condition: template
+                  value_template: "{{ (states('sensor.stato_stabile_wc_letto') if has_value('sensor.stato_stabile_wc_letto') else states('sensor.stato_termostato_wc_letto_kblue')) != 'on' }}"
+              then:
+                - service: script.kblue_termostato_comando
+                  data: {ixogm: "00000081000005D9", azione: "on", refresh: sensor.temperatura_wc_letto_kblue, stato: sensor.stato_termostato_wc_letto_kblue, manuale: sensor.modo_manuale_wc_letto_kblue}
+            - if:
+                - condition: template
+                  value_template: "{{ states('sensor.modo_manuale_wc_letto_kblue') != '0' }}"
+              then:
+                - service: script.kblue_termostato_comando
+                  data: {ixogm: "00000081000005D9", azione: "auto", refresh: sensor.temperatura_wc_letto_kblue, stato: sensor.stato_termostato_wc_letto_kblue, manuale: sensor.modo_manuale_wc_letto_kblue}
+        # OFF: spegne solo se e' acceso
+        - conditions:
+            - condition: template
+              value_template: "{{ hvac_mode == 'off' }}"
+          sequence:
+            - if:
+                - condition: template
+                  value_template: "{{ (states('sensor.stato_stabile_wc_letto') if has_value('sensor.stato_stabile_wc_letto') else states('sensor.stato_termostato_wc_letto_kblue')) == 'on' }}"
+              then:
+                - service: script.kblue_termostato_comando
+                  data: {ixogm: "00000081000005D9", azione: "off", refresh: sensor.temperatura_wc_letto_kblue, stato: sensor.stato_termostato_wc_letto_kblue, manuale: sensor.modo_manuale_wc_letto_kblue}
+
+# === TERMOSTATO WC SUITE (controllo scrittura) ===
+- platform: climate_template
+  name: "Termostato WC Suite"
+  unique_id: climate_wc_suite
+  current_temperature_template: "{{ (states('sensor.temperatura_stabile_wc_suite') if has_value('sensor.temperatura_stabile_wc_suite') else states('sensor.temperatura_wc_suite_kblue')) | float(0) }}"
+  target_temperature_template: "{{ (states('sensor.target_stabile_wc_suite') if has_value('sensor.target_stabile_wc_suite') else states('sensor.target_temperatura_wc_suite_kblue')) | float(0) }}"
+  min_temp: 16
+  max_temp: 24
+  precision: 0.1
+  temp_step: 0.5
+  modes:
+    - "auto"
+    - "off"
+  hvac_mode_template: >
+    {% set stato = (states('sensor.stato_stabile_wc_suite') if has_value('sensor.stato_stabile_wc_suite') else states('sensor.stato_termostato_wc_suite_kblue')) | lower | trim %}
+    {% if stato != 'on' %}
+      off
+    {% else %}
+      auto
+    {% endif %}
+  hvac_action_template: >
+    {% if (states('sensor.stato_stabile_wc_suite') if has_value('sensor.stato_stabile_wc_suite') else states('sensor.stato_termostato_wc_suite_kblue')) | lower | trim != 'on' %}
+      off
+    {% elif (states('sensor.riscaldamento_stabile_wc_suite') if has_value('sensor.riscaldamento_stabile_wc_suite') else states('sensor.riscaldamento_attivo_wc_suite_kblue')) | lower | trim == 'on' %}
+      heating
+    {% else %}
+      idle
+    {% endif %}
+  set_temperature:
+    - service: script.kblue_termostato_comando
+      data:
+        ixogm: "0000008100000732"
+        azione: "{{ ((temperature | float(0)) * 2) | round(0) / 2 }}"
+        refresh: sensor.temperatura_wc_suite_kblue
+        verifica: sensor.target_temperatura_wc_suite_kblue
+  set_hvac_mode:
+    - choose:
+        # AUTO: accende solo se e' spento, rimette il programma solo se e' in manuale
+        - conditions:
+            - condition: template
+              value_template: "{{ hvac_mode == 'auto' }}"
+          sequence:
+            - if:
+                - condition: template
+                  value_template: "{{ (states('sensor.stato_stabile_wc_suite') if has_value('sensor.stato_stabile_wc_suite') else states('sensor.stato_termostato_wc_suite_kblue')) != 'on' }}"
+              then:
+                - service: script.kblue_termostato_comando
+                  data: {ixogm: "0000008100000732", azione: "on", refresh: sensor.temperatura_wc_suite_kblue, stato: sensor.stato_termostato_wc_suite_kblue, manuale: sensor.modo_manuale_wc_suite_kblue}
+            - if:
+                - condition: template
+                  value_template: "{{ states('sensor.modo_manuale_wc_suite_kblue') != '0' }}"
+              then:
+                - service: script.kblue_termostato_comando
+                  data: {ixogm: "0000008100000732", azione: "auto", refresh: sensor.temperatura_wc_suite_kblue, stato: sensor.stato_termostato_wc_suite_kblue, manuale: sensor.modo_manuale_wc_suite_kblue}
+        # OFF: spegne solo se e' acceso
+        - conditions:
+            - condition: template
+              value_template: "{{ hvac_mode == 'off' }}"
+          sequence:
+            - if:
+                - condition: template
+                  value_template: "{{ (states('sensor.stato_stabile_wc_suite') if has_value('sensor.stato_stabile_wc_suite') else states('sensor.stato_termostato_wc_suite_kblue')) == 'on' }}"
+              then:
+                - service: script.kblue_termostato_comando
+                  data: {ixogm: "0000008100000732", azione: "off", refresh: sensor.temperatura_wc_suite_kblue, stato: sensor.stato_termostato_wc_suite_kblue, manuale: sensor.modo_manuale_wc_suite_kblue}

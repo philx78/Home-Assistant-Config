@@ -1,0 +1,215 @@
+blueprint:
+  domain: automation
+  name: Voice Alert Summary
+  description: '# Read active alerts via voice using local TTS or AI-generated summaries
+
+
+    ## Requirements
+
+    - **Home Assistant Minimum Version**: 2025.7.0
+
+    - **Optional**: A [Conversation Agent](https://www.home-assistant.io/integrations/?cat=ai)
+    that supports [AI Tasks](https://www.home-assistant.io/integrations/ai_task/)
+    if enabling AI
+
+    - **Recommend**: Use with my Alert blueprint (referenced below)
+
+
+    ## Features
+
+    - **Smart Alert Detection**: Reads out active alerts from running automations
+    with a specified label
+
+    - **Flexible Voice Options**: Choose between local TTS or AI-generated summaries
+
+    - **Customizable Output**: Configure how summaries are generated to suit your
+    needs
+
+
+    ## How it Works
+
+    When the Voice Alert Summary automation runs it checks all the automations with
+    a specified label and then reads out any automations that are currently running.
+    This work well with my Alert blueprint (referenced below) as it runs in a loop
+    so long as the alert is active.
+
+
+    ## Related Blueprints
+
+    - Alert - Create a dismissible repeating alert based on an entity''s state
+
+    [![Open your Home Assistant instance and show the blueprint import dialog with
+    a specific blueprint pre-filled.](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fgist.github.com%2FMakingNate%2F9c5515a64bf5a173ecbaa7a4538653b6)
+
+    - Alert Light - Change a light color and brightness based on alert severity level
+
+    [![Open your Home Assistant instance and show the blueprint import dialog with
+    a specific blueprint pre-filled.](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fgist.github.com%2FMakingNate%2Fd7101e6add95656cd6004039e3f5ad54)
+
+    '
+  author: Making Nate
+  homeassistant:
+    min_version: 2025.7.0
+  input:
+    sentence_section:
+      name: Trigger and Response
+      description: Configure the voice commands that trigger this automation and how
+        alert automations are labeled
+      input:
+        sentences:
+          name: Sentences
+          description: '[Voice commands](https://www.home-assistant.io/docs/automation/trigger/#sentence-trigger)
+            that will trigger the alert summary. Customize these to match your preferred
+            phrasing.
+
+            '
+          default:
+          - what( are|s|'s) (my|the)[ active] alert[s]
+          - read (my|the)[ active] alert[s][ please]
+          - do I have[ any| an][ active] alert[s]
+          - what('s|s| is) (up|happening|going on|wrong)
+          selector:
+            text:
+              multiline: false
+              multiple: true
+        label:
+          name: Label
+          description: Select the [label](https://www.home-assistant.io/docs/organizing/labels/)
+            used to identify alert automations in your Home Assistant setup
+          selector:
+            label:
+              multiple: false
+        use_ai:
+          name: Enable AI
+          description: Enable AI to generate natural, conversational alert summaries
+            instead of reading alert names directly
+          default: false
+          selector:
+            boolean: {}
+    ai_settings:
+      name: AI Settings
+      description: Configure how AI generates alert summaries (only applies when Use
+        AI is enabled)
+      collapsed: true
+      input:
+        ai_task_entity:
+          name: AI Task Entity
+          description: (Optional) Select the [AI task](https://www.home-assistant.io/integrations/ai_task/)
+            entity that will generate the alert summaries
+          default:
+          selector:
+            entity:
+              filter:
+              - domain:
+                - ai_task
+              reorder: false
+              multiple: false
+        base_instructions:
+          name: Base AI Instructions
+          description: Core instructions that tell the AI how to process and present
+            alerts
+          default: Return a string informing me of the following alerts, infer what
+            the alerts are about rather than reading out the names of the alerts.
+            Include specifics.
+          selector:
+            text:
+              multiline: true
+              multiple: false
+        ai_tone:
+          name: AI Response Tone
+          description: Choose the tone/style for the AI-generated response
+          default: professional
+          selector:
+            select:
+              mode: dropdown
+              options:
+              - label: Calm
+                value: calm
+              - label: Casual
+                value: casual
+              - label: Humorous
+                value: humorous
+              - label: Professional
+                value: professional
+              - label: Urgent
+                value: urgent
+              custom_value: false
+              sort: false
+              multiple: false
+        sentence_count:
+          name: Response Length (sentences)
+          description: Maximum number of sentences in the AI response.
+          default: 2
+          selector:
+            number:
+              min: 1.0
+              max: 5.0
+              step: 1.0
+              mode: box
+        include_alert_count:
+          name: Include Alert Count
+          description: Include the total number of alerts in the response (e.g., "You
+            have 3 alerts...")
+          default: true
+          selector:
+            boolean: {}
+    content_filter_section:
+      name: AI Content Filter
+      description: Safety settings to control AI-generated content, because sometime
+        what AI says is wild!
+      collapsed: true
+      input:
+        avoid_sensitive_topics:
+          name: Avoid Sensitive Topics
+          description: Instruct the AI to avoid mentioning sensitive topics like self-harm,
+            violence, or hate speech in responses
+          default: true
+          selector:
+            boolean: {}
+  source_url: https://gist.github.com/MakingNate/85ea1a5c3c2c74e8ec14054a8c4bcffd
+triggers:
+- trigger: conversation
+  command: !input sentences
+conditions: []
+actions:
+- variables:
+    use_ai: !input use_ai
+    label: !input label
+    active_alerts: "{%- set entities = label_entities(label) -%} {%- set alert_count
+      = entities | map('state_attr', 'current') | select('>', 0) | list | count -%}
+      There are {{ alert_count }} alerts: {%- for entity in entities -%}\n  {%- set
+      current = state_attr(entity, 'current') -%}\n  {% if current > 0 %}\n    {{
+      state_attr(entity, 'friendly_name') }}\n  {%- endif -%}\n{%- endfor -%}"
+- if:
+  - condition: template
+    value_template: '{{ use_ai }}'
+  then:
+  - variables:
+      ai_tone: !input ai_tone
+      avoid_sensitive_topics: !input avoid_sensitive_topics
+      sentence_count: !input sentence_count
+      include_alert_count: !input include_alert_count
+      base_instructions: !input base_instructions
+      tone_text: "{%- set tone = ai_tone -%} {%- if tone == 'humorous' -%}\n  Be humorous.\n{%-
+        elif tone == 'professional' -%}\n  Be professional and concise.\n{%- elif
+        tone == 'casual' -%}\n  Be casual and friendly.\n{%- elif tone == 'urgent'
+        -%}\n  Be urgent and direct.\n{%- elif tone == 'calm' -%}\n  Be calm and reassuring.\n{%-
+        endif -%}"
+      final_instructions: '{{ base_instructions }} {% if include_alert_count %}Include
+        the number of alerts.{% endif %} {{ tone_text }} {% if avoid_sensitive_topics
+        %}Avoid the following sensitive topics: suicide, self-harm, death, violence,
+        abuse, mental health crises, hate speech.{% endif %} Keep it to {{ sentence_count
+        }} sentence{{ ''s'' if sentence_count > 1 else '''' }}: {{ active_alerts }}'
+  - action: ai_task.generate_data
+    metadata: {}
+    data:
+      task_name: Alert Text
+      instructions: '{{ final_instructions }}'
+      entity_id: !input ai_task_entity
+    response_variable: message
+  else:
+  - variables:
+      message:
+        data: '{{ active_alerts }}'
+- set_conversation_response: '{{ message[''data''] }}'
+mode: single

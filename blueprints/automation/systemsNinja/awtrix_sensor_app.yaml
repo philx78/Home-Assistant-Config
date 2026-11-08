@@ -1,0 +1,304 @@
+blueprint:
+  name: AWTRIX Sensor or Sensor Attribute App
+  description: 'This blueprint will show the value of a sensor or a specific attribute
+    from that sensor on your AWTRIX device. You can optionally add static prefix and
+    suffix text.
+
+    If you want more than one sensor value displayed, simply create another automation
+    from this blueprint with a unique App Name.
+
+
+    ## ⚠️ REQUIREMENTS ⚠️
+
+
+    1. You need to upload any icon used here to your AWTRIX device.
+
+    '
+  domain: automation
+  input:
+    awtrix:
+      name: AWTRIX Device
+      description: Select the Awtrix Device(s).
+      selector:
+        device:
+          filter:
+          - integration: mqtt
+            manufacturer: Blueforcer
+          multiple: true
+    app_name:
+      name: Custom App Name
+      description: This is the app name used in the MQTT topic. It must be unique
+        for each app you create.
+      selector:
+        text:
+          multiline: false
+          multiple: false
+      default: sensorApp
+    sensor:
+      name: Sensor for the App
+      description: Which sensor's state or attribute should be displayed?
+      selector:
+        entity:
+          domain:
+          - sensor
+          multiple: false
+          reorder: false
+    sensor_attribute:
+      name: Attribute of the sensor (Optional)
+      description: Which attribute of the sensor should be used? Leave blank to use
+        the sensor's main state. Find attribute names in Developer Tools > States.
+      selector:
+        text:
+          multiline: false
+          multiple: false
+      default: ''
+    prefix_text:
+      name: Prefix Text (Optional)
+      description: Text to display before the sensor value (e.g., "Temp:"). A space
+        is added automatically.
+      selector:
+        text:
+          multiline: false
+          multiple: false
+      default: ''
+    suffix_text:
+      name: Suffix Text (Optional)
+      description: Text to display after the sensor value (e.g., "°F"). A space is
+        added automatically.
+      selector:
+        text:
+          multiline: false
+          multiple: false
+      default: ''
+    icon:
+      name: Icon
+      description: Enter the Icon Name or ID to show.
+      selector:
+        text:
+          multiline: false
+          multiple: false
+      default: ''
+    push_icon:
+      name: Icon Behavior
+      description: Select how the icon should be displayed.
+      selector:
+        select:
+          options:
+          - label: Icon doesn't move
+            value: '0'
+          - label: Icon moves with text
+            value: '1'
+          - label: Icon moves & reappears
+            value: '2'
+          - label: No Icon
+            value: '3'
+          mode: dropdown
+          multiple: false
+          custom_value: false
+          sort: false
+      default: '0'
+    scroll_speed:
+      name: Scrolling Speed
+      description: "How fast should the text scroll. 50 = \U0001F422 | 250 = \U0001F406"
+      selector:
+        number:
+          min: 50.0
+          max: 250.0
+          step: 25.0
+          mode: slider
+      default: 100
+    repeat_count:
+      name: Scroll Repeat Count
+      description: How many times the text should scroll. 0 scrolls until the app's
+        duration ends.
+      default: 2
+      selector:
+        number:
+          min: 0.0
+          max: 10.0
+          step: 1.0
+          mode: slider
+    duration:
+      name: Duration (in seconds)
+      description: Sets how long the app should be displayed in the rotation.
+      selector:
+        number:
+          min: 1.0
+          max: 60.0
+          step: 1.0
+          mode: slider
+      default: 10
+    text_color:
+      name: Text Color
+      description: Select the Text color.
+      selector:
+        color_rgb: {}
+      default:
+      - 255
+      - 255
+      - 255
+    rainbow_text:
+      name: Rainbow Text
+      description: Overrides the text color and makes the text a rainbow gradient.
+      selector:
+        boolean: {}
+      default: false
+    effect:
+      name: Background Effect
+      description: The display effect to use for the background.
+      selector:
+        select:
+          options:
+          - None
+          - Fade
+          - MovingLine
+          - BrickBreaker
+          - PingPong
+          - Radar
+          - Checkerboard
+          - Fireworks
+          - PlasmaCloud
+          - Ripple
+          - Snake
+          - Pacifica
+          - TheaterChase
+          - Plasma
+          - Matrix
+          - SwirlIn
+          - SwirlOut
+          - LookingEyes
+          - TwinklingStars
+          - ColorWaves
+          mode: dropdown
+          multiple: false
+          custom_value: false
+          sort: false
+      default: None
+    update_interval:
+      name: Update Interval
+      description: Updates will be sent as often as the selected sensor values change
+        and whatever you set it here.
+      selector:
+        select:
+          mode: dropdown
+          options:
+          - label: 1 minute
+            value: /1
+          - label: 2 minutes
+            value: /2
+          - label: 3 minutes
+            value: /3
+          - label: 4 minutes
+            value: /4
+          - label: 5 minutes
+            value: /5
+          - label: 10 minutes
+            value: /10
+          - label: 30 minutes
+            value: /30
+          multiple: false
+          custom_value: false
+          sort: false
+      default: /5
+    lifetime:
+      name: App Lifetime
+      description: Defines how long the app stays alive after the last update. After
+        this time, it will be removed or marked as stale.
+      selector:
+        select:
+          mode: dropdown
+          options:
+          - label: 5 minutes
+            value: '300'
+          - label: 10 minutes
+            value: '600'
+          - label: 15 minutes
+            value: '900'
+          - label: 30 minutes
+            value: '1800'
+          - label: 45 minutes
+            value: '2700'
+          - label: 1 hour
+            value: '3600'
+          multiple: false
+          custom_value: false
+          sort: false
+      default: '300'
+    lifetimeMode:
+      name: Lifetime Expiration Mode
+      description: What happens after the app's lifetime expires.
+      selector:
+        select:
+          options:
+          - label: Remove app from rotation
+            value: '0'
+          - label: Show a 'stale' indicator
+            value: '1'
+          mode: dropdown
+          multiple: false
+          custom_value: false
+          sort: false
+      default: '0'
+  source_url: https://github.com/systemsNinja/homeassistant-blueprints/blob/main/awtrix_sensor_app.yaml
+variables:
+  device_ids: !input awtrix
+  app: !input app_name
+  icon: !input icon
+  text_color: !input text_color
+  rainbow_text: !input rainbow_text
+  sensor: !input sensor
+  sensor_attribute: !input sensor_attribute
+  prefix_text: !input prefix_text
+  suffix_text: !input suffix_text
+  scroll_speed: !input scroll_speed
+  repeat_count: !input repeat_count
+  push_icon: !input push_icon
+  effect: !input effect
+  update_interval: !input update_interval
+  duration: !input duration
+  lifetime: !input lifetime
+  lifetimeMode: !input lifetimeMode
+  awtrix_devices: "{%- set ns = namespace(awtrix = []) -%} {%- for device_id in device_ids
+    -%}\n  {%- set device_name = iif(device_attr(device_id, 'name_by_user') != none,
+    device_attr(device_id, 'name_by_user'), device_attr(device_id, 'name')) -%}\n
+    \ {%- set entity = expand(device_entities(device_id)) | select('search', 'device_topic')
+    | map(attribute='entity_id') | first -%}\n  {%- set topic = states(entity) -%}\n
+    \ {% set ns.awtrix = ns.awtrix + [{\"device\": device_name, \"entity\": entity,
+    \"topic\": topic}] -%}\n{%- endfor -%} {{ ns.awtrix }}"
+trigger:
+- platform: state
+  entity_id: !input sensor
+- platform: time_pattern
+  minutes: !input update_interval
+action:
+- repeat:
+    for_each: '{{ awtrix_devices }}'
+    sequence:
+    - variables:
+        core_value: "{% if sensor_attribute %}\n  {{ state_attr(sensor, sensor_attribute)
+          }}\n{% else %}\n  {{ states(sensor) }}\n{% endif %}"
+    - choose:
+      - conditions:
+        - condition: template
+          value_template: '{{ states(repeat.item.entity) not in [''unavailable'',
+            ''unknown''] }}'
+        - condition: template
+          value_template: '{{ core_value is not none and core_value not in [''unavailable'',
+            ''unknown''] }}'
+        sequence:
+        - variables:
+            text_to_display: '{%- set prefix = (prefix_text + '' '') if prefix_text
+              else '''' -%} {%- set suffix = ('' '' + suffix_text) if suffix_text
+              else '''' -%} {{- prefix ~ core_value ~ suffix -}}'
+        - service: mqtt.publish
+          data:
+            qos: 0
+            retain: false
+            topic: '{{ repeat.item.topic ~ ''/custom/'' ~ app }}'
+            payload: "{\n  \"text\": \"{{ text_to_display }}\",\n  \"icon\": \"{{
+              icon }}\",\n  \"effect\": \"{{ effect }}\",\n  \"duration\": {{ duration
+              }},\n  \"lifetime\": {{ lifetime }},\n  \"lifetimeMode\": {{ lifetimeMode
+              }},\n  \"color\": {{ text_color | tojson }},\n  \"pushIcon\": {{ push_icon
+              }},\n  \"repeat\": {{ repeat_count }},\n  \"scrollSpeed\": {{ scroll_speed
+              }},\n  \"rainbow\": {{ rainbow_text | lower }}\n}\n"
+mode: restart

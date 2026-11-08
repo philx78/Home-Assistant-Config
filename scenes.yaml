@@ -1,0 +1,26 @@
+- id: '1764191660663'
+  name: New scene
+  entities:
+    alarm_control_panel.risco_casetta_partition_1:
+      code_format:
+      changed_by:
+      code_arm_required: false
+      friendly_name: Risco Zona Comune
+      supported_features: 3
+      state: disarmed
+    alarm_control_panel.risco_casetta_partition_0:
+      code_format:
+      changed_by:
+      code_arm_required: false
+      friendly_name: Risco Zona Filippo e Chiara
+      supported_features: 3
+      state: disarmed
+    alarm_control_panel.risco_casetta_partition_2:
+      code_format:
+      changed_by:
+      code_arm_required: false
+      friendly_name: Risco Zona Casa Mirella
+      supported_features: 3
+      state: disarmed
+  icon: mdi:security
+  metadata: {}

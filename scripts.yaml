@@ -1,0 +1,925 @@
+inserisci_allarme:
+  sequence:
+  - if:
+    - condition: state
+      entity_id: binary_sensor.porta_ingresso
+      state:
+      - 'off'
+      for:
+        hours: 0
+        minutes: 0
+        seconds: 5
+    then:
+    - choose:
+      - conditions:
+        - condition: state
+          entity_id: binary_sensor.porta_filippo
+          state:
+          - 'on'
+        sequence:
+        - type: turn_on
+          device_id: 53235eed42e9a9b62df4256c9eb0f8ea
+          entity_id: e50ba8f6e4984b606e3436c95b54851f
+          domain: switch
+        - action: notify.mobile_app_iphone_di_filippo
+          metadata: {}
+          data:
+            message: Esclusione automatica porta Filippo
+      - conditions:
+        - condition: state
+          entity_id: binary_sensor.porta_mirella
+          state:
+          - 'on'
+        sequence:
+        - type: turn_on
+          device_id: b6f6b1e60bcaa6325afd65659fdf377d
+          entity_id: 859f90778ad3d34f50a34aa7d15e57dd
+          domain: switch
+        - action: notify.mobile_app_iphone_di_filippo
+          metadata: {}
+          data:
+            message: Esclusione automatica porta Mirella
+    - device_id: b1801aea27f8c2682b8779dec10a12a9
+      domain: alarm_control_panel
+      entity_id: b6424d6d88b000d316f25ccd0115edba
+      type: arm_away
+    - device_id: c903568bd46a79a3a35fa7b1b525f410
+      domain: alarm_control_panel
+      entity_id: 2ec10de0856b2123971150e778619ac3
+      type: arm_away
+    - device_id: df67f423d0dca29c15c6f8212f0bdb44
+      domain: alarm_control_panel
+      entity_id: e8fd23e13aba94ed0c523bb89d2f9a38
+      type: arm_away
+    else:
+    - device_id: b1801aea27f8c2682b8779dec10a12a9
+      domain: alarm_control_panel
+      entity_id: b6424d6d88b000d316f25ccd0115edba
+      type: arm_away
+    - device_id: c903568bd46a79a3a35fa7b1b525f410
+      domain: alarm_control_panel
+      entity_id: 2ec10de0856b2123971150e778619ac3
+      type: arm_away
+    - device_id: df67f423d0dca29c15c6f8212f0bdb44
+      domain: alarm_control_panel
+      entity_id: e8fd23e13aba94ed0c523bb89d2f9a38
+      type: arm_away
+  alias: Allarma tutte le zone
+  description: ''
+arm_night:
+  use_blueprint:
+    path: homeassistant/confirmable_notification.yaml
+    input:
+      notify_device: aab25fb27ed26b505a2dcf8e080d3586
+      title: Richiesta conferma
+      message: Attivare l’allarme notturno?
+      confirm_action:
+      - device_id: b1801aea27f8c2682b8779dec10a12a9
+        domain: alarm_control_panel
+        entity_id: b6424d6d88b000d316f25ccd0115edba
+        type: arm_away
+      confirm_text: Conferma
+      dismiss_text: Annulla
+  alias: Arm Night
+  description: ''
+tapparella_salone_up:
+  sequence:
+  - action: rest_command.tapparella_salone_up
+tapparella_salone_down:
+  sequence:
+  - action: rest_command.tapparella_salone_down
+tapparella_salone_stop:
+  sequence:
+  - action: rest_command.tapparella_salone_stop
+grata_salone_up:
+  sequence:
+  - action: rest_command.grata_salone_up
+grata_salone_down:
+  sequence:
+  - action: rest_command.grata_salone_down
+grata_salone_stop:
+  sequence:
+  - action: rest_command.grata_salone_stop
+grata_cucina_up:
+  sequence:
+  - action: rest_command.grata_cucina_up
+grata_cucina_down:
+  sequence:
+  - action: rest_command.grata_cucina_down
+grata_cucina_stop:
+  sequence:
+  - action: rest_command.grata_cucina_stop
+tapparella_camera_greta_up:
+  sequence:
+  - action: rest_command.tapparella_camera_greta_up
+tapparella_camera_greta_down:
+  sequence:
+  - action: rest_command.tapparella_camera_greta_down
+tapparella_camera_greta_stop:
+  sequence:
+  - action: rest_command.tapparella_camera_greta_stop
+grata_camera_greta_up:
+  sequence:
+  - action: rest_command.grata_camera_greta_up
+grata_camera_greta_down:
+  sequence:
+  - action: rest_command.grata_camera_greta_down
+grata_camera_greta_stop:
+  sequence:
+  - action: rest_command.grata_camera_greta_stop
+tapparella_camera_francesco_up:
+  sequence:
+  - action: rest_command.tapparella_camera_francesco_up
+tapparella_camera_francesco_down:
+  sequence:
+  - action: rest_command.tapparella_camera_francesco_down
+tapparella_camera_francesco_stop:
+  sequence:
+  - action: rest_command.tapparella_camera_francesco_stop
+tapparella_camera_matrimoniale_up:
+  sequence:
+  - action: rest_command.tapparella_camera_matrimoniale_up
+tapparella_camera_matrimoniale_down:
+  sequence:
+  - action: rest_command.tapparella_camera_matrimoniale_down
+tapparella_camera_matrimoniale_stop:
+  sequence:
+  - action: rest_command.tapparella_camera_matrimoniale_stop
+tapparella_bagno_grande_up:
+  sequence:
+  - action: rest_command.tapparella_bagno_grande_up
+tapparella_bagno_grande_down:
+  sequence:
+  - action: rest_command.tapparella_bagno_grande_down
+tapparella_bagno_grande_stop:
+  sequence:
+  - action: rest_command.tapparella_bagno_grande_stop
+chiudi_grate_zona_giorno_sequenziale:
+  sequence:
+  - action: cover.close_cover
+    metadata: {}
+    target:
+      entity_id: cover.grata_cucina
+    data: {}
+    continue_on_error: true
+  - delay:
+      hours: 0
+      minutes: 0
+      seconds: 1
+      milliseconds: 0
+  - action: cover.close_cover
+    metadata: {}
+    data: {}
+    target:
+      entity_id: cover.grata_salone
+    continue_on_error: true
+  alias: Chiudi grate zona giorno (sequenziale)
+  description: Utilizzare al posto dell'helper, che utilizzando richieste concorrenti
+    causa un errore lato web server Kblue
+apri_grate_zona_giorno_sequenziale:
+  sequence:
+  - action: cover.open_cover
+    metadata: {}
+    target:
+      entity_id: cover.grata_cucina
+    data: {}
+    continue_on_error: true
+  - delay:
+      hours: 0
+      minutes: 0
+      seconds: 1
+      milliseconds: 0
+  - action: cover.open_cover
+    metadata: {}
+    target:
+      entity_id: cover.grata_salone
+    data: {}
+    continue_on_error: true
+  alias: Apri grate zona giorno (sequenziale)
+  description: ''
+stop_grate_zona_giorno_sequenziale:
+  sequence:
+  - action: cover.stop_cover
+    metadata: {}
+    target:
+      entity_id: cover.grata_cucina
+    data: {}
+    continue_on_error: true
+  - delay:
+      hours: 0
+      minutes: 0
+      seconds: 1
+      milliseconds: 0
+  - action: cover.stop_cover
+    metadata: {}
+    target:
+      entity_id: cover.grata_salone
+    data: {}
+  alias: Stop grate zona giorno (sequenziale)
+  description: ''
+chiudi_tapparelle_zona_notte_sequenziale:
+  sequence:
+  - action: cover.close_cover
+    metadata: {}
+    target:
+      entity_id: cover.tapparella_francesco
+    data: {}
+    continue_on_error: true
+  - delay:
+      hours: 0
+      minutes: 0
+      seconds: 1
+      milliseconds: 0
+  - action: cover.close_cover
+    metadata: {}
+    target:
+      entity_id: cover.tapparella_greta
+    data: {}
+    continue_on_error: true
+  - delay:
+      hours: 0
+      minutes: 0
+      seconds: 1
+      milliseconds: 0
+  - action: cover.close_cover
+    metadata: {}
+    target:
+      entity_id: cover.tapparella_camera_matrimoniale
+    data: {}
+    continue_on_error: true
+  - delay:
+      hours: 0
+      minutes: 0
+      seconds: 1
+      milliseconds: 0
+  - action: cover.close_cover
+    metadata: {}
+    target:
+      entity_id: cover.tapparella_bagno_grande
+    data: {}
+    continue_on_error: true
+  alias: Chiudi tapparelle zona notte (sequenziale)
+  description: ''
+apri_tapparelle_zona_notte_sequenziale:
+  sequence:
+  - action: cover.open_cover
+    metadata: {}
+    target:
+      entity_id: cover.tapparella_francesco
+    data: {}
+    continue_on_error: true
+  - delay:
+      hours: 0
+      minutes: 0
+      seconds: 1
+      milliseconds: 0
+  - action: cover.open_cover
+    metadata: {}
+    target:
+      entity_id: cover.tapparella_greta
+    data: {}
+    continue_on_error: true
+  - delay:
+      hours: 0
+      minutes: 0
+      seconds: 1
+      milliseconds: 0
+  - action: cover.open_cover
+    metadata: {}
+    target:
+      entity_id: cover.tapparella_camera_matrimoniale
+    data: {}
+    continue_on_error: true
+  - delay:
+      hours: 0
+      minutes: 0
+      seconds: 1
+      milliseconds: 0
+  - action: cover.open_cover
+    metadata: {}
+    target:
+      entity_id: cover.tapparella_bagno_grande
+    data: {}
+    continue_on_error: true
+  alias: Apri tapparelle zona notte (sequenziale)
+  description: ''
+stop_tapparelle_zona_notte_sequenziale:
+  sequence:
+  - action: cover.stop_cover
+    metadata: {}
+    target:
+      entity_id: cover.tapparella_francesco
+    data: {}
+    continue_on_error: true
+  - delay:
+      hours: 0
+      minutes: 0
+      seconds: 1
+      milliseconds: 0
+  - action: cover.stop_cover
+    metadata: {}
+    target:
+      entity_id: cover.tapparella_greta
+    data: {}
+    continue_on_error: true
+  - delay:
+      hours: 0
+      minutes: 0
+      seconds: 1
+      milliseconds: 0
+  - action: cover.stop_cover
+    metadata: {}
+    target:
+      entity_id: cover.tapparella_camera_matrimoniale
+    data: {}
+    continue_on_error: true
+  - delay:
+      hours: 0
+      minutes: 0
+      seconds: 1
+      milliseconds: 0
+  - action: cover.stop_cover
+    metadata: {}
+    target:
+      entity_id: cover.tapparella_bagno_grande
+    data: {}
+    continue_on_error: true
+  alias: Stop tapparelle zona notte (sequenziale)
+  description: ''
+apri_motori_zona_giorno:
+  sequence:
+  - action: cover.open_cover
+    metadata: {}
+    target:
+      entity_id:
+      - cover.grate_zona_giorno
+    data: {}
+  - delay:
+      hours: 0
+      minutes: 0
+      seconds: 1
+      milliseconds: 0
+  - action: cover.open_cover
+    metadata: {}
+    target:
+      entity_id: cover.tapparella_salone
+    data: {}
+  alias: Apri motori zona giorno
+  description: ''
+chiudi_motori_zona_giorno:
+  sequence:
+  - action: cover.close_cover
+    metadata: {}
+    target:
+      entity_id: cover.grate_zona_giorno
+    data: {}
+  - delay:
+      hours: 0
+      minutes: 0
+      seconds: 1
+      milliseconds: 0
+  - action: cover.close_cover
+    metadata: {}
+    target:
+      entity_id: cover.tapparella_salone
+    data: {}
+  alias: Chiudi motori zona giorno
+  description: ''
+stop_motori_zona_giorno:
+  sequence:
+  - action: cover.stop_cover
+    metadata: {}
+    target:
+      entity_id: cover.grate_zona_giorno
+    data: {}
+  - delay:
+      hours: 0
+      minutes: 0
+      seconds: 1
+      milliseconds: 0
+  - action: cover.stop_cover
+    metadata: {}
+    target:
+      entity_id: cover.tapparella_salone
+    data: {}
+  alias: Stop motori zona giorno
+  description: ''
+chiudi_motori_zona_notte:
+  sequence:
+  - action: cover.close_cover
+    metadata: {}
+    target:
+      entity_id:
+      - cover.tapparelle_zona_notte
+    data: {}
+  - delay:
+      hours: 0
+      minutes: 0
+      seconds: 1
+      milliseconds: 0
+  - action: cover.close_cover
+    metadata: {}
+    target:
+      entity_id: cover.grata_greta
+    data: {}
+  alias: Chiudi motori zona notte
+  description: ''
+apri_motori_zona_notte:
+  sequence:
+  - action: cover.open_cover
+    metadata: {}
+    target:
+      entity_id: cover.tapparelle_zona_notte
+    data: {}
+  - delay:
+      hours: 0
+      minutes: 0
+      seconds: 1
+      milliseconds: 0
+  - action: cover.open_cover
+    metadata: {}
+    target:
+      entity_id: cover.grata_greta
+    data: {}
+  alias: Apri motori zona notte
+  description: ''
+stop_motori_zona_notte:
+  sequence:
+  - action: cover.stop_cover
+    metadata: {}
+    target:
+      entity_id:
+      - cover.tapparelle_zona_notte
+    data: {}
+  - delay:
+      hours: 0
+      minutes: 0
+      seconds: 1
+      milliseconds: 0
+  - action: cover.stop_cover
+    metadata: {}
+    target:
+      entity_id: cover.grata_greta
+    data: {}
+  alias: Stop motori zona notte
+  description: ''
+apri_tapparelle_camere_sequenziale:
+  sequence:
+  - action: cover.open_cover
+    metadata: {}
+    target:
+      entity_id: cover.tapparella_francesco
+    data: {}
+    continue_on_error: true
+  - delay:
+      hours: 0
+      minutes: 0
+      seconds: 1
+      milliseconds: 0
+  - action: cover.open_cover
+    metadata: {}
+    target:
+      entity_id: cover.tapparella_greta
+    data: {}
+    continue_on_error: true
+  - delay:
+      hours: 0
+      minutes: 0
+      seconds: 1
+      milliseconds: 0
+  - action: cover.open_cover
+    metadata: {}
+    target:
+      entity_id: cover.tapparella_camera_matrimoniale
+    data: {}
+    continue_on_error: true
+  alias: Apri tapparelle camere (sequenziale)
+  description: ''
+chiudi_tapparelle_camere_sequenziale:
+  sequence:
+  - action: cover.close_cover
+    metadata: {}
+    target:
+      entity_id: cover.tapparella_francesco
+    data: {}
+    continue_on_error: true
+  - delay:
+      hours: 0
+      minutes: 0
+      seconds: 1
+      milliseconds: 0
+  - action: cover.close_cover
+    metadata: {}
+    target:
+      entity_id: cover.tapparella_greta
+    data: {}
+    continue_on_error: true
+  - delay:
+      hours: 0
+      minutes: 0
+      seconds: 1
+      milliseconds: 0
+  - action: cover.close_cover
+    metadata: {}
+    target:
+      entity_id: cover.tapparella_camera_matrimoniale
+    data: {}
+    continue_on_error: true
+  alias: Chiudi tapparelle camere (sequenziale)
+  description: ''
+stop_tapparelle_camere_sequenziale:
+  sequence:
+  - action: cover.stop_cover
+    metadata: {}
+    target:
+      entity_id: cover.tapparella_francesco
+    data: {}
+    continue_on_error: true
+  - delay:
+      hours: 0
+      minutes: 0
+      seconds: 1
+      milliseconds: 0
+  - action: cover.stop_cover
+    metadata: {}
+    target:
+      entity_id: cover.tapparella_greta
+    data: {}
+    continue_on_error: true
+  - delay:
+      hours: 0
+      minutes: 0
+      seconds: 1
+      milliseconds: 0
+  - action: cover.stop_cover
+    metadata: {}
+    target:
+      entity_id: cover.tapparella_camera_matrimoniale
+    data: {}
+    continue_on_error: true
+  alias: Stop tapparelle camere (sequenziale)
+  description: ''
+pergotenda_esterna_up:
+  sequence:
+  - action: rest_command.pergotenda_esterna_up
+pergotenda_esterna_down:
+  sequence:
+  - action: rest_command.pergotenda_esterna_down
+pergotenda_esterna_stop:
+  sequence:
+  - action: rest_command.pergotenda_esterna_stop
+tapparella_letto_suite_up:
+  sequence:
+  - action: rest_command.tapparella_letto_suite_up
+tapparella_letto_suite_down:
+  sequence:
+  - action: rest_command.tapparella_letto_suite_down
+tapparella_letto_suite_stop:
+  sequence:
+  - action: rest_command.tapparella_letto_suite_stop
+tapparella_wc_suite_up:
+  sequence:
+  - action: rest_command.tapparella_wc_suite_up
+tapparella_wc_suite_down:
+  sequence:
+  - action: rest_command.tapparella_wc_suite_down
+tapparella_wc_suite_stop:
+  sequence:
+  - action: rest_command.tapparella_wc_suite_stop
+grata_fin_pranzo_suite_up:
+  sequence:
+  - action: rest_command.grata_fin_pranzo_suite_up
+grata_fin_pranzo_suite_down:
+  sequence:
+  - action: rest_command.grata_fin_pranzo_suite_down
+grata_fin_pranzo_suite_stop:
+  sequence:
+  - action: rest_command.grata_fin_pranzo_suite_stop
+grata_vasistas_suite_up:
+  sequence:
+  - action: rest_command.grata_vasistas_suite_up
+grata_vasistas_suite_down:
+  sequence:
+  - action: rest_command.grata_vasistas_suite_down
+grata_vasistas_suite_stop:
+  sequence:
+  - action: rest_command.grata_vasistas_suite_stop
+grata_scorr_pranzo_suite_up:
+  sequence:
+  - action: rest_command.grata_scorr_pranzo_suite_up
+grata_scorr_pranzo_suite_down:
+  sequence:
+  - action: rest_command.grata_scorr_pranzo_suite_down
+grata_scorr_pranzo_suite_stop:
+  sequence:
+  - action: rest_command.grata_scorr_pranzo_suite_stop
+tenda_fin_pranzo_suite_up:
+  sequence:
+  - action: rest_command.tenda_fin_pranzo_suite_up
+tenda_fin_pranzo_suite_down:
+  sequence:
+  - action: rest_command.tenda_fin_pranzo_suite_down
+tenda_fin_pranzo_suite_stop:
+  sequence:
+  - action: rest_command.tenda_fin_pranzo_suite_stop
+tenda_scorr_pranzo_suite_up:
+  sequence:
+  - action: rest_command.tenda_scorr_pranzo_suite_up
+tenda_scorr_pranzo_suite_down:
+  sequence:
+  - action: rest_command.tenda_scorr_pranzo_suite_down
+tenda_scorr_pranzo_suite_stop:
+  sequence:
+  - action: rest_command.tenda_scorr_pranzo_suite_stop
+tenda_vasistas_suite_up:
+  sequence:
+  - action: rest_command.tenda_vasistas_suite_up
+tenda_vasistas_suite_down:
+  sequence:
+  - action: rest_command.tenda_vasistas_suite_down
+tenda_vasistas_suite_stop:
+  sequence:
+  - action: rest_command.tenda_vasistas_suite_stop
+pergotenda_suite_up:
+  sequence:
+  - action: rest_command.pergotenda_suite_up
+pergotenda_suite_down:
+  sequence:
+  - action: rest_command.pergotenda_suite_down
+pergotenda_suite_stop:
+  sequence:
+  - action: rest_command.pergotenda_suite_stop
+buonanotte_script_ha:
+  sequence:
+  - alias: Attiva l'automazione "Buonanotte (HA)"
+    sequence:
+    - target:
+        entity_id: automation.buonanotte
+      data:
+        skip_condition: true
+      action: automation.trigger
+  alias: Buonanotte (Script HA)
+  description: ''
+sicurezza_aggiorna_snapshot_cam_blink:
+  sequence:
+  - action: blink.trigger_camera
+    metadata: {}
+    target:
+      entity_id:
+      - camera.pergotenda
+      - camera.sala
+      - camera.vista_terrazzo
+    data: {}
+  alias: Sicurezza - Aggiorna snapshot cam Blink
+  description: ''
+sicurezza_inserimento_modalita_notte_con_conferma:
+  use_blueprint:
+    path: homeassistant/confirmable_notification.yaml
+    input:
+      notify_device: 223ad8e9241b095ae718decff163037d
+      title: Inserimento allarme modalità notte
+      message: Questo è il body
+      confirm_action:
+      - action: alarm_control_panel.alarm_arm_home
+        metadata: {}
+        target:
+          entity_id: alarm_control_panel.risco_casetta_partition_1
+        data: {}
+  alias: Sicurezza - Inserimento modalità notte con conferma
+  description: ''
+notifications_version_2_0_2_beta:
+  alias: "\U0001F514 Notifications (Version 2.0.2 Beta)"
+  use_blueprint:
+    path: samuelthng/notifications.yaml
+    input:
+      notify_device: aab25fb27ed26b505a2dcf8e080d3586
+      title: Titolo di test
+      message: Confermi?
+      confirm_text: Conferma (Option 1)
+      confirm_action:
+      - action: light.toggle
+        metadata: {}
+        target:
+          entity_id: light.pendenti_salotto_kblue
+        data: {}
+      dismiss_text: Annulla (Option 2)
+      enable_timeout: true
+      timeout:
+        hours: 0
+        minutes: 5
+        seconds: 0
+      timeout_action:
+      - action: notify.send_message
+        metadata: {}
+        target:
+          entity_id: notify.iphone_di_filippo
+        data:
+          message: Azione non eseguita, nessuna risposta
+kblue_termostato_comando:
+  alias: KBlue - Comando termostato
+  description: 'Invia un comando a un termostato KBlue (setpoint manuale, auto, on,
+    off). Le chiamate sono accodate (mai due scritture in parallelo). La conferma
+    e'' fatta dallo script di shell, che dopo la scrittura rilegge il termostato direttamente
+    dal KBlue (max circa 6 secondi) e, se non vede il valore atteso, esce con codice
+    3: qui compare una notifica. Il sensore indicato in refresh viene aggiornato una
+    sola volta, subito dopo la scrittura.'
+  mode: queued
+  max: 30
+  fields:
+    ixogm:
+      description: ixogm del termostato (es. 0000008100000642)
+      example: 0000008100000642
+    azione:
+      description: temperatura (es. 21.5) oppure auto / on / off
+      example: '21.5'
+    ixv:
+      description: non piu' necessario, ignorato (ixm e ixv vengono letti dal KBlue
+        dallo script)
+      example: ''
+    refresh:
+      description: un sensore REST della risorsa termostati da aggiornare dopo la
+        scrittura
+      example: sensor.temperatura_salone_kblue
+    verifica:
+      description: non piu' usato (la conferma e' fatta dallo script di shell), accettato
+        per compatibilita' con i chiamanti
+      example: sensor.target_temperatura_salone_kblue
+    stato:
+      description: non piu' usato (la conferma e' fatta dallo script di shell), accettato
+        per compatibilita' con i chiamanti
+      example: sensor.stato_termostato_salone_kblue
+    manuale:
+      description: non piu' usato (la conferma e' fatta dallo script di shell), accettato
+        per compatibilita' con i chiamanti
+      example: sensor.modo_manuale_salone_kblue
+  sequence:
+  - action: shell_command.kblue_termostato
+    data:
+      ixogm: '{{ ixogm }}'
+      azione: '{{ azione }}'
+      ixv: '{{ ixv | default('''') }}'
+    response_variable: esito
+  - if:
+    - condition: template
+      value_template: '{{ refresh is defined }}'
+    then:
+    - action: homeassistant.update_entity
+      target:
+        entity_id: '{{ refresh }}'
+  - if:
+    - condition: template
+      value_template: '{{ esito.returncode != 0 }}'
+    then:
+    - action: persistent_notification.create
+      data:
+        title: '{{ ''KBlue - comando non confermato'' if esito.returncode == 3 else
+          ''KBlue - comando termostato fallito'' }}'
+        message: 'Termostato {{ ixogm }}, azione "{{ azione }}": {{ (esito.stderr
+          | default('''') | trim) or ''errore sconosciuto'' }} Risposta del KBlue:
+          {{ (esito.stdout | default('''') | string | trim)[:300] or ''nessuna'' }}'
+        notification_id: kblue_errore_comando
+    - stop: Comando KBlue non riuscito
+      error: true
+pausa_armo_automatico_2:
+  alias: Pausa armo automatico
+  mode: restart
+  fields:
+    ore:
+      name: Ore
+      description: Durata della pausa in ore
+      default: 3
+      selector:
+        number:
+          min: 0.5
+          max: 12
+          step: 0.5
+  sequence:
+  - action: automation.turn_off
+    target:
+      entity_id: automation.presence_attivazione_allarme_quando_nessuno_a_casa
+    data:
+      stop_actions: true
+  - action: timer.start
+    target:
+      entity_id: timer.pausa_armo_automatico
+    data:
+      duration: '{{ (ore | float(3) * 3600) | int }}'
+  - action: telegram_bot.send_message
+    data:
+      entity_id:
+      - notify.homeassistant_filippo_8511463273
+      message: ⏸️ Armo automatico in pausa fino alle {{ (now() + timedelta(hours=ore
+        | float(3))).strftime('%H:%M') }}
+  description: ''
+ripristina_armo_automatico:
+  alias: Ripristina armo automatico
+  mode: single
+  sequence:
+  - action: timer.cancel
+    target:
+      entity_id: timer.pausa_armo_automatico
+  - action: automation.turn_on
+    target:
+      entity_id: automation.presence_attivazione_allarme_quando_nessuno_a_casa
+    data: {}
+  - action: telegram_bot.send_message
+    data:
+      entity_id:
+      - notify.homeassistant_filippo_8511463273
+      message: ▶️ Armo automatico ripristinato
+  - if:
+    - condition: state
+      entity_id: input_boolean.presence
+      state: 'off'
+    - condition: state
+      entity_id: alarm_control_panel.risco_casetta_partition_1
+      state: disarmed
+    then:
+    - action: automation.trigger
+      target:
+        entity_id: automation.sicurezza_inserisci_allarme_quando_non_viene_rilevata_presenza_in_casa
+      data:
+        skip_condition: true
+  description: ''
+backup_config_ha:
+  alias: Backup configurazione Home Assistant
+  icon: mdi:content-save-cog
+  mode: single
+  sequence:
+  - action: shell_command.backup_config
+    response_variable: backup_result
+  - choose:
+    - conditions:
+      - condition: template
+        value_template: '{{ backup_result.returncode == 0 }}'
+      sequence:
+      - action: persistent_notification.create
+        data:
+          title: Backup configurazione completato
+          notification_id: backup_config
+          message: '{{ backup_result.stdout }}'
+    default:
+    - action: persistent_notification.create
+      data:
+        title: Backup configurazione FALLITO
+        notification_id: backup_config
+        message: 'Codice {{ backup_result.returncode }}: {{ backup_result.stdout }}
+          {{ backup_result.stderr }}'
+lavatrice_notifica_telegram_voce:
+  alias: Lavatrice - Notifica Telegram + voce
+  mode: queued
+  fields:
+    messaggio:
+      name: Messaggio
+      description: Testo per Telegram
+      required: true
+      selector:
+        text:
+          multiline: true
+    voce:
+      name: Voce
+      description: Testo da pronunciare sull'Echo Show
+      required: true
+      selector:
+        text:
+          multiline: true
+  sequence:
+  - action: telegram_bot.send_message
+    metadata: {}
+    data:
+      entity_id:
+      - notify.notifiche_ha_condivise
+      message: '{{ messaggio }}'
+  - if:
+    - condition: time
+      after: 08:00:00
+      before: '22:30:00'
+    then:
+    - action: notify.send_message
+      target:
+        entity_id: notify.echo_show_speak
+      data:
+        message: '{{ voce | trim }}'
+lavatrice_stato_a_voce:
+  alias: Lavatrice - Stato a voce
+  mode: single
+  sequence:
+  - variables:
+      in_corso: '{{ is_state(''binary_sensor.lavatrice_running'', ''on'') }}'
+      percentuale: '{{ states(''sensor.lavatrice_progress'') | float(0) | round(0)
+        | int }}'
+      minuti: '{{ states(''sensor.lavatrice_time_remaining'') | float(0) | round(0)
+        | int }}'
+      fine: '{{ (now() + timedelta(minutes=minuti)).strftime(''%H:%M'') }}'
+      programma: '{{ states(''sensor.lavatrice_program'') }}'
+      programma_noto: '{{ programma not in [''unknown'', ''unavailable'', ''none'',
+        ''''] }}'
+  - action: notify.send_message
+    target:
+      entity_id: notify.echo_show_speak
+    data:
+      message: "{% if in_corso %}\n  La lavatrice è al {{ percentuale }} per cento.\n
+        \ {% if programma_noto %}Sta eseguendo il programma {{ programma }}.{% endif
+        %}\n  {% if minuti > 0 %}Mancano circa {{ minuti }} minuti, la fine è prevista
+        alle {{ fine.replace(':', ' e ') }}.{% endif %}\n{% else %}\n  La lavatrice
+        non è in funzione.\n{% endif %}\n"
